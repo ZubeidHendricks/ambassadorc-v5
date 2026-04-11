@@ -412,10 +412,10 @@ function ConfigModal({ open, onClose, config, onSave }: ConfigModalProps) {
             className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs focus:border-[#128FAF] focus:outline-none focus:ring-1 focus:ring-[#128FAF]"
             style={{ WebkitTextSecurity: 'disc' } as React.CSSProperties}
             onFocus={(e) => {
-              ;(e.target.style as Record<string, string>).WebkitTextSecurity = 'none'
+              ;(e.target.style as any).WebkitTextSecurity = 'none'
             }}
             onBlur={(e) => {
-              ;(e.target.style as Record<string, string>).WebkitTextSecurity = 'disc'
+              ;(e.target.style as any).WebkitTextSecurity = 'disc'
             }}
           />
         </div>
