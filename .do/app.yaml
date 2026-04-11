@@ -1,0 +1,47 @@
+name: ambassadorc-v5
+region: lon
+
+services:
+  - name: backend
+    github:
+      repo: ZubeidHendricks/ambassadorc-v5
+      branch: main
+      deploy_on_push: true
+    source_dir: /backend
+    dockerfile_path: /backend/Dockerfile
+    http_port: 3001
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    routes:
+      - path: /api
+        preserve_path_prefix: true
+    envs:
+      - key: DATABASE_URL
+        value: "postgresql://doadmin:AVNS_OBCZjJATLVZy_1E3T_3@ambassadorc-db-do-user-35795027-0.j.db.ondigitalocean.com:25060/ambassadorc?sslmode=require"
+        type: SECRET
+      - key: JWT_SECRET
+        value: "ambassadorc-v5-jwt-secret-2026-prickly-pair"
+        type: SECRET
+      - key: NODE_ENV
+        value: production
+        type: GENERAL
+      - key: PORT
+        value: "3001"
+        type: GENERAL
+
+static_sites:
+  - name: frontend
+    github:
+      repo: ZubeidHendricks/ambassadorc-v5
+      branch: main
+      deploy_on_push: true
+    source_dir: /frontend
+    build_command: npm install && npm run build
+    output_dir: /dist
+    catchall_document: index.html
+    routes:
+      - path: /
+    envs:
+      - key: VITE_API_URL
+        value: "${backend.PUBLIC_URL}"
+        type: GENERAL
