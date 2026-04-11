@@ -312,7 +312,7 @@ export async function seedWorkflowTemplates(): Promise<void> {
             order: step.order,
             name: step.name,
             actionType: step.actionType,
-            config: step.config,
+            config: step.config as any,
           })),
         },
       },

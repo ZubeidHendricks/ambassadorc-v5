@@ -124,7 +124,7 @@ class WorkflowEngine {
           data: {
             status: "COMPLETED",
             completedAt: new Date(),
-            result: result.data ?? null,
+            result: (result.data ?? null) as any,
           },
         });
 
@@ -132,7 +132,7 @@ class WorkflowEngine {
           where: { id: instanceId },
           data: {
             currentStep: nextStepInstance.step.order + 1,
-            context: updatedContext,
+            context: updatedContext as any,
           },
         });
 
@@ -211,7 +211,7 @@ class WorkflowEngine {
         entityId,
         status: "ACTIVE",
         currentStep: 0,
-        context: context ?? {},
+        context: (context ?? {}) as any,
         steps: {
           create: workflow.steps.map((step) => ({
             stepId: step.id,
