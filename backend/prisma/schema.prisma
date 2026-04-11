@@ -1,0 +1,858 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Existing Enums ─────────────────────────────────────────────────────────
+
+enum Province {
+  EASTERN_CAPE
+  FREE_STATE
+  GAUTENG
+  KWAZULU_NATAL
+  LIMPOPO
+  MPUMALANGA
+  NORTH_WEST
+  NORTHERN_CAPE
+  WESTERN_CAPE
+}
+
+enum ReferralStatus {
+  PENDING
+  CONTACTED
+  CONVERTED
+  INVALID
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  PAID
+  CLOSED
+}
+
+enum NumberChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ─── New Enums: Roles & Products ────────────────────────────────────────────
+
+enum AmbassadorRole {
+  AMBASSADOR
+  AGENT
+  ADMIN
+  QA_OFFICER
+}
+
+enum ProductType {
+  LIFE_COVER
+  LEGAL
+  SOS
+  FIVE_IN_ONE
+  SHORT_TERM
+  CONSULT
+}
+
+// ─── New Enums: Policy & Sales ──────────────────────────────────────────────
+
+enum PolicyStatus {
+  ACTIVE
+  LAPSED
+  CANCELLED
+  PENDING
+}
+
+enum SaleStatus {
+  NEW
+  QA_PENDING
+  QA_APPROVED
+  QA_REJECTED
+  ACTIVE
+  CANCELLED
+}
+
+// ─── New Enums: Payments ────────────────────────────────────────────────────
+
+enum DebitOrderStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESSFUL
+  FAILED
+  REVERSED
+}
+
+enum PaymentGateway {
+  SAGEPAY
+  NETCASH
+  MANUAL
+}
+
+// ─── New Enums: Documents & Communications ──────────────────────────────────
+
+enum WelcomePackType {
+  HTML
+  PDF
+}
+
+enum WelcomePackStatus {
+  SENT
+  VIEWED
+  SIGNED
+}
+
+enum SmsStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum SmsType {
+  WELCOME
+  QA_VERIFY
+  PREMIUM_INCREASE
+  CALLBACK
+  AMBASSADOR
+  AGENT_CAPTURE
+}
+
+enum CallbackStatus {
+  PENDING
+  COMPLETED
+}
+
+// ─── New Enums: QA & Commissions ────────────────────────────────────────────
+
+enum QualityCheckStatus {
+  PENDING
+  PASSED
+  FAILED
+  ESCALATED
+}
+
+enum PremiumChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+// ─── Existing Models (preserved) ────────────────────────────────────────────
+
+model Ambassador {
+  id           Int             @id @default(autoincrement())
+  firstName    String          @db.VarChar(100)
+  lastName     String          @db.VarChar(100)
+  mobileNo     String          @unique @db.VarChar(15)
+  passwordHash String          @db.VarChar(255)
+  email        String?         @db.VarChar(255)
+  province     Province
+  department   String          @db.VarChar(100)
+  shopSteward  String?         @db.VarChar(100)
+  union        String?         @db.VarChar(100)
+  town         String?         @db.VarChar(100)
+  location     String?         @db.VarChar(255)
+  acceptTerms  Boolean         @default(false)
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  // New fields for multi-role support (Agent, Admin, QA Officer)
+  role         AmbassadorRole  @default(AMBASSADOR)
+  tier         String?         @db.VarChar(50)
+  uniqueCode   String?         @unique @db.VarChar(50)
+  assignedCampaignId Int?
+
+  // Existing relations
+  referralBatches      ReferralBatch[]
+  referrals            Referral[]
+  leads                Lead[]
+  numberChangeRequests NumberChangeRequest[]
+
+  // New relations
+  assignedCampaign     SalesCampaign?   @relation(fields: [assignedCampaignId], references: [id], onDelete: SetNull)
+  sales                Sale[]           @relation("AgentSales")
+  qualityChecks        QualityCheck[]   @relation("CheckerQualityChecks")
+  commissions          Commission[]
+
+  @@index([mobileNo])
+  @@index([province])
+  @@index([isActive])
+  @@index([role])
+  @@index([uniqueCode])
+  @@index([assignedCampaignId])
+  @@map("ambassadors")
+}
+
+model ReferralBatch {
+  id           Int      @id @default(autoincrement())
+  ambassadorId Int
+  batchName    String   @db.VarChar(255)
+  createdAt    DateTime @default(now())
+
+  ambassador Ambassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  referrals  Referral[]
+
+  @@index([ambassadorId])
+  @@map("referral_batches")
+}
+
+model Referral {
+  id           Int            @id @default(autoincrement())
+  batchId      Int
+  ambassadorId Int
+  refName      String         @db.VarChar(200)
+  refContactNo String         @db.VarChar(15)
+  status       ReferralStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+
+  batch      ReferralBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  ambassador Ambassador    @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([ambassadorId])
+  @@index([status])
+  @@index([refContactNo])
+  @@map("referrals")
+}
+
+model Lead {
+  id               Int        @id @default(autoincrement())
+  ambassadorId     Int
+  firstName        String     @db.VarChar(100)
+  lastName         String     @db.VarChar(100)
+  contactNo        String     @db.VarChar(15)
+  preferredContact String?    @db.VarChar(50)
+  status           LeadStatus @default(NEW)
+  datePaid         DateTime?
+  createdAt        DateTime   @default(now())
+
+  ambassador Ambassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+
+  @@index([ambassadorId])
+  @@index([status])
+  @@index([contactNo])
+  @@map("leads")
+}
+
+model NumberChangeRequest {
+  id           Int                @id @default(autoincrement())
+  ambassadorId Int
+  oldNumber    String             @db.VarChar(15)
+  newNumber    String             @db.VarChar(15)
+  status       NumberChangeStatus @default(PENDING)
+  createdAt    DateTime           @default(now())
+
+  ambassador Ambassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+
+  @@index([ambassadorId])
+  @@index([status])
+  @@map("number_change_requests")
+}
+
+// ─── New Models: Clients ────────────────────────────────────────────────────
+
+model Client {
+  id          Int       @id @default(autoincrement())
+  title       String?   @db.VarChar(10)
+  firstName   String    @db.VarChar(100)
+  lastName    String    @db.VarChar(100)
+  idNumber    String    @db.VarChar(20)
+  cellphone   String    @db.VarChar(15)
+  email       String?   @db.VarChar(255)
+  address1    String?   @db.VarChar(255)
+  address2    String?   @db.VarChar(255)
+  address3    String?   @db.VarChar(255)
+  addressCode String?   @db.VarChar(10)
+  province    Province?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  policies         Policy[]
+  sales            Sale[]
+  debitOrders      DebitOrder[]
+  payments         Payment[]
+  welcomePacks     WelcomePack[]
+  documentViews    DocumentView[]
+  eSignatures      ESignature[]
+  callbackRequests CallbackRequest[]
+
+  @@unique([idNumber])
+  @@index([cellphone])
+  @@index([lastName, firstName])
+  @@index([idNumber])
+  @@map("clients")
+}
+
+// ─── New Models: Products & Policies ────────────────────────────────────────
+
+model Product {
+  id            Int         @id @default(autoincrement())
+  name          String      @db.VarChar(200)
+  code          String      @unique @db.VarChar(50)
+  type          ProductType
+  premiumAmount Decimal     @db.Decimal(10, 2)
+  description   String?     @db.Text
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+
+  premiumTiers PremiumTier[]
+  policies     Policy[]
+  sales        Sale[]
+
+  @@index([type])
+  @@index([isActive])
+  @@index([code])
+  @@map("products")
+}
+
+model PremiumTier {
+  id            Int      @id @default(autoincrement())
+  productId     Int
+  tierName      String   @db.VarChar(100)
+  amount        Decimal  @db.Decimal(10, 2)
+  isActive      Boolean  @default(true)
+  effectiveDate DateTime
+  createdAt     DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([isActive])
+  @@index([effectiveDate])
+  @@map("premium_tiers")
+}
+
+model Policy {
+  id            Int          @id @default(autoincrement())
+  clientId      Int
+  productId     Int
+  policyNumber  String       @unique @db.VarChar(50)
+  status        PolicyStatus @default(PENDING)
+  premiumAmount Decimal      @db.Decimal(10, 2)
+  startDate     DateTime
+  endDate       DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  client   Client  @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  product  Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  debitOrders    DebitOrder[]
+  payments       Payment[]
+  welcomePacks   WelcomePack[]
+  premiumChanges PremiumChange[]
+
+  @@index([clientId])
+  @@index([productId])
+  @@index([policyNumber])
+  @@index([status])
+  @@index([startDate])
+  @@map("policies")
+}
+
+// ─── New Models: Sales & Pipeline ───────────────────────────────────────────
+
+model Sale {
+  id         Int        @id @default(autoincrement())
+  clientId   Int
+  productId  Int
+  agentId    Int
+  status     SaleStatus @default(NEW)
+  source     String?    @db.VarChar(100)
+  capturedBy String?    @db.VarChar(200)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  client  Client     @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  product Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  agent   Ambassador @relation("AgentSales", fields: [agentId], references: [id], onDelete: Restrict)
+
+  qualityChecks QualityCheck[]
+  commissions   Commission[]
+
+  @@index([clientId])
+  @@index([productId])
+  @@index([agentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("sales")
+}
+
+model SalesCampaign {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(200)
+  description String?   @db.Text
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  assignedAmbassadors Ambassador[]
+
+  @@index([isActive])
+  @@index([startDate, endDate])
+  @@map("sales_campaigns")
+}
+
+// ─── New Models: Payments ───────────────────────────────────────────────────
+
+model DebitOrder {
+  id            Int              @id @default(autoincrement())
+  clientId      Int
+  policyId      Int
+  bankName      String           @db.VarChar(100)
+  accountNumber String           @db.VarChar(50)
+  branchCode    String           @db.VarChar(20)
+  accountType   String           @db.VarChar(30)
+  amount        Decimal          @db.Decimal(10, 2)
+  status        DebitOrderStatus @default(ACTIVE)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@index([policyId])
+  @@index([status])
+  @@map("debit_orders")
+}
+
+model Payment {
+  id          Int            @id @default(autoincrement())
+  policyId    Int
+  clientId    Int
+  amount      Decimal        @db.Decimal(10, 2)
+  paymentDate DateTime
+  status      PaymentStatus  @default(PENDING)
+  reference   String?        @db.VarChar(100)
+  gateway     PaymentGateway
+  createdAt   DateTime       @default(now())
+
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([policyId])
+  @@index([clientId])
+  @@index([status])
+  @@index([paymentDate])
+  @@index([reference])
+  @@map("payments")
+}
+
+// ─── New Models: Documents & Welcome Packs ──────────────────────────────────
+
+model WelcomePack {
+  id           Int               @id @default(autoincrement())
+  clientId     Int
+  policyId     Int
+  type         WelcomePackType
+  templateName String            @db.VarChar(200)
+  status       WelcomePackStatus @default(SENT)
+  sentAt       DateTime?
+  viewedAt     DateTime?
+  signedAt     DateTime?
+  createdAt    DateTime          @default(now())
+
+  client  Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  policy  Policy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+
+  documentViews DocumentView[]
+  eSignatures   ESignature[]
+
+  @@index([clientId])
+  @@index([policyId])
+  @@index([status])
+  @@index([sentAt])
+  @@map("welcome_packs")
+}
+
+model DocumentView {
+  id            Int      @id @default(autoincrement())
+  welcomePackId Int
+  clientId      Int
+  ipAddress     String   @db.VarChar(45)
+  viewedAt      DateTime @default(now())
+
+  welcomePack WelcomePack @relation(fields: [welcomePackId], references: [id], onDelete: Cascade)
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([welcomePackId])
+  @@index([clientId])
+  @@index([viewedAt])
+  @@map("document_views")
+}
+
+model ESignature {
+  id            Int      @id @default(autoincrement())
+  welcomePackId Int
+  clientId      Int
+  ipAddress     String   @db.VarChar(45)
+  signedAt      DateTime @default(now())
+
+  welcomePack WelcomePack @relation(fields: [welcomePackId], references: [id], onDelete: Cascade)
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([welcomePackId])
+  @@index([clientId])
+  @@index([signedAt])
+  @@map("e_signatures")
+}
+
+// ─── New Models: Communications ─────────────────────────────────────────────
+
+model SmsMessage {
+  id              Int       @id @default(autoincrement())
+  recipientNumber String    @db.VarChar(15)
+  messageBody     String    @db.Text
+  status          SmsStatus @default(QUEUED)
+  type            SmsType
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([recipientNumber])
+  @@index([status])
+  @@index([type])
+  @@index([sentAt])
+  @@map("sms_messages")
+}
+
+model CallbackRequest {
+  id          Int            @id @default(autoincrement())
+  clientId    Int
+  requestedBy String         @db.VarChar(200)
+  staffEmail  String?        @db.VarChar(255)
+  status      CallbackStatus @default(PENDING)
+  notes       String?        @db.Text
+  createdAt   DateTime       @default(now())
+  completedAt DateTime?
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("callback_requests")
+}
+
+// ─── New Models: Quality Assurance ──────────────────────────────────────────
+
+model QualityCheck {
+  id        Int                @id @default(autoincrement())
+  saleId    Int
+  checkerId Int
+  status    QualityCheckStatus @default(PENDING)
+  notes     String?            @db.Text
+  checkedAt DateTime?
+  createdAt DateTime           @default(now())
+
+  sale    Sale       @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  checker Ambassador @relation("CheckerQualityChecks", fields: [checkerId], references: [id], onDelete: Restrict)
+
+  @@index([saleId])
+  @@index([checkerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("quality_checks")
+}
+
+// ─── New Models: Premium Management ─────────────────────────────────────────
+
+model PremiumChange {
+  id            Int                 @id @default(autoincrement())
+  policyId      Int
+  oldAmount     Decimal             @db.Decimal(10, 2)
+  newAmount     Decimal             @db.Decimal(10, 2)
+  reason        String?             @db.Text
+  effectiveDate DateTime
+  approvedBy    String?             @db.VarChar(200)
+  status        PremiumChangeStatus @default(PENDING)
+  createdAt     DateTime            @default(now())
+
+  policy Policy @relation(fields: [policyId], references: [id], onDelete: Restrict)
+
+  @@index([policyId])
+  @@index([status])
+  @@index([effectiveDate])
+  @@map("premium_changes")
+}
+
+// ─── New Models: Commissions ────────────────────────────────────────────────
+
+model Commission {
+  id           Int              @id @default(autoincrement())
+  ambassadorId Int
+  saleId       Int
+  amount       Decimal          @db.Decimal(10, 2)
+  status       CommissionStatus @default(PENDING)
+  paidAt       DateTime?
+  createdAt    DateTime         @default(now())
+
+  ambassador Ambassador @relation(fields: [ambassadorId], references: [id], onDelete: Restrict)
+  sale       Sale       @relation(fields: [saleId], references: [id], onDelete: Restrict)
+
+  @@index([ambassadorId])
+  @@index([saleId])
+  @@index([status])
+  @@index([paidAt])
+  @@map("commissions")
+}
+
+// ─── New Models: Audit ──────────────────────────────────────────────────────
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    String?  @db.VarChar(100)
+  action    String   @db.VarChar(100)
+  entity    String   @db.VarChar(100)
+  entityId  String   @db.VarChar(100)
+  details   Json?
+  ipAddress String?  @db.VarChar(45)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Workflow Engine ──────────────────────────────────────────────────────────
+
+enum WorkflowStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum WorkflowStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+enum WorkflowTrigger {
+  MANUAL
+  ON_REGISTRATION
+  ON_SALE_CREATED
+  ON_QA_APPROVED
+  ON_POLICY_ACTIVATED
+  ON_PAYMENT_FAILED
+  ON_PREMIUM_CHANGE
+  SCHEDULED
+}
+
+model Workflow {
+  id          Int              @id @default(autoincrement())
+  name        String
+  description String?
+  trigger     WorkflowTrigger
+  isActive    Boolean          @default(true)
+  steps       WorkflowStep[]
+  instances   WorkflowInstance[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@map("workflows")
+}
+
+model WorkflowStep {
+  id          Int              @id @default(autoincrement())
+  workflowId  Int
+  workflow    Workflow          @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  order       Int
+  name        String
+  actionType  String           // SEND_SMS, SEND_EMAIL, RUN_AGENT, UPDATE_STATUS, WAIT, APPROVAL, WEBHOOK
+  config      Json             // action-specific config (template, recipient, delay, etc.)
+  instances   WorkflowStepInstance[]
+  createdAt   DateTime         @default(now())
+
+  @@index([workflowId])
+  @@map("workflow_steps")
+}
+
+model WorkflowInstance {
+  id          Int              @id @default(autoincrement())
+  workflowId  Int
+  workflow    Workflow          @relation(fields: [workflowId], references: [id])
+  entityType  String           // Client, Sale, Policy, Ambassador
+  entityId    Int
+  status      WorkflowStatus   @default(ACTIVE)
+  currentStep Int              @default(0)
+  context     Json?            // runtime data passed between steps
+  steps       WorkflowStepInstance[]
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+  error       String?
+
+  @@index([workflowId])
+  @@index([status])
+  @@index([entityType, entityId])
+  @@map("workflow_instances")
+}
+
+model WorkflowStepInstance {
+  id          Int                @id @default(autoincrement())
+  instanceId  Int
+  instance    WorkflowInstance   @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  stepId      Int
+  step        WorkflowStep       @relation(fields: [stepId], references: [id])
+  status      WorkflowStepStatus @default(PENDING)
+  result      Json?
+  startedAt   DateTime?
+  completedAt DateTime?
+  error       String?
+
+  @@index([instanceId])
+  @@index([stepId])
+  @@map("workflow_step_instances")
+}
+
+// ── Integration Models ──────────────────────────────────────────────────────
+
+enum IntegrationStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+enum BatchStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model IntegrationConfig {
+  id          Int               @id @default(autoincrement())
+  name        String            @unique // QLINK, SAGEPAY, NETCASH, SMS_PORTAL, VICIDIALER, GUARDRISK, WATI
+  displayName String
+  baseUrl     String
+  credentials Json              // encrypted in production
+  settings    Json?
+  status      IntegrationStatus @default(ACTIVE)
+  lastSyncAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("integration_configs")
+}
+
+model QLinkBatch {
+  id          Int         @id @default(autoincrement())
+  batchId     String      @unique
+  product     String
+  description String?
+  recordCount Int
+  status      BatchStatus @default(PENDING)
+  result      Json?
+  createdAt   DateTime    @default(now())
+  processedAt DateTime?
+
+  @@index([status])
+  @@map("qlink_batches")
+}
+
+model SagePayTransaction {
+  id              Int      @id @default(autoincrement())
+  policyId        Int?
+  clientId        Int?
+  transactionRef  String?
+  amount          Decimal  @db.Decimal(10, 2)
+  status          String
+  gateway         String   @default("SAGEPAY")
+  responseCode    String?
+  responseMessage String?
+  batchRef        String?
+  createdAt       DateTime @default(now())
+
+  @@index([policyId])
+  @@index([clientId])
+  @@index([status])
+  @@map("sagepay_transactions")
+}
+
+model SmsBatch {
+  id          Int         @id @default(autoincrement())
+  name        String
+  template    String
+  totalCount  Int
+  sentCount   Int         @default(0)
+  failedCount Int         @default(0)
+  status      BatchStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  completedAt DateTime?
+
+  @@map("sms_batches")
+}
+
+model FileExport {
+  id          Int         @id @default(autoincrement())
+  fileName    String
+  filePath    String?
+  direction   String      // INBOUND, OUTBOUND
+  entryCount  Int         @default(0)
+  description String?
+  importType  String?     // QLINK, SAGEPAY, GUARDRISK, PREMIUM_UPDATE
+  status      BatchStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  processedAt DateTime?
+
+  @@index([importType])
+  @@index([status])
+  @@map("file_exports")
+}
+
+model PremiumUpdate {
+  id           Int      @id @default(autoincrement())
+  policyId     Int?
+  clientId     Int?
+  memberId     String?
+  updateType   String   // QUPD, MANUAL
+  oldPremium   Decimal  @db.Decimal(10, 2)
+  newPremium   Decimal  @db.Decimal(10, 2)
+  qlinkResult  String?
+  errorCode    String?
+  smsStatus    String?
+  createdAt    DateTime @default(now())
+
+  @@index([policyId])
+  @@map("premium_updates")
+}
+
+model WelcomePackLog {
+  id              Int       @id @default(autoincrement())
+  clientId        Int?
+  policyId        Int?
+  batchId         String?
+  productEndpoint String?
+  mobileNumber    String?
+  status          String    @default("QUEUED")
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([clientId])
+  @@map("welcome_pack_logs")
+}
