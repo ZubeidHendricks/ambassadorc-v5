@@ -10,6 +10,7 @@ import ReferralHistory from '@/pages/ReferralHistory'
 import SubmitLead from '@/pages/SubmitLead'
 import LeadHistory from '@/pages/LeadHistory'
 import Profile from '@/pages/Profile'
+import Leaderboard from '@/pages/Leaderboard'
 
 // Admin pages
 import AdminDashboard from '@/pages/admin/AdminDashboard'
@@ -85,6 +86,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/leaderboard"
+          element={
+            <ProtectedRoute>
+              <Leaderboard />
             </ProtectedRoute>
           }
         />

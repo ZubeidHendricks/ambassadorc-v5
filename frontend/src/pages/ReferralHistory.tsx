@@ -51,7 +51,7 @@ export default function ReferralHistory() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-green border-t-transparent" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     )
   }
@@ -130,7 +130,7 @@ export default function ReferralHistory() {
                   <CardContent className="border-t border-gray-100 pt-4">
                     {loadingDetail ? (
                       <div className="flex justify-center py-4">
-                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-brand-green border-t-transparent" />
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                       </div>
                     ) : batch.referrals ? (
                       <div className="overflow-x-auto">

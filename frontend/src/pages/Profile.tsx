@@ -122,7 +122,7 @@ export default function Profile() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-teal text-white text-lg font-bold">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-light text-white text-lg font-bold">
                   {user.firstName[0]}
                   {user.lastName[0]}
                 </div>

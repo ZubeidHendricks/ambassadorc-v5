@@ -12,27 +12,12 @@ import {
   type SmsRecord,
 } from '@/lib/api'
 
-const demoHistory: SmsRecord[] = [
-  { id: 1, recipient: '0821234567', recipientName: 'John Doe', template: 'Welcome', message: 'Welcome to Lifesaver Insurance!', status: 'delivered', sentAt: '2025-04-11T09:00:00' },
-  { id: 2, recipient: '0839876543', recipientName: 'Maria Santos', template: 'QA Verify', message: 'Please confirm your policy details by calling 0800 123 456.', status: 'delivered', sentAt: '2025-04-11T08:30:00' },
-  { id: 3, recipient: '0711112222', recipientName: 'Sipho Ndlovu', template: 'Premium Reminder', message: 'Your premium of R350 is due on 2025-04-15.', status: 'pending', sentAt: '2025-04-11T07:00:00' },
-  { id: 4, recipient: '0825555555', recipientName: 'Nomsa Dlamini', message: 'Your policy POL-1238 has been activated.', status: 'delivered', sentAt: '2025-04-10T16:00:00' },
-  { id: 5, recipient: '0826666666', template: 'Payment Failed', message: 'Your debit order for R120 was unsuccessful. Please contact us.', status: 'failed', sentAt: '2025-04-10T14:00:00' },
-]
-
-const demoTemplates = [
-  { id: 'welcome', name: 'Welcome', body: 'Welcome to Lifesaver Insurance, {name}! Your policy {policyNumber} is now active.' },
-  { id: 'qa_verify', name: 'QA Verify', body: 'Hi {name}, please confirm your policy details by calling 0800 123 456.' },
-  { id: 'premium_reminder', name: 'Premium Reminder', body: 'Hi {name}, your premium of R{amount} is due on {date}.' },
-  { id: 'payment_failed', name: 'Payment Failed', body: 'Hi {name}, your debit order for R{amount} was unsuccessful. Please contact us.' },
-]
-
 const tabTriggerClass =
-  'px-4 py-2.5 text-sm font-medium text-gray-500 data-[state=active]:text-[#128FAF] data-[state=active]:border-b-2 data-[state=active]:border-[#128FAF] hover:text-gray-700 transition-colors'
+  'px-4 py-2.5 text-sm font-medium text-gray-500 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-gray-700 transition-colors'
 
 export default function SmsCenter() {
-  const [history, setHistory] = useState<SmsRecord[]>(demoHistory)
-  const [templates, setTemplates] = useState(demoTemplates)
+  const [history, setHistory] = useState<SmsRecord[]>([])
+  const [templates, setTemplates] = useState<{ id: string; name: string; body: string }[]>([])
 
   // Single SMS state
   const [recipient, setRecipient] = useState('')
@@ -191,7 +176,7 @@ export default function SmsCenter() {
                   value={recipient}
                   onChange={(e) => setRecipient(e.target.value)}
                   placeholder="0821234567"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
               <div>
@@ -201,7 +186,7 @@ export default function SmsCenter() {
                 <select
                   value={templateId}
                   onChange={(e) => handleTemplateSelect(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="">Custom message</option>
                   {templates.map((t) => (
@@ -220,7 +205,7 @@ export default function SmsCenter() {
                   rows={4}
                   maxLength={160}
                   placeholder="Type your message..."
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <p className="mt-1 text-right text-xs text-gray-400">
                   {message.length}/160
@@ -248,7 +233,7 @@ export default function SmsCenter() {
                   onChange={(e) => setBulkRecipients(e.target.value)}
                   rows={5}
                   placeholder="0821234567&#10;0839876543&#10;0711112222"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-mono focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-mono focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <p className="mt-1 text-xs text-gray-400">
                   {recipientCount} recipient{recipientCount !== 1 ? 's' : ''}
@@ -261,7 +246,7 @@ export default function SmsCenter() {
                 <select
                   value={bulkTemplateId}
                   onChange={(e) => handleTemplateSelect(e.target.value, true)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="">Custom message</option>
                   {templates.map((t) => (
@@ -280,7 +265,7 @@ export default function SmsCenter() {
                   rows={4}
                   maxLength={160}
                   placeholder="Type your message..."
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <p className="mt-1 text-right text-xs text-gray-400">
                   {bulkMessage.length}/160

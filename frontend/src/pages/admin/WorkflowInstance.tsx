@@ -36,7 +36,7 @@ import { cn } from '@/lib/utils'
 const actionIcons: Record<string, { icon: typeof MessageSquare; color: string; bg: string }> = {
   SEND_SMS: { icon: MessageSquare, color: 'text-blue-600', bg: 'bg-blue-50' },
   SEND_EMAIL: { icon: Mail, color: 'text-purple-600', bg: 'bg-purple-50' },
-  RUN_AGENT: { icon: Bot, color: 'text-[#128FAF]', bg: 'bg-[#128FAF]/10' },
+  RUN_AGENT: { icon: Bot, color: 'text-primary', bg: 'bg-primary/10' },
   UPDATE_STATUS: { icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   WAIT: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
   APPROVAL: { icon: ShieldCheck, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -215,7 +215,7 @@ export default function WorkflowInstance() {
     return (
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-center py-24">
-          <RefreshCw className="h-8 w-8 animate-spin text-[#128FAF]" />
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
         </div>
       </div>
     )

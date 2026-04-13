@@ -3,19 +3,11 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { getPolicies, updatePolicyStatus, type Policy } from '@/lib/api'
 
-const demoPolicies: Policy[] = [
-  { id: 1, policyNumber: 'POL-1234', clientId: 1, clientName: 'John Doe', productId: 1, productName: 'Family Cover', premiumAmount: 350, status: 'active', startDate: '2024-11-15', agentName: 'Sarah Mbeki', createdAt: '2024-11-15' },
-  { id: 2, policyNumber: 'POL-1235', clientId: 1, clientName: 'John Doe', productId: 2, productName: 'Funeral Plan', premiumAmount: 150, status: 'active', startDate: '2025-01-10', agentName: 'Sarah Mbeki', createdAt: '2025-01-10' },
-  { id: 3, policyNumber: 'POL-1236', clientId: 2, clientName: 'Maria Santos', productId: 1, productName: 'Family Cover', premiumAmount: 250, status: 'pending', startDate: '2025-03-01', agentName: 'James Nkosi', createdAt: '2025-03-01' },
-  { id: 4, policyNumber: 'POL-1237', clientId: 3, clientName: 'Sipho Ndlovu', productId: 3, productName: 'Accident Cover', premiumAmount: 120, status: 'cancelled', startDate: '2024-09-01', endDate: '2025-02-01', agentName: 'Thandi Zulu', createdAt: '2024-09-01' },
-  { id: 5, policyNumber: 'POL-1238', clientId: 4, clientName: 'Nomsa Dlamini', productId: 2, productName: 'Funeral Plan', premiumAmount: 80, status: 'lapsed', startDate: '2024-08-01', agentName: 'David Moyo', createdAt: '2024-08-01' },
-]
-
 const statusFilters = ['', 'active', 'pending', 'qa_pending', 'cancelled', 'lapsed']
 const statusOptions = ['active', 'pending', 'qa_pending', 'cancelled', 'lapsed', 'suspended']
 
 export default function Policies() {
-  const [policies, setPolicies] = useState<Policy[]>(demoPolicies)
+  const [policies, setPolicies] = useState<Policy[]>([])
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
 
@@ -71,7 +63,7 @@ export default function Policies() {
           value={r.status}
           onChange={(e) => handleStatusChange(r.id, e.target.value)}
           onClick={(e) => e.stopPropagation()}
-          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-[#128FAF] focus:outline-none focus:ring-1 focus:ring-[#128FAF]/20"
+          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
         >
           {statusOptions.map((s) => (
             <option key={s} value={s}>
@@ -104,7 +96,7 @@ export default function Policies() {
               onClick={() => setStatusFilter(s)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 statusFilter === s
-                  ? 'bg-[#128FAF] text-white'
+                  ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -117,7 +109,7 @@ export default function Policies() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search policies..."
-          className="w-full max-w-xs rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+          className="w-full max-w-xs rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm shadow-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
       </div>
 

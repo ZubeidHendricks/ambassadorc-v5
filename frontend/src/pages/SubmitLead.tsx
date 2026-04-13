@@ -99,7 +99,7 @@ export default function SubmitLead() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-brand-teal" />
+            <UserPlus className="h-5 w-5 text-primary-light" />
             Submit a Lead
           </CardTitle>
           <CardDescription>

@@ -16,7 +16,7 @@ const SelectTrigger = forwardRef<
     className={cn(
       'flex h-10 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm',
       'placeholder:text-gray-400',
-      'focus:border-brand-teal focus:outline-none focus:ring-2 focus:ring-brand-teal/20',
+      'focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
       'disabled:cursor-not-allowed disabled:opacity-50',
       '[&>span]:line-clamp-1',
       className
@@ -72,7 +72,7 @@ const SelectItem = forwardRef<
     ref={ref}
     className={cn(
       'relative flex w-full cursor-pointer select-none items-center rounded-md py-2 pl-8 pr-2 text-sm outline-none',
-      'focus:bg-brand-green/10 focus:text-brand-green-dark',
+      'focus:bg-primary/10 focus:text-primary-dark',
       'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className
     )}
@@ -80,7 +80,7 @@ const SelectItem = forwardRef<
   >
     <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="h-4 w-4 text-brand-green" />
+        <Check className="h-4 w-4 text-primary" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

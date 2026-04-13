@@ -63,16 +63,16 @@ const integrationMeta: IntegrationMeta[] = [
     name: 'QLink',
     description: 'Government payroll deductions for public sector employees',
     icon: Building2,
-    color: 'text-[#128FAF]',
-    bgColor: 'bg-[#128FAF]/10',
+    color: 'text-primary',
+    bgColor: 'bg-primary/10',
   },
   {
     key: 'sagepay',
     name: 'SagePay',
     description: 'Debit order processing and transaction management',
     icon: CreditCard,
-    color: 'text-[#96ca4f]',
-    bgColor: 'bg-[#96ca4f]/10',
+    color: 'text-primary-light',
+    bgColor: 'bg-primary-light/10',
   },
   {
     key: 'netcash',
@@ -396,7 +396,7 @@ function ConfigModal({ open, onClose, config, onSave }: ConfigModalProps) {
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
             placeholder="https://api.example.com/v1"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-1 focus:ring-[#128FAF]"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 
@@ -409,7 +409,7 @@ function ConfigModal({ open, onClose, config, onSave }: ConfigModalProps) {
             value={credentials}
             onChange={(e) => setCredentials(e.target.value)}
             rows={4}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs focus:border-[#128FAF] focus:outline-none focus:ring-1 focus:ring-[#128FAF]"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             style={{ WebkitTextSecurity: 'disc' } as React.CSSProperties}
             onFocus={(e) => {
               ;(e.target.style as any).WebkitTextSecurity = 'none'
@@ -429,7 +429,7 @@ function ConfigModal({ open, onClose, config, onSave }: ConfigModalProps) {
             value={settings}
             onChange={(e) => setSettings(e.target.value)}
             rows={4}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs focus:border-[#128FAF] focus:outline-none focus:ring-1 focus:ring-[#128FAF]"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
 
@@ -446,7 +446,7 @@ function ConfigModal({ open, onClose, config, onSave }: ConfigModalProps) {
             onClick={() => setIsActive(!isActive)}
             className={cn(
               'relative h-6 w-11 rounded-full transition-colors',
-              isActive ? 'bg-[#96ca4f]' : 'bg-gray-300'
+              isActive ? 'bg-primary-light' : 'bg-gray-300'
             )}
           >
             <span
@@ -722,7 +722,7 @@ export default function Integrations() {
   if (loading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#128FAF]" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -769,8 +769,8 @@ export default function Integrations() {
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#128FAF]/10">
-              <Plug className="h-5 w-5 text-[#128FAF]" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Plug className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{totalCount}</p>
@@ -838,18 +838,18 @@ export default function Integrations() {
                 placeholder="Account #"
                 value={bankValidation.account}
                 onChange={(e) => setBankValidation((p) => ({ ...p, account: e.target.value }))}
-                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none"
+                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
               />
               <input
                 placeholder="Branch"
                 value={bankValidation.branch}
                 onChange={(e) => setBankValidation((p) => ({ ...p, branch: e.target.value }))}
-                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none"
+                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
               />
               <select
                 value={bankValidation.type}
                 onChange={(e) => setBankValidation((p) => ({ ...p, type: e.target.value }))}
-                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none"
+                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
               >
                 <option value="savings">Savings</option>
                 <option value="current">Current</option>
@@ -895,18 +895,18 @@ export default function Integrations() {
                 placeholder="Account #"
                 value={netcashAccount.account}
                 onChange={(e) => setNetcashAccount((p) => ({ ...p, account: e.target.value }))}
-                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none"
+                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
               />
               <input
                 placeholder="Branch"
                 value={netcashAccount.branch}
                 onChange={(e) => setNetcashAccount((p) => ({ ...p, branch: e.target.value }))}
-                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none"
+                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
               />
               <select
                 value={netcashAccount.type}
                 onChange={(e) => setNetcashAccount((p) => ({ ...p, type: e.target.value }))}
-                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none"
+                className="col-span-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
               >
                 <option value="savings">Savings</option>
                 <option value="current">Current</option>
@@ -954,14 +954,14 @@ export default function Integrations() {
               placeholder="Phone number"
               value={smsForm.number}
               onChange={(e) => setSmsForm((p) => ({ ...p, number: e.target.value }))}
-              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none"
+              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
             />
             <textarea
               placeholder="Message..."
               value={smsForm.message}
               onChange={(e) => setSmsForm((p) => ({ ...p, message: e.target.value }))}
               rows={2}
-              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none resize-none"
+              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none resize-none"
             />
             <Button
               size="sm"
@@ -1038,7 +1038,7 @@ export default function Integrations() {
               placeholder="WhatsApp number (e.g. 27812345678)"
               value={waForm.number}
               onChange={(e) => setWaForm((p) => ({ ...p, number: e.target.value }))}
-              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-[#128FAF] focus:outline-none"
+              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
             />
             <Button
               size="sm"
@@ -1057,7 +1057,7 @@ export default function Integrations() {
       <div className="space-y-1">
         <button
           onClick={() => (showBatches ? setShowBatches(false) : loadQlinkBatches())}
-          className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-[#128FAF] transition-colors"
+          className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-primary transition-colors"
         >
           {showBatches ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           QLink Batch History
@@ -1116,7 +1116,7 @@ export default function Integrations() {
       <div className="space-y-1">
         <button
           onClick={() => (showExports ? setShowExports(false) : loadFileExports())}
-          className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-[#128FAF] transition-colors"
+          className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-primary transition-colors"
         >
           {showExports ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           File Export History

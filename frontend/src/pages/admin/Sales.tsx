@@ -6,15 +6,6 @@ import { DataTable, type Column } from '@/components/ui/data-table'
 import { getSales, updateSaleStatus, type Sale } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
-const demoSales: Sale[] = [
-  { id: 1, clientId: 1, clientName: 'John Doe', productId: 1, productName: 'Family Cover', agentId: 1, agentName: 'Sarah Mbeki', premiumAmount: 350, status: 'new', campaignName: 'Spring 2025', createdAt: '2025-04-10' },
-  { id: 2, clientId: 2, clientName: 'Maria Santos', productId: 2, productName: 'Funeral Plan', agentId: 2, agentName: 'James Nkosi', premiumAmount: 150, status: 'qa_pending', createdAt: '2025-04-09' },
-  { id: 3, clientId: 3, clientName: 'Sipho Ndlovu', productId: 1, productName: 'Family Cover', agentId: 1, agentName: 'Sarah Mbeki', premiumAmount: 250, status: 'qa_pending', campaignName: 'Spring 2025', createdAt: '2025-04-08' },
-  { id: 4, clientId: 4, clientName: 'Nomsa Dlamini', productId: 2, productName: 'Funeral Plan', agentId: 3, agentName: 'Thandi Zulu', premiumAmount: 80, status: 'approved', createdAt: '2025-04-07' },
-  { id: 5, clientId: 5, clientName: 'David Pillay', productId: 1, productName: 'Family Cover', agentId: 2, agentName: 'James Nkosi', premiumAmount: 450, status: 'active', createdAt: '2025-04-05' },
-  { id: 6, clientId: 6, clientName: 'Lisa van Wyk', productId: 3, productName: 'Accident Cover', agentId: 4, agentName: 'David Moyo', premiumAmount: 120, status: 'cancelled', createdAt: '2025-04-01' },
-]
-
 const pipelineStatuses = ['new', 'qa_pending', 'approved', 'active', 'cancelled']
 const pipelineLabels: Record<string, string> = {
   new: 'New',
@@ -35,7 +26,7 @@ const tableColumns: Column<Sale>[] = [
 ]
 
 export default function Sales() {
-  const [sales, setSales] = useState<Sale[]>(demoSales)
+  const [sales, setSales] = useState<Sale[]>([])
   const [view, setView] = useState<'kanban' | 'table'>('kanban')
   const [agentFilter, setAgentFilter] = useState('')
 
@@ -70,7 +61,7 @@ export default function Sales() {
           <select
             value={agentFilter}
             onChange={(e) => setAgentFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             <option value="">All Agents</option>
             {agents.map((a) => (
@@ -82,7 +73,7 @@ export default function Sales() {
               onClick={() => setView('kanban')}
               className={cn(
                 'rounded-md p-2 transition-colors',
-                view === 'kanban' ? 'bg-[#128FAF] text-white' : 'text-gray-500 hover:text-gray-700'
+                view === 'kanban' ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700'
               )}
               aria-label="Kanban view"
             >
@@ -92,7 +83,7 @@ export default function Sales() {
               onClick={() => setView('table')}
               className={cn(
                 'rounded-md p-2 transition-colors',
-                view === 'table' ? 'bg-[#128FAF] text-white' : 'text-gray-500 hover:text-gray-700'
+                view === 'table' ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700'
               )}
               aria-label="Table view"
             >
@@ -125,7 +116,7 @@ export default function Sales() {
                       <p className="font-medium text-gray-900">{sale.clientName}</p>
                       <p className="mt-0.5 text-sm text-gray-500">{sale.productName}</p>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold text-[#128FAF]">
+                        <span className="text-sm font-semibold text-primary">
                           R{sale.premiumAmount}/mo
                         </span>
                         <span className="text-xs text-gray-400">{sale.agentName}</span>
@@ -137,7 +128,7 @@ export default function Sales() {
                         <select
                           value={sale.status}
                           onChange={(e) => handleStatusChange(sale.id, e.target.value)}
-                          className="w-full rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs focus:border-[#128FAF] focus:outline-none"
+                          className="w-full rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs focus:border-primary focus:outline-none"
                         >
                           {pipelineStatuses.map((s) => (
                             <option key={s} value={s}>

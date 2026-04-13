@@ -6,20 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from '@/components/ui/card'
-import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
 } from '@/components/ui/select'
+import { Zap } from 'lucide-react'
 
 const SA_PROVINCES = [
   'Eastern Cape',
@@ -100,158 +93,182 @@ export default function Register() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Create Your Account</CardTitle>
-          <CardDescription>
-            Join the Lifesaver Refer & Earn Ambassador Program
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  value={form.firstName}
-                  onChange={(e) => updateField('firstName', e.target.value)}
-                  placeholder="John"
-                />
-                {errors.firstName && (
-                  <p className="text-xs text-red-500">{errors.firstName}</p>
-                )}
+    <div className="flex min-h-screen">
+      {/* Left panel - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-sidebar via-primary-dark to-primary relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--color-primary-light)_0%,_transparent_50%)] opacity-20" />
+        <div className="relative flex flex-col justify-center px-16">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary font-bold text-white text-lg">
+              AC
+            </div>
+            <span className="text-2xl font-bold text-white tracking-tight">
+              Ambassador<span className="text-primary-light">C</span>
+            </span>
+          </div>
+          <h2 className="text-4xl font-bold text-white leading-tight">
+            Join the Ambassador<br />
+            <span className="text-primary-200">Network Today.</span>
+          </h2>
+          <p className="mt-4 text-lg text-blue-200/70 max-w-md">
+            Earn commissions by referring colleagues. No experience needed - just your network and ambition.
+          </p>
+          <div className="mt-12 space-y-4">
+            {[
+              'Earn R100 per direct sign-up',
+              'R100 for every 10 referrals',
+              'Track earnings in real-time',
+              'Climb the tier ladder',
+            ].map((perk) => (
+              <div key={perk} className="flex items-center gap-3 text-white/80">
+                <Zap className="h-4 w-4 text-amber-400" />
+                <span className="text-sm">{perk}</span>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  value={form.lastName}
-                  onChange={(e) => updateField('lastName', e.target.value)}
-                  placeholder="Doe"
-                />
-                {errors.lastName && (
-                  <p className="text-xs text-red-500">{errors.lastName}</p>
-                )}
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel - Form */}
+      <div className="flex flex-1 items-center justify-center px-6 py-12 bg-surface-dim">
+        <div className="w-full max-w-lg">
+          {/* Mobile logo */}
+          <div className="lg:hidden mb-8 text-center">
+            <div className="inline-flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary font-bold text-white">
+                AC
               </div>
+              <span className="text-xl font-bold text-gray-900">AmbassadorC</span>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-bold text-gray-900">Create Your Account</h1>
+              <p className="mt-1 text-sm text-gray-500">Join the AmbassadorC Refer & Earn Program</p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="mobileNo">Mobile Number</Label>
-              <Input
-                id="mobileNo"
-                type="tel"
-                value={form.mobileNo}
-                onChange={(e) => updateField('mobileNo', e.target.value)}
-                placeholder="0712345678"
-              />
-              {errors.mobileNo && (
-                <p className="text-xs text-red-500">{errors.mobileNo}</p>
-              )}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => updateField('password', e.target.value)}
-                  placeholder="Min. 6 characters"
-                />
-                {errors.password && (
-                  <p className="text-xs text-red-500">{errors.password}</p>
-                )}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={form.firstName}
+                    onChange={(e) => updateField('firstName', e.target.value)}
+                    placeholder="John"
+                    className="h-11"
+                  />
+                  {errors.firstName && <p className="text-xs text-red-500">{errors.firstName}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={form.lastName}
+                    onChange={(e) => updateField('lastName', e.target.value)}
+                    placeholder="Doe"
+                    className="h-11"
+                  />
+                  {errors.lastName && <p className="text-xs text-red-500">{errors.lastName}</p>}
+                </div>
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Label htmlFor="mobileNo">Mobile Number</Label>
                 <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={(e) =>
-                    updateField('confirmPassword', e.target.value)
-                  }
-                  placeholder="Repeat password"
+                  id="mobileNo"
+                  type="tel"
+                  value={form.mobileNo}
+                  onChange={(e) => updateField('mobileNo', e.target.value)}
+                  placeholder="0712345678"
+                  className="h-11"
                 />
-                {errors.confirmPassword && (
-                  <p className="text-xs text-red-500">
-                    {errors.confirmPassword}
-                  </p>
-                )}
+                {errors.mobileNo && <p className="text-xs text-red-500">{errors.mobileNo}</p>}
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>Province</Label>
-              <Select
-                value={form.province}
-                onValueChange={(v) => updateField('province', v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select province" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SA_PROVINCES.map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {p}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.province && (
-                <p className="text-xs text-red-500">{errors.province}</p>
-              )}
-            </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => updateField('password', e.target.value)}
+                    placeholder="Min. 6 characters"
+                    className="h-11"
+                  />
+                  {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={form.confirmPassword}
+                    onChange={(e) => updateField('confirmPassword', e.target.value)}
+                    placeholder="Repeat password"
+                    className="h-11"
+                  />
+                  {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword}</p>}
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="department">Government Department</Label>
-              <Input
-                id="department"
-                value={form.department}
-                onChange={(e) => updateField('department', e.target.value)}
-                placeholder="e.g. Department of Health"
-              />
-              {errors.department && (
-                <p className="text-xs text-red-500">{errors.department}</p>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label>Province</Label>
+                <Select value={form.province} onValueChange={(v) => updateField('province', v)}>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select province" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SA_PROVINCES.map((p) => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.province && <p className="text-xs text-red-500">{errors.province}</p>}
+              </div>
 
-            <div className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                id="acceptTerms"
-                checked={form.acceptTerms}
-                onChange={(e) => updateField('acceptTerms', e.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-brand-green accent-brand-green"
-              />
-              <Label htmlFor="acceptTerms" className="text-xs text-gray-500 leading-relaxed">
-                I accept the Terms and Conditions of the Lifesaver Refer & Earn
-                Ambassador Program.
-              </Label>
-            </div>
-            {errors.acceptTerms && (
-              <p className="text-xs text-red-500">{errors.acceptTerms}</p>
-            )}
-          </CardContent>
-          <CardFooter className="flex-col gap-4">
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? 'Creating Account...' : 'Create Account'}
-            </Button>
-            <p className="text-sm text-gray-500">
+              <div className="space-y-2">
+                <Label htmlFor="department">Government Department</Label>
+                <Input
+                  id="department"
+                  value={form.department}
+                  onChange={(e) => updateField('department', e.target.value)}
+                  placeholder="e.g. Department of Health"
+                  className="h-11"
+                />
+                {errors.department && <p className="text-xs text-red-500">{errors.department}</p>}
+              </div>
+
+              <div className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  id="acceptTerms"
+                  checked={form.acceptTerms}
+                  onChange={(e) => updateField('acceptTerms', e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-primary accent-primary"
+                />
+                <Label htmlFor="acceptTerms" className="text-xs text-gray-500 leading-relaxed">
+                  I accept the Terms and Conditions of the AmbassadorC Refer & Earn Program.
+                </Label>
+              </div>
+              {errors.acceptTerms && <p className="text-xs text-red-500">{errors.acceptTerms}</p>}
+
+              <Button type="submit" className="w-full h-11" disabled={loading}>
+                {loading ? 'Creating Account...' : 'Create Account'}
+              </Button>
+            </form>
+
+            <p className="mt-6 text-center text-sm text-gray-500">
               Already have an account?{' '}
-              <Link
-                to="/login"
-                className="font-medium text-brand-teal hover:underline"
-              >
-                Login
+              <Link to="/login" className="font-semibold text-primary hover:underline">
+                Sign In
               </Link>
             </p>
-          </CardFooter>
-        </form>
-      </Card>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

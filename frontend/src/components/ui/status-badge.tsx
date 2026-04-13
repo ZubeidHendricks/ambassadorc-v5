@@ -1,31 +1,48 @@
 import { cn } from '@/lib/utils'
 
 const statusConfig: Record<string, { bg: string; text: string; dot: string }> = {
-  active: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  approved: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  passed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  paid: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  signed: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  delivered: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-  viewed: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-  sent: { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500' },
-  pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-  processing: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-  qa_pending: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-  new: { bg: 'bg-[#128FAF]/10', text: 'text-[#128FAF]', dot: 'bg-[#128FAF]' },
-  in_progress: { bg: 'bg-[#128FAF]/10', text: 'text-[#128FAF]', dot: 'bg-[#128FAF]' },
-  contacted: { bg: 'bg-[#128FAF]/10', text: 'text-[#128FAF]', dot: 'bg-[#128FAF]' },
-  rejected: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
-  failed: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
-  cancelled: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
-  escalated: { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500' },
+  // Success states
+  active: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  approved: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  completed: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  passed: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  paid: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  signed: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  delivered: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+
+  // Info states
+  viewed: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
+  sent: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
+  new: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
+  in_progress: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
+  contacted: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
+
+  // Warning states
+  pending: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
+  processing: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
+  qa_pending: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
+
+  // Error states
+  rejected: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
+  failed: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
+  cancelled: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
+  escalated: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
+
+  // Neutral states
   duplicate: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
   inactive: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
   lapsed: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
   draft: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
-  increase: { bg: 'bg-[#96ca4f]/15', text: 'text-[#5a8a1f]', dot: 'bg-[#96ca4f]' },
-  decrease: { bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' },
+
+  // Special
+  increase: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  decrease: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
+
+  // Tier badges
+  gold: { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  silver: { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' },
+  bronze: { bg: 'bg-orange-50', text: 'text-orange-700', dot: 'bg-orange-500' },
+  platinum: { bg: 'bg-violet-50', text: 'text-violet-700', dot: 'bg-violet-500' },
 }
 
 const fallback = { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' }

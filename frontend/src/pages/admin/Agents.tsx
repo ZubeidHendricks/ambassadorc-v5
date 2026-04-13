@@ -14,14 +14,6 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 
-const demoAgents: Agent[] = [
-  { id: 1, firstName: 'Sarah', lastName: 'Mbeki', mobileNo: '0821111111', role: 'AGENT', tier: 'Gold', referralCount: 120, leadCount: 85, saleCount: 45, totalEarnings: 28500, status: 'active', createdAt: '2024-01-15' },
-  { id: 2, firstName: 'James', lastName: 'Nkosi', mobileNo: '0822222222', role: 'AGENT', tier: 'Gold', referralCount: 95, leadCount: 72, saleCount: 38, totalEarnings: 24200, status: 'active', createdAt: '2024-02-10' },
-  { id: 3, firstName: 'Thandi', lastName: 'Zulu', mobileNo: '0823333333', role: 'AGENT', tier: 'Silver', referralCount: 78, leadCount: 55, saleCount: 32, totalEarnings: 19800, status: 'active', createdAt: '2024-03-05' },
-  { id: 4, firstName: 'David', lastName: 'Moyo', mobileNo: '0824444444', role: 'AMBASSADOR', tier: 'Silver', referralCount: 65, leadCount: 42, saleCount: 28, totalEarnings: 17600, status: 'active', createdAt: '2024-04-20' },
-  { id: 5, firstName: 'Nomsa', lastName: 'Dlamini', mobileNo: '0825555555', role: 'AMBASSADOR', tier: 'Bronze', referralCount: 50, leadCount: 35, saleCount: 25, totalEarnings: 15200, status: 'active', createdAt: '2024-05-12' },
-  { id: 6, firstName: 'Peter', lastName: 'Mahlangu', mobileNo: '0826666666', role: 'AGENT', tier: 'Bronze', referralCount: 30, leadCount: 20, saleCount: 15, totalEarnings: 9800, status: 'inactive', createdAt: '2024-06-01' },
-]
 
 const sparkData = [
   [{ v: 3 }, { v: 5 }, { v: 4 }, { v: 8 }, { v: 7 }, { v: 10 }, { v: 12 }],
@@ -39,11 +31,12 @@ const formatCurrency = (val: number) =>
   `R${val.toLocaleString('en-ZA', { minimumFractionDigits: 0 })}`
 
 export default function Agents() {
-  const [agents, setAgents] = useState<Agent[]>(demoAgents)
+  const [agents, setAgents] = useState<Agent[]>([])
   const [processing, setProcessing] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getAgents().then(setAgents).catch(() => {})
+    getAgents().then(setAgents).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const handleTierChange = async (id: number, tier: string) => {
@@ -82,7 +75,7 @@ export default function Agents() {
       header: 'Agent',
       render: (r) => (
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#128FAF] text-sm font-bold text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
             {r.firstName[0]}{r.lastName[0]}
           </div>
           <div>
@@ -101,7 +94,7 @@ export default function Agents() {
           onChange={(e) => handleRoleChange(r.id, e.target.value)}
           onClick={(e) => e.stopPropagation()}
           disabled={processing === `role-${r.id}`}
-          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-[#128FAF] focus:outline-none focus:ring-1 focus:ring-[#128FAF]/20"
+          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
         >
           {roles.map((role) => (
             <option key={role} value={role}>
@@ -120,7 +113,7 @@ export default function Agents() {
           onChange={(e) => handleTierChange(r.id, e.target.value)}
           onClick={(e) => e.stopPropagation()}
           disabled={processing === `tier-${r.id}`}
-          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-[#128FAF] focus:outline-none focus:ring-1 focus:ring-[#128FAF]/20"
+          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
         >
           {tiers.map((tier) => (
             <option key={tier} value={tier}>{tier}</option>
@@ -154,7 +147,7 @@ export default function Agents() {
                 <Line
                   type="monotone"
                   dataKey="v"
-                  stroke="#128FAF"
+                  stroke="#004D99"
                   strokeWidth={1.5}
                   dot={false}
                 />
@@ -207,7 +200,7 @@ export default function Agents() {
         {/* Monthly Leaderboard */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm lg:col-span-2">
           <div className="flex items-center gap-2 text-gray-900">
-            <Award className="h-5 w-5 text-[#128FAF]" />
+            <Award className="h-5 w-5 text-primary" />
             <h3 className="text-base font-semibold">Monthly Leaderboard</h3>
           </div>
           <div className="mt-4 space-y-3">
@@ -236,11 +229,11 @@ export default function Agents() {
                 </div>
                 <div className="flex items-center gap-4 text-sm">
                   <span className="text-gray-600">{agent.saleCount} sales</span>
-                  <span className="font-medium text-[#128FAF]">{formatCurrency(agent.totalEarnings)}</span>
+                  <span className="font-medium text-primary">{formatCurrency(agent.totalEarnings)}</span>
                   <StatusBadge status={agent.tier} />
                 </div>
                 {idx < 3 && (
-                  <div className="flex items-center gap-1 text-xs text-[#96ca4f]">
+                  <div className="flex items-center gap-1 text-xs text-primary-light">
                     <Star className="h-3.5 w-3.5 fill-current" />
                     {idx < 3 ? 'Streak' : ''}
                   </div>

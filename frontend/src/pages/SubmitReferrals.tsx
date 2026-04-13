@@ -111,7 +111,7 @@ export default function SubmitReferrals() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Send className="h-5 w-5 text-brand-green" />
+            <Send className="h-5 w-5 text-primary" />
             Submit Referrals
           </CardTitle>
           <CardDescription>
@@ -152,7 +152,7 @@ export default function SubmitReferrals() {
                     variant="ghost"
                     size="sm"
                     onClick={addRow}
-                    className="text-brand-teal"
+                    className="text-primary-light"
                   >
                     <Plus className="mr-1 h-4 w-4" />
                     Add Row

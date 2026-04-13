@@ -11,15 +11,8 @@ import {
   type PremiumChange,
 } from '@/lib/api'
 
-const demoChanges: PremiumChange[] = [
-  { id: 1, productName: 'Family Cover', tierName: 'Standard', currentAmount: 250, newAmount: 275, changeType: 'increase', effectiveDate: '2025-05-01', status: 'pending', affectedPolicies: 145, requestedBy: 'Admin', createdAt: '2025-04-08' },
-  { id: 2, productName: 'Funeral Plan', tierName: 'Family', currentAmount: 150, newAmount: 135, changeType: 'decrease', effectiveDate: '2025-06-01', status: 'pending', affectedPolicies: 87, requestedBy: 'Admin', createdAt: '2025-04-05' },
-  { id: 3, productName: 'Family Cover', tierName: 'Basic', currentAmount: 120, newAmount: 150, changeType: 'increase', effectiveDate: '2025-03-01', status: 'approved', affectedPolicies: 210, requestedBy: 'Admin', approvedBy: 'Super Admin', createdAt: '2025-02-15' },
-  { id: 4, productName: 'Accident Cover', tierName: 'Standard', currentAmount: 130, newAmount: 120, changeType: 'decrease', effectiveDate: '2025-02-01', status: 'rejected', affectedPolicies: 45, requestedBy: 'Admin', createdAt: '2025-01-20' },
-]
-
 export default function PremiumChanges() {
-  const [changes, setChanges] = useState<PremiumChange[]>(demoChanges)
+  const [changes, setChanges] = useState<PremiumChange[]>([])
   const [filter, setFilter] = useState<string>('')
   const [rejectModal, setRejectModal] = useState(false)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -135,7 +128,7 @@ export default function PremiumChanges() {
             onClick={() => setFilter(f)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
               filter === f
-                ? 'bg-[#128FAF] text-white'
+                ? 'bg-primary text-white'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -158,7 +151,7 @@ export default function PremiumChanges() {
             onChange={(e) => setReason(e.target.value)}
             placeholder="Enter rejection reason..."
             rows={3}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
           />
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setRejectModal(false)}>

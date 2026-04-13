@@ -12,23 +12,9 @@ import {
   type Commission,
 } from '@/lib/api'
 
-const demoSummary: CommissionSummary = {
-  totalEarned: 156800,
-  pending: 12400,
-  paidThisMonth: 34200,
-}
-
-const demoCommissions: Commission[] = [
-  { id: 1, agentId: 1, agentName: 'Sarah Mbeki', saleId: 1, clientName: 'John Doe', productName: 'Family Cover', amount: 525, status: 'paid', paidAt: '2025-04-05', createdAt: '2025-04-01' },
-  { id: 2, agentId: 2, agentName: 'James Nkosi', saleId: 2, clientName: 'Maria Santos', productName: 'Funeral Plan', amount: 225, status: 'pending', createdAt: '2025-04-09' },
-  { id: 3, agentId: 1, agentName: 'Sarah Mbeki', saleId: 3, clientName: 'Sipho Ndlovu', productName: 'Family Cover', amount: 375, status: 'pending', createdAt: '2025-04-08' },
-  { id: 4, agentId: 3, agentName: 'Thandi Zulu', saleId: 4, clientName: 'Nomsa Dlamini', productName: 'Funeral Plan', amount: 120, status: 'paid', paidAt: '2025-04-03', createdAt: '2025-04-01' },
-  { id: 5, agentId: 4, agentName: 'David Moyo', saleId: 5, clientName: 'David Pillay', productName: 'Family Cover', amount: 675, status: 'pending', createdAt: '2025-04-07' },
-]
-
 export default function Commissions() {
-  const [summary, setSummary] = useState<CommissionSummary>(demoSummary)
-  const [commissions, setCommissions] = useState<Commission[]>(demoCommissions)
+  const [summary, setSummary] = useState<CommissionSummary>({ totalEarned: 0, pending: 0, paidThisMonth: 0 })
+  const [commissions, setCommissions] = useState<Commission[]>([])
   const [statusFilter, setStatusFilter] = useState('')
   const [agentFilter, setAgentFilter] = useState('')
   const [processing, setProcessing] = useState<number | null>(null)
@@ -130,7 +116,7 @@ export default function Commissions() {
               onClick={() => setStatusFilter(s)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 statusFilter === s
-                  ? 'bg-[#128FAF] text-white'
+                  ? 'bg-primary text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
@@ -141,7 +127,7 @@ export default function Commissions() {
         <select
           value={agentFilter}
           onChange={(e) => setAgentFilter(e.target.value)}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+          className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         >
           <option value="">All Agents</option>
           {agents.map((a) => (

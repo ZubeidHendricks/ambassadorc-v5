@@ -20,7 +20,7 @@ export default function LeadHistory() {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-teal border-t-transparent" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary-light border-t-transparent" />
       </div>
     )
   }

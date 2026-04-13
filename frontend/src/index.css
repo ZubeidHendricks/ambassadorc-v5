@@ -1,24 +1,94 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-green: #96ca4f;
-  --color-brand-teal: #128FAF;
-  --color-brand-blue: #0077b6;
-  --color-brand-dark: #1a1a2e;
-  --color-brand-green-light: #b8dc85;
-  --color-brand-green-dark: #7ab33a;
-  --color-brand-teal-light: #3ab5d1;
-  --color-brand-blue-light: #339ed4;
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Primary - D8tavision Navy (#004D99) */
+  --color-primary: #004D99;
+  --color-primary-light: #0AB3CC;
+  --color-primary-dark: #1A2C6B;
+  --color-primary-50: #E6F0FA;
+  --color-primary-100: #CCE0F5;
+  --color-primary-200: #99C2EB;
+
+  /* Secondary - Teal (D8tavision chart-2) */
+  --color-secondary: #0AB3CC;
+  --color-secondary-light: #33C9DD;
+  --color-secondary-dark: #088EA3;
+
+  /* Ambassador Accent - Purple (chart-4) */
+  --color-ambassador: #9933FF;
+  --color-ambassador-light: #B366FF;
+
+  /* Semantic */
+  --color-success: #0FCC85;
+  --color-success-light: #D1FAE5;
+  --color-warning: #D97706;
+  --color-warning-light: #FEF3C7;
+  --color-error: #F03E3E;
+  --color-error-light: #FEE2E2;
+
+  /* Sidebar - D8tavision Dark */
+  --color-sidebar: #0D1117;
+  --color-sidebar-hover: #1A2332;
+  --color-sidebar-active: #004D99;
+
+  /* Legacy compat */
+  --color-brand-green: #0FCC85;
+  --color-brand-teal: #004D99;
+  --color-brand-blue: #1A2C6B;
+  --color-brand-dark: #0A1124;
+  --color-brand-green-light: #33D99A;
+  --color-brand-green-dark: #0BA36A;
+  --color-brand-teal-light: #0AB3CC;
+  --color-brand-blue-light: #3366CC;
+
+  /* Surfaces - D8tavision */
+  --color-surface: #FFFFFF;
+  --color-surface-dim: #F7F9FC;
+  --color-surface-bright: #EEF3F8;
+
+  /* Chart colours */
+  --color-chart-1: #004D99;
+  --color-chart-2: #0AB3CC;
+  --color-chart-3: #0FCC85;
+  --color-chart-4: #9933FF;
+  --color-chart-5: #F0527A;
+
+  /* Typography - Google Sans with Inter fallback */
+  --font-sans: 'Google Sans', 'Google Sans Display', 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Tight border radius per D8tavision guide */
+  --radius-sm: 0.05rem;
+  --radius-md: 0.175rem;
+  --radius-lg: 0.3rem;
+  --radius-xl: 0.55rem;
 }
+
+/* ─── Base ────────────────────────────────────────────────── */
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply bg-surface-dim text-gray-900 antialiased;
 }
 
-/* Custom scrollbar */
+/* ─── Glassmorphism utilities ─────────────────────────────── */
+
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────── */
+
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -26,10 +96,49 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: #CBD5E1;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background: #94A3B8;
+}
+
+/* ─── Sidebar scrollbar ──────────────────────────────────── */
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ─── Animations ─────────────────────────────────────────── */
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slide-in-left 0.3s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out forwards;
 }

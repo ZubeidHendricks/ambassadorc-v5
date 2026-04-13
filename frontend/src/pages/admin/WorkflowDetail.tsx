@@ -40,7 +40,7 @@ import { cn } from '@/lib/utils'
 const actionTypes = [
   { value: 'SEND_SMS', label: 'Send SMS', icon: MessageSquare, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
   { value: 'SEND_EMAIL', label: 'Send Email', icon: Mail, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
-  { value: 'RUN_AGENT', label: 'Run Agent', icon: Bot, color: 'text-[#128FAF]', bg: 'bg-[#128FAF]/10', border: 'border-[#128FAF]/30' },
+  { value: 'RUN_AGENT', label: 'Run Agent', icon: Bot, color: 'text-primary', bg: 'bg-primary/10', border: 'border-primary/30' },
   { value: 'UPDATE_STATUS', label: 'Update Status', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
   { value: 'WAIT', label: 'Wait', icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', border: 'border-gray-200' },
   { value: 'APPROVAL', label: 'Approval', icon: ShieldCheck, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
@@ -255,7 +255,7 @@ export default function WorkflowDetail() {
     return (
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-center py-24">
-          <RefreshCw className="h-8 w-8 animate-spin text-[#128FAF]" />
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
         </div>
       </div>
     )
@@ -285,7 +285,7 @@ export default function WorkflowDetail() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. New Client Onboarding"
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20 transition-all"
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               />
             </div>
             <div>
@@ -295,7 +295,7 @@ export default function WorkflowDetail() {
               <select
                 value={trigger}
                 onChange={(e) => setTrigger(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20 transition-all"
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               >
                 {triggerTypes.map((t) => (
                   <option key={t.value} value={t.value}>
@@ -313,7 +313,7 @@ export default function WorkflowDetail() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe what this workflow does..."
                 rows={2}
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20 transition-all resize-none"
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
               />
             </div>
           </div>
@@ -323,7 +323,7 @@ export default function WorkflowDetail() {
               className="flex items-center gap-2 text-sm font-medium text-gray-700"
             >
               {isActive ? (
-                <ToggleRight className="h-6 w-6 text-[#96ca4f]" />
+                <ToggleRight className="h-6 w-6 text-primary-light" />
               ) : (
                 <ToggleLeft className="h-6 w-6 text-gray-400" />
               )}
@@ -352,8 +352,8 @@ export default function WorkflowDetail() {
           {steps.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#128FAF]/10">
-                  <GitBranch className="h-8 w-8 text-[#128FAF]" />
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <GitBranch className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="text-base font-semibold text-gray-900">No steps yet</h3>
                 <p className="mt-1 text-sm text-gray-500">
@@ -368,7 +368,7 @@ export default function WorkflowDetail() {
           ) : (
             <div className="relative">
               {/* Vertical connector line */}
-              <div className="absolute left-[27px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-[#128FAF]/40 via-[#128FAF]/20 to-[#128FAF]/40 rounded-full" />
+              <div className="absolute left-[27px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-primary/40 via-primary/20 to-primary/40 rounded-full" />
 
               <div className="space-y-0">
                 {steps.map((step, idx) => {
@@ -382,7 +382,7 @@ export default function WorkflowDetail() {
                         className={cn(
                           'group relative flex items-start gap-4 rounded-xl p-3 transition-all duration-200 cursor-pointer',
                           isEditing
-                            ? 'bg-[#128FAF]/5 ring-1 ring-[#128FAF]/20'
+                            ? 'bg-primary/5 ring-1 ring-primary/20'
                             : 'hover:bg-gray-50'
                         )}
                         onClick={() => openStepEditor(step)}
@@ -394,7 +394,7 @@ export default function WorkflowDetail() {
                               'flex h-[54px] w-[54px] items-center justify-center rounded-xl border-2 shadow-sm transition-all',
                               meta.bg,
                               meta.border,
-                              isEditing && 'ring-2 ring-[#128FAF]/30 scale-105'
+                              isEditing && 'ring-2 ring-primary/30 scale-105'
                             )}
                           >
                             <StepIcon className={cn('h-5 w-5', meta.color)} />
@@ -477,7 +477,7 @@ export default function WorkflowDetail() {
                               e.stopPropagation()
                               insertStepAt(idx)
                             }}
-                            className="absolute left-[-8px] z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white border border-gray-300 text-gray-400 opacity-0 hover:opacity-100 hover:border-[#128FAF] hover:text-[#128FAF] transition-all group-hover:opacity-0"
+                            className="absolute left-[-8px] z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white border border-gray-300 text-gray-400 opacity-0 hover:opacity-100 hover:border-primary hover:text-primary transition-all group-hover:opacity-0"
                             title="Insert step here"
                           >
                             <Plus className="h-2.5 w-2.5" />
@@ -495,7 +495,7 @@ export default function WorkflowDetail() {
         {/* Step Editor Panel */}
         {editingStep !== null && (
           <div className="lg:col-span-2">
-            <Card className="sticky top-24 border-[#128FAF]/20">
+            <Card className="sticky top-24 border-primary/20">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
@@ -520,7 +520,7 @@ export default function WorkflowDetail() {
                     value={stepForm.name}
                     onChange={(e) => setStepForm({ ...stepForm, name: e.target.value })}
                     placeholder="e.g. Send Welcome SMS"
-                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20 transition-all"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                   />
                 </div>
 
@@ -574,7 +574,7 @@ export default function WorkflowDetail() {
                               config: { ...stepForm.config, template: e.target.value },
                             })
                           }
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         >
                           <option value="">Select template...</option>
                           <option value="welcome">Welcome</option>
@@ -598,7 +598,7 @@ export default function WorkflowDetail() {
                             })
                           }
                           placeholder="e.g. entity.phone"
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                     </>
@@ -618,7 +618,7 @@ export default function WorkflowDetail() {
                               config: { ...stepForm.config, template: e.target.value },
                             })
                           }
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         >
                           <option value="">Select template...</option>
                           <option value="welcome_pack">Welcome Pack</option>
@@ -641,7 +641,7 @@ export default function WorkflowDetail() {
                             })
                           }
                           placeholder="e.g. entity.email"
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                     </>
@@ -660,7 +660,7 @@ export default function WorkflowDetail() {
                             config: { ...stepForm.config, agent: e.target.value },
                           })
                         }
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       >
                         <option value="">Select agent...</option>
                         {agentOptions.map((a) => (
@@ -688,7 +688,7 @@ export default function WorkflowDetail() {
                             })
                           }
                           placeholder="e.g. client, policy"
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                       <div>
@@ -705,7 +705,7 @@ export default function WorkflowDetail() {
                             })
                           }
                           placeholder="e.g. ACTIVE"
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                     </>
@@ -727,7 +727,7 @@ export default function WorkflowDetail() {
                         }
                         placeholder="e.g. 24"
                         min={1}
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
                   )}
@@ -745,7 +745,7 @@ export default function WorkflowDetail() {
                             config: { ...stepForm.config, role: e.target.value },
                           })
                         }
-                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                        className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                       >
                         <option value="">Select role...</option>
                         {approverRoles.map((r) => (
@@ -773,7 +773,7 @@ export default function WorkflowDetail() {
                             })
                           }
                           placeholder="https://..."
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                         />
                       </div>
                       <div>
@@ -790,7 +790,7 @@ export default function WorkflowDetail() {
                           }
                           placeholder='{"Authorization": "Bearer ..."}'
                           rows={2}
-                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-mono placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20 resize-none"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-mono placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                         />
                       </div>
                     </>

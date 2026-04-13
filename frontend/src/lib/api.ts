@@ -134,8 +134,8 @@ export async function submitReferralBatch(payload: ReferralBatchPayload) {
 }
 
 export async function getReferralBatches() {
-  const res = await request<ReferralBatch[]>('/referrals/batches')
-  return res.data!
+  const res = await request<{ batches: ReferralBatch[]; pagination: any }>('/referrals/batches')
+  return res.data!.batches
 }
 
 export async function getBatchDetail(id: number) {
@@ -170,8 +170,8 @@ export async function submitLead(payload: LeadPayload) {
 }
 
 export async function getLeads() {
-  const res = await request<Lead[]>('/leads')
-  return res.data!
+  const res = await request<{ leads: Lead[]; pagination: any }>('/leads')
+  return res.data!.leads
 }
 
 // Dashboard
@@ -189,14 +189,26 @@ export interface MonthlyStats {
   leads: number
 }
 
-export async function getDashboardStats() {
-  const res = await request<DashboardStats>('/dashboard/stats')
-  return res.data!
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const res = await request<any>('/dashboard/stats')
+  const d = res.data!
+  return {
+    totalReferrals: d.totalReferrals ?? 0,
+    totalLeads: d.totalLeads ?? 0,
+    totalEarnings: d.earnings?.totalEarnings ?? 0,
+    thisMonthReferrals: d.monthlyStats?.[0]?.referralCount ?? 0,
+    thisMonthLeads: d.monthlyStats?.[0]?.leadCount ?? 0,
+  }
 }
 
-export async function getMonthlyStats() {
-  const res = await request<MonthlyStats[]>('/dashboard/stats/monthly')
-  return res.data!
+export async function getMonthlyStats(): Promise<MonthlyStats[]> {
+  const res = await request<any>('/dashboard/stats')
+  const months = res.data?.monthlyStats ?? []
+  return months.map((m: any) => ({
+    month: m.month ?? '',
+    referrals: m.referralCount ?? 0,
+    leads: m.leadCount ?? 0,
+  }))
 }
 
 // Profile
@@ -423,41 +435,84 @@ export interface ActivityItem {
 
 // ─── Admin Dashboard ───────────────────────────────────────────────
 
-export async function getAdminDashboardStats() {
-  const res = await request<AdminDashboardStats>('/admin/dashboard/stats')
-  return res.data!
+export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
+  const res = await request<any>('/admin/stats')
+  const d = res.data!
+  return {
+    totalClients: d.clients?.total ?? 0,
+    activePolicies: d.policies?.active ?? 0,
+    monthlyRevenue: d.revenue?.total ?? 0,
+    pendingQA: d.commissions?.pending ?? 0,
+    activeAgents: d.ambassadors?.active ?? 0,
+    commissionsPaid: d.commissions?.total ?? 0,
+  }
 }
 
-export async function getRevenueChart() {
-  const res = await request<RevenueData[]>('/admin/dashboard/revenue')
-  return res.data!
+export async function getRevenueChart(): Promise<RevenueData[]> {
+  // No dedicated endpoint - return empty to let component use real stats
+  return []
 }
 
-export async function getPipelineChart() {
-  const res = await request<PipelineData[]>('/admin/dashboard/pipeline')
-  return res.data!
+export async function getPipelineChart(): Promise<PipelineData[]> {
+  // Build from real stats
+  try {
+    const res = await request<any>('/admin/stats')
+    const d = res.data!
+    return [
+      { status: 'Active', count: d.policies?.active ?? 0 },
+      { status: 'Pending QA', count: d.commissions?.pending ?? 0 },
+      { status: 'Sales', count: d.sales?.active ?? 0 },
+      { status: 'Ambassadors', count: d.ambassadors?.active ?? 0 },
+    ]
+  } catch {
+    return []
+  }
 }
 
-export async function getTopAgents() {
-  const res = await request<TopAgent[]>('/admin/dashboard/top-agents')
-  return res.data!
+export async function getTopAgents(): Promise<TopAgent[]> {
+  try {
+    const agents = await getAgents()
+    return agents
+      .sort((a, b) => b.saleCount - a.saleCount || b.totalEarnings - a.totalEarnings)
+      .slice(0, 5)
+      .map((a) => ({
+        id: a.id,
+        name: `${a.firstName} ${a.lastName}`,
+        sales: a.saleCount,
+        revenue: a.totalEarnings,
+        tier: a.tier || 'Bronze',
+      }))
+  } catch {
+    return []
+  }
 }
 
-export async function getRecentActivity() {
-  const res = await request<ActivityItem[]>('/admin/dashboard/activity')
-  return res.data!
+export async function getRecentActivity(): Promise<ActivityItem[]> {
+  try {
+    const res = await request<{ entries: any[]; pagination: any }>('/admin/audit-log')
+    const entries = res.data?.entries ?? []
+    return entries.slice(0, 5).map((e: any, i: number) => ({
+      id: e.id ?? i,
+      type: e.action?.includes('sale') ? 'sale' : e.action?.includes('qa') ? 'qa' : e.action?.includes('commission') ? 'commission' : 'client',
+      description: e.description ?? e.action ?? 'Activity',
+      timestamp: e.createdAt ? new Date(e.createdAt).toLocaleString() : 'Recently',
+      user: e.ambassadorName ?? undefined,
+    }))
+  } catch {
+    return []
+  }
 }
 
 // ─── Clients ───────────────────────────────────────────────────────
 
 export async function getClients(search?: string) {
   const q = search ? `?search=${encodeURIComponent(search)}` : ''
-  const res = await request<Client[]>(`/admin/clients${q}`)
-  return res.data!
+  const res = await request<{ clients: Client[]; pagination: any }>(`/clients${q}`)
+  return res.data!.clients
 }
 
 export async function getClient(id: number) {
-  const res = await request<Client>(`/admin/clients/${id}`)
+  const res = await request<Client>(`/clients/${id}`)
   return res.data!
 }
 
@@ -472,7 +527,7 @@ export interface CreateClientPayload {
 }
 
 export async function createClient(payload: CreateClientPayload) {
-  const res = await request<Client>('/admin/clients', {
+  const res = await request<Client>('/clients', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -480,7 +535,7 @@ export async function createClient(payload: CreateClientPayload) {
 }
 
 export async function updateClient(id: number, payload: Partial<CreateClientPayload>) {
-  const res = await request<Client>(`/admin/clients/${id}`, {
+  const res = await request<Client>(`/clients/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })
@@ -490,34 +545,34 @@ export async function updateClient(id: number, payload: Partial<CreateClientPayl
 // ─── Client sub-resources ──────────────────────────────────────────
 
 export async function getClientPolicies(clientId: number) {
-  const res = await request<Policy[]>(`/admin/clients/${clientId}/policies`)
+  const res = await request<Policy[]>(`/clients/${clientId}/policies`)
   return res.data!
 }
 
 export async function getClientPayments(clientId: number) {
-  const res = await request<Payment[]>(`/admin/clients/${clientId}/payments`)
+  const res = await request<Payment[]>(`/clients/${clientId}/payments`)
   return res.data!
 }
 
 export async function getClientDocuments(clientId: number) {
-  const res = await request<WelcomePack[]>(`/admin/clients/${clientId}/documents`)
+  const res = await request<WelcomePack[]>(`/clients/${clientId}/documents`)
   return res.data!
 }
 
 export async function getClientSms(clientId: number) {
-  const res = await request<SmsRecord[]>(`/admin/clients/${clientId}/sms`)
+  const res = await request<SmsRecord[]>(`/clients/${clientId}/sms`)
   return res.data!
 }
 
 // ─── Products ──────────────────────────────────────────────────────
 
 export async function getProducts() {
-  const res = await request<Product[]>('/admin/products')
-  return res.data!
+  const res = await request<{ products: Product[]; pagination: any }>('/products')
+  return res.data!.products
 }
 
 export async function getProduct(id: number) {
-  const res = await request<Product>(`/admin/products/${id}`)
+  const res = await request<Product>(`/products/${id}`)
   return res.data!
 }
 
@@ -530,7 +585,7 @@ export interface CreateProductPayload {
 }
 
 export async function createProduct(payload: CreateProductPayload) {
-  const res = await request<Product>('/admin/products', {
+  const res = await request<Product>('/products', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -538,7 +593,7 @@ export async function createProduct(payload: CreateProductPayload) {
 }
 
 export async function updateProduct(id: number, payload: Partial<CreateProductPayload>) {
-  const res = await request<Product>(`/admin/products/${id}`, {
+  const res = await request<Product>(`/products/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   })
@@ -557,7 +612,7 @@ export interface RequestPremiumChangePayload {
 }
 
 export async function requestPremiumChange(payload: RequestPremiumChangePayload) {
-  const res = await request<PremiumChange>('/admin/premium-changes', {
+  const res = await request<PremiumChange>('/policies/premium-changes', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -566,19 +621,19 @@ export async function requestPremiumChange(payload: RequestPremiumChangePayload)
 
 export async function getPremiumChanges(status?: string) {
   const q = status ? `?status=${encodeURIComponent(status)}` : ''
-  const res = await request<PremiumChange[]>(`/admin/premium-changes${q}`)
-  return res.data!
+  const res = await request<{ premiumChanges: PremiumChange[]; pagination: any }>(`/policies/premium-changes${q}`)
+  return res.data!.premiumChanges
 }
 
 export async function approvePremiumChange(id: number) {
-  const res = await request<PremiumChange>(`/admin/premium-changes/${id}/approve`, {
+  const res = await request<PremiumChange>(`/policies/premium-changes/${id}/approve`, {
     method: 'POST',
   })
   return res.data!
 }
 
 export async function rejectPremiumChange(id: number, reason: string) {
-  const res = await request<PremiumChange>(`/admin/premium-changes/${id}/reject`, {
+  const res = await request<PremiumChange>(`/policies/premium-changes/${id}/reject`, {
     method: 'POST',
     body: JSON.stringify({ reason }),
   })
@@ -592,17 +647,18 @@ export async function getPolicies(filters?: { status?: string; search?: string }
   if (filters?.status) params.set('status', filters.status)
   if (filters?.search) params.set('search', filters.search)
   const q = params.toString() ? `?${params.toString()}` : ''
-  const res = await request<Policy[]>(`/admin/policies${q}`)
-  return res.data!
+  const res = await request<any>(`/policies${q}`)
+  const d = res.data!
+  return (Array.isArray(d) ? d : d.policies ?? []) as Policy[]
 }
 
 export async function getPolicy(id: number) {
-  const res = await request<Policy>(`/admin/policies/${id}`)
+  const res = await request<Policy>(`/policies/${id}`)
   return res.data!
 }
 
 export async function updatePolicyStatus(id: number, status: string) {
-  const res = await request<Policy>(`/admin/policies/${id}/status`, {
+  const res = await request<Policy>(`/policies/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
   })
@@ -623,12 +679,13 @@ export async function getSales(filters?: {
   if (filters?.productId) params.set('productId', String(filters.productId))
   if (filters?.campaignId) params.set('campaignId', String(filters.campaignId))
   const q = params.toString() ? `?${params.toString()}` : ''
-  const res = await request<Sale[]>(`/admin/sales${q}`)
-  return res.data!
+  const res = await request<any>(`/sales${q}`)
+  const d = res.data!
+  return (Array.isArray(d) ? d : d.sales ?? []) as Sale[]
 }
 
 export async function updateSaleStatus(id: number, status: string) {
-  const res = await request<Sale>(`/admin/sales/${id}/status`, {
+  const res = await request<Sale>(`/sales/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
   })
@@ -639,12 +696,13 @@ export async function updateSaleStatus(id: number, status: string) {
 
 export async function getQAItems(status?: string) {
   const q = status ? `?status=${encodeURIComponent(status)}` : ''
-  const res = await request<QAItem[]>(`/admin/qa${q}`)
-  return res.data!
+  const res = await request<any>(`/qa${q}`)
+  const d = res.data!
+  return (Array.isArray(d) ? d : d.qualityChecks ?? []) as QAItem[]
 }
 
 export async function submitQAVerdict(id: number, payload: { verdict: string; notes?: string }) {
-  const res = await request<QAItem>(`/admin/qa/${id}/verdict`, {
+  const res = await request<QAItem>(`/qa/${id}/verdict`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -660,8 +718,13 @@ export interface CommissionSummary {
 }
 
 export async function getCommissionSummary() {
-  const res = await request<CommissionSummary>('/admin/commissions/summary')
-  return res.data!
+  const res = await request<any>('/commissions/summary')
+  const d = res.data!
+  return {
+    totalEarned: d.total?.amount ?? 0,
+    pending: d.pending?.amount ?? 0,
+    paidThisMonth: d.paid?.amount ?? 0,
+  } as CommissionSummary
 }
 
 export async function getCommissions(filters?: {
@@ -676,12 +739,13 @@ export async function getCommissions(filters?: {
   if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom)
   if (filters?.dateTo) params.set('dateTo', filters.dateTo)
   const q = params.toString() ? `?${params.toString()}` : ''
-  const res = await request<Commission[]>(`/admin/commissions${q}`)
-  return res.data!
+  const res = await request<any>(`/commissions${q}`)
+  const d = res.data!
+  return (Array.isArray(d) ? d : d.commissions ?? []) as Commission[]
 }
 
 export async function markCommissionPaid(id: number) {
-  const res = await request<Commission>(`/admin/commissions/${id}/pay`, {
+  const res = await request<Commission>(`/commissions/${id}/pay`, {
     method: 'POST',
   })
   return res.data!
@@ -690,8 +754,22 @@ export async function markCommissionPaid(id: number) {
 // ─── Agents ────────────────────────────────────────────────────────
 
 export async function getAgents() {
-  const res = await request<Agent[]>('/admin/agents')
-  return res.data!
+  const res = await request<{ agents: any[]; pagination: any }>('/admin/agents')
+  const agents = res.data!.agents ?? []
+  return agents.map((a: any) => ({
+    id: a.id,
+    firstName: a.firstName,
+    lastName: a.lastName,
+    mobileNo: a.mobileNo,
+    role: a.role ?? 'AMBASSADOR',
+    tier: a.tier ?? 'Bronze',
+    referralCount: a._count?.referralBatches ?? 0,
+    leadCount: a._count?.leads ?? 0,
+    saleCount: a._count?.sales ?? a.metrics?.approvedSales ?? 0,
+    totalEarnings: a.metrics?.totalCommission ?? 0,
+    status: a.isActive ? 'active' : 'inactive',
+    createdAt: a.createdAt,
+  })) as Agent[]
 }
 
 export async function getAgent(id: number) {
@@ -715,15 +793,51 @@ export async function updateAgentTier(id: number, tier: string) {
   return res.data!
 }
 
+// ─── Leaderboard ──────────────────────────────────────────────────
+
+export interface LeaderboardEntry {
+  rank: number
+  name: string
+  referrals: number
+  leads: number
+  earnings: number
+  tier: string
+  trend: 'up' | 'down' | 'same'
+}
+
+export async function getLeaderboard(period?: string): Promise<LeaderboardEntry[]> {
+  try {
+    const agents = await getAgents()
+    return agents
+      .sort((a, b) => b.referralCount - a.referralCount || b.totalEarnings - a.totalEarnings)
+      .map((a, i) => ({
+        rank: i + 1,
+        name: `${a.firstName} ${a.lastName}`,
+        referrals: a.referralCount,
+        leads: a.leadCount,
+        earnings: a.totalEarnings,
+        tier: a.tier || 'Bronze',
+        trend: 'same' as const,
+      }))
+  } catch {
+    return []
+  }
+}
+
 // ─── Documents / Welcome Packs ─────────────────────────────────────
 
 export async function getWelcomePacks() {
-  const res = await request<WelcomePack[]>('/admin/documents')
-  return res.data!
+  try {
+    const res = await request<any>('/documents/welcome-pack')
+    const d = res.data!
+    return (Array.isArray(d) ? d : d.documents ?? []) as WelcomePack[]
+  } catch {
+    return [] as WelcomePack[]
+  }
 }
 
 export async function generateWelcomePack(payload: { clientId: number; productId: number }) {
-  const res = await request<WelcomePack>('/admin/documents/generate', {
+  const res = await request<WelcomePack>('/documents/welcome-pack/generate', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -733,12 +847,13 @@ export async function generateWelcomePack(payload: { clientId: number; productId
 // ─── SMS ───────────────────────────────────────────────────────────
 
 export async function getSmsHistory() {
-  const res = await request<SmsRecord[]>('/admin/sms')
-  return res.data!
+  const res = await request<any>('/sms')
+  const d = res.data!
+  return (Array.isArray(d) ? d : d.messages ?? d.sms ?? []) as SmsRecord[]
 }
 
 export async function sendSms(payload: { recipient: string; message: string; template?: string }) {
-  const res = await request<SmsRecord>('/admin/sms/send', {
+  const res = await request<SmsRecord>('/sms/send', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -750,7 +865,7 @@ export async function sendBulkSms(payload: {
   message: string
   template?: string
 }) {
-  const res = await request<{ sent: number; failed: number }>('/admin/sms/bulk', {
+  const res = await request<{ sent: number; failed: number }>('/sms/bulk', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -758,8 +873,13 @@ export async function sendBulkSms(payload: {
 }
 
 export async function getSmsTemplates() {
-  const res = await request<{ id: string; name: string; body: string }[]>('/admin/sms/templates')
-  return res.data!
+  try {
+    const res = await request<any>('/sms/templates')
+    const d = res.data!
+    return (Array.isArray(d) ? d : d.templates ?? []) as { id: string; name: string; body: string }[]
+  } catch {
+    return [] as { id: string; name: string; body: string }[]
+  }
 }
 
 // ─── AI Agents ────────────────────────────────────────────────────
@@ -786,24 +906,34 @@ export interface AiAgentRun {
 }
 
 export async function getAiAgentStatuses() {
-  const res = await request<AiAgentStatus[]>('/admin/ai-agents')
-  return res.data!
+  const res = await request<any>('/agents')
+  const d = res.data!
+  const arr = Array.isArray(d) ? d : d.agents ?? []
+  return arr.map((a: any) => ({
+    agentKey: a.name ?? a.agentKey ?? '',
+    lastRun: a.lastRun ?? null,
+    itemsProcessed: a.lastResult?.itemsProcessed ?? a.itemsProcessed ?? 0,
+    successCount: a.lastResult?.successCount ?? a.successCount ?? 0,
+    errorCount: a.lastResult?.errorCount ?? a.errorCount ?? 0,
+    status: a.isRunning ? 'running' : a.status ?? 'idle',
+    autoRun: a.isScheduled ?? a.autoRun ?? false,
+  })) as AiAgentStatus[]
 }
 
 export async function triggerAiAgent(agentKey: string) {
-  const res = await request<AiAgentRun>(`/admin/ai-agents/${agentKey}/run`, {
+  const res = await request<AiAgentRun>(`/agents/${agentKey}/run`, {
     method: 'POST',
   })
   return res.data!
 }
 
 export async function getAiAgentHistory(agentKey: string) {
-  const res = await request<AiAgentRun[]>(`/admin/ai-agents/${agentKey}/history`)
-  return res.data!
+  const res = await request<{ runs: AiAgentRun[]; pagination: any }>(`/agents/${agentKey}/history`)
+  return res.data!.runs
 }
 
 export async function toggleAiAgentAuto(agentKey: string, autoRun: boolean) {
-  const res = await request<AiAgentStatus>(`/admin/ai-agents/${agentKey}/auto`, {
+  const res = await request<AiAgentStatus>(`/agents/${agentKey}/auto`, {
     method: 'PUT',
     body: JSON.stringify({ autoRun }),
   })
@@ -867,12 +997,13 @@ export interface WorkflowStats {
 }
 
 export async function getWorkflows() {
-  const res = await request<Workflow[]>('/admin/workflows')
-  return res.data!
+  const res = await request<any>('/workflows')
+  const d = res.data!
+  return (Array.isArray(d) ? d : d.workflows ?? []) as Workflow[]
 }
 
 export async function getWorkflow(id: number) {
-  const res = await request<Workflow>(`/admin/workflows/${id}`)
+  const res = await request<Workflow>(`/workflows/${id}`)
   return res.data!
 }
 
@@ -882,7 +1013,7 @@ export async function createWorkflow(data: {
   trigger: string
   isActive: boolean
 }) {
-  const res = await request<Workflow>('/admin/workflows', {
+  const res = await request<Workflow>('/workflows', {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -893,7 +1024,7 @@ export async function updateWorkflow(
   id: number,
   data: Partial<{ name: string; description: string; trigger: string; isActive: boolean }>
 ) {
-  const res = await request<Workflow>(`/admin/workflows/${id}`, {
+  const res = await request<Workflow>(`/workflows/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
@@ -904,7 +1035,7 @@ export async function addWorkflowStep(
   workflowId: number,
   data: { name: string; actionType: string; config: Record<string, unknown>; order: number }
 ) {
-  const res = await request<WorkflowStep>(`/admin/workflows/${workflowId}/steps`, {
+  const res = await request<WorkflowStep>(`/workflows/${workflowId}/steps`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -915,7 +1046,7 @@ export async function updateWorkflowStep(
   stepId: number,
   data: Partial<{ name: string; actionType: string; config: Record<string, unknown>; order: number }>
 ) {
-  const res = await request<WorkflowStep>(`/admin/workflow-steps/${stepId}`, {
+  const res = await request<WorkflowStep>(`/workflows/steps/${stepId}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
@@ -923,7 +1054,7 @@ export async function updateWorkflowStep(
 }
 
 export async function deleteWorkflowStep(stepId: number) {
-  await request(`/admin/workflow-steps/${stepId}`, { method: 'DELETE' })
+  await request(`/workflows/steps/${stepId}`, { method: 'DELETE' })
 }
 
 export async function triggerWorkflow(
@@ -931,7 +1062,7 @@ export async function triggerWorkflow(
   entityType: string,
   entityId: number
 ) {
-  const res = await request<WorkflowInstance>(`/admin/workflows/${workflowId}/trigger`, {
+  const res = await request<WorkflowInstance>(`/workflows/${workflowId}/trigger`, {
     method: 'POST',
     body: JSON.stringify({ entityType, entityId }),
   })
@@ -948,38 +1079,39 @@ export async function getWorkflowInstances(filters?: {
   if (filters?.status) params.set('status', filters.status)
   if (filters?.entityType) params.set('entityType', filters.entityType)
   const q = params.toString() ? `?${params.toString()}` : ''
-  const res = await request<WorkflowInstance[]>(`/admin/workflow-instances${q}`)
-  return res.data!
+  const res = await request<any>(`/workflows/instances${q}`)
+  const d = res.data!
+  return (Array.isArray(d) ? d : d.instances ?? []) as WorkflowInstance[]
 }
 
 export async function getWorkflowInstance(id: number) {
-  const res = await request<WorkflowInstance>(`/admin/workflow-instances/${id}`)
+  const res = await request<WorkflowInstance>(`/workflows/instances/${id}`)
   return res.data!
 }
 
 export async function resumeWorkflowInstance(id: number, approved: boolean) {
-  await request(`/admin/workflow-instances/${id}/resume`, {
+  await request(`/workflows/instances/${id}/resume`, {
     method: 'POST',
     body: JSON.stringify({ approved }),
   })
 }
 
 export async function cancelWorkflowInstance(id: number) {
-  await request(`/admin/workflow-instances/${id}/cancel`, {
+  await request(`/workflows/instances/${id}/cancel`, {
     method: 'POST',
   })
 }
 
 export async function processWorkflows() {
   const res = await request<{ processed: number; completed: number; failed: number }>(
-    '/admin/workflows/process',
+    '/workflows/process',
     { method: 'POST' }
   )
   return res.data!
 }
 
 export async function getWorkflowStats() {
-  const res = await request<WorkflowStats>('/admin/workflows/stats')
+  const res = await request<WorkflowStats>('/workflows/stats')
   return res.data!
 }
 
@@ -1019,7 +1151,7 @@ export interface Campaign {
 }
 
 export async function getCampaigns() {
-  const res = await request<Campaign[]>('/admin/campaigns')
+  const res = await request<Campaign[]>('/sales/campaigns')
   return res.data!
 }
 
@@ -1038,12 +1170,12 @@ export interface DebitOrder {
 }
 
 export async function getDebitOrders() {
-  const res = await request<DebitOrder[]>('/admin/debit-orders')
+  const res = await request<DebitOrder[]>('/payments/debit-orders')
   return res.data!
 }
 
 export async function updateDebitOrderStatus(id: number, status: string) {
-  const res = await request<DebitOrder>(`/admin/debit-orders/${id}/status`, {
+  const res = await request<DebitOrder>(`/payments/debit-orders/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
   })
@@ -1093,17 +1225,17 @@ export interface Bank {
 }
 
 export async function getIntegrations() {
-  const res = await request<IntegrationConfig[]>('/admin/integrations')
+  const res = await request<IntegrationConfig[]>('/integrations')
   return res.data!
 }
 
 export async function getIntegration(name: string) {
-  const res = await request<IntegrationConfig>(`/admin/integrations/${name}`)
+  const res = await request<IntegrationConfig>(`/integrations/${name}`)
   return res.data!
 }
 
 export async function updateIntegration(name: string, data: Partial<IntegrationConfig>) {
-  const res = await request<IntegrationConfig>(`/admin/integrations/${name}`, {
+  const res = await request<IntegrationConfig>(`/integrations/${name}`, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
@@ -1112,7 +1244,7 @@ export async function updateIntegration(name: string, data: Partial<IntegrationC
 
 export async function testIntegration(name: string) {
   const res = await request<{ success: boolean; message: string }>(
-    `/admin/integrations/${name}/test`,
+    `/integrations/${name}/test`,
     { method: 'POST' }
   )
   return res.data!
@@ -1121,7 +1253,7 @@ export async function testIntegration(name: string) {
 // QLink
 export async function triggerQLinkExport(policyIds?: number[]) {
   const res = await request<{ batchId: string; recordCount: number }>(
-    '/admin/integrations/qlink/export',
+    '/integrations/qlink/export',
     {
       method: 'POST',
       body: JSON.stringify({ policyIds }),
@@ -1131,14 +1263,14 @@ export async function triggerQLinkExport(policyIds?: number[]) {
 }
 
 export async function getQLinkBatches() {
-  const res = await request<QLinkBatch[]>('/admin/integrations/qlink/batches')
+  const res = await request<QLinkBatch[]>('/integrations/qlink/batches')
   return res.data!
 }
 
 // SagePay
 export async function syncSagePayTransactions() {
   const res = await request<{ imported: number }>(
-    '/admin/integrations/sagepay/sync',
+    '/integrations/sagepay/sync',
     { method: 'POST' }
   )
   return res.data!
@@ -1147,7 +1279,7 @@ export async function syncSagePayTransactions() {
 // Bank validation (SagePay / Netcash)
 export async function validateBankAccount(account: string, branch: string, type: string) {
   const res = await request<BankValidationResult>(
-    '/admin/integrations/bank/validate',
+    '/integrations/bank/validate',
     {
       method: 'POST',
       body: JSON.stringify({ accountNumber: account, branchCode: branch, accountType: type }),
@@ -1157,14 +1289,14 @@ export async function validateBankAccount(account: string, branch: string, type:
 }
 
 export async function getBankList() {
-  const res = await request<Bank[]>('/admin/integrations/bank/list')
+  const res = await request<Bank[]>('/integrations/bank/list')
   return res.data!
 }
 
 // SMS Portal
 export async function sendTestSms(number: string, message: string) {
   const res = await request<{ sent: boolean }>(
-    '/admin/integrations/sms/send',
+    '/integrations/sms/send',
     {
       method: 'POST',
       body: JSON.stringify({ number, message }),
@@ -1175,7 +1307,7 @@ export async function sendTestSms(number: string, message: string) {
 
 export async function sendBulkIntegrationSms(numbers: string[], message: string) {
   const res = await request<{ sent: number; failed: number }>(
-    '/admin/integrations/sms/bulk',
+    '/integrations/sms/bulk',
     {
       method: 'POST',
       body: JSON.stringify({ numbers, message }),
@@ -1187,7 +1319,7 @@ export async function sendBulkIntegrationSms(numbers: string[], message: string)
 // ViciDialer
 export async function uploadViciDialerLeads(leadIds: number[]) {
   const res = await request<{ uploaded: number }>(
-    '/admin/integrations/vicidialer/upload',
+    '/integrations/vicidialer/upload',
     {
       method: 'POST',
       body: JSON.stringify({ leadIds }),
@@ -1199,7 +1331,7 @@ export async function uploadViciDialerLeads(leadIds: number[]) {
 // Guard Risk
 export async function triggerGuardRiskExport() {
   const res = await request<{ success: boolean }>(
-    '/admin/integrations/guardrisk/export',
+    '/integrations/guardrisk/export',
     { method: 'POST' }
   )
   return res.data!
@@ -1208,7 +1340,7 @@ export async function triggerGuardRiskExport() {
 // WhatsApp / WATI
 export async function sendWhatsApp(number: string, template: string, params: unknown[]) {
   const res = await request<{ sent: boolean }>(
-    '/admin/integrations/whatsapp/send',
+    '/integrations/whatsapp/send',
     {
       method: 'POST',
       body: JSON.stringify({ number, template, params }),
@@ -1219,6 +1351,6 @@ export async function sendWhatsApp(number: string, template: string, params: unk
 
 // File Exports
 export async function getFileExports() {
-  const res = await request<FileExport[]>('/admin/integrations/files')
+  const res = await request<FileExport[]>('/integrations/files')
   return res.data!
 }

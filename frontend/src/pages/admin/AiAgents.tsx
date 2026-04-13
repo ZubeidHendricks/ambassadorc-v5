@@ -59,37 +59,6 @@ const agentMeta: Record<string, { label: string; description: string; icon: type
   },
 }
 
-const demoStatuses: AiAgentStatus[] = [
-  { agentKey: 'lead_scorer', lastRun: '2025-04-11T08:30:00', itemsProcessed: 24, successCount: 22, errorCount: 2, status: 'idle', autoRun: true },
-  { agentKey: 'auto_qa', lastRun: '2025-04-11T07:00:00', itemsProcessed: 15, successCount: 15, errorCount: 0, status: 'idle', autoRun: true },
-  { agentKey: 'sms_dispatcher', lastRun: '2025-04-11T09:00:00', itemsProcessed: 156, successCount: 148, errorCount: 8, status: 'idle', autoRun: true },
-  { agentKey: 'commission_calculator', lastRun: '2025-04-10T23:00:00', itemsProcessed: 42, successCount: 42, errorCount: 0, status: 'idle', autoRun: false },
-  { agentKey: 'payment_reconciler', lastRun: '2025-04-11T06:00:00', itemsProcessed: 89, successCount: 85, errorCount: 4, status: 'idle', autoRun: true },
-  { agentKey: 'welcome_pack_sender', lastRun: '2025-04-10T18:00:00', itemsProcessed: 8, successCount: 8, errorCount: 0, status: 'idle', autoRun: false },
-]
-
-const demoHistory: Record<string, AiAgentRun[]> = {
-  lead_scorer: [
-    { id: 1, agentKey: 'lead_scorer', startedAt: '2025-04-11T08:30:00', completedAt: '2025-04-11T08:31:15', itemsProcessed: 24, successCount: 22, errorCount: 2, status: 'completed' },
-    { id: 2, agentKey: 'lead_scorer', startedAt: '2025-04-10T08:30:00', completedAt: '2025-04-10T08:31:02', itemsProcessed: 18, successCount: 18, errorCount: 0, status: 'completed' },
-  ],
-  auto_qa: [
-    { id: 3, agentKey: 'auto_qa', startedAt: '2025-04-11T07:00:00', completedAt: '2025-04-11T07:02:30', itemsProcessed: 15, successCount: 15, errorCount: 0, status: 'completed' },
-  ],
-  sms_dispatcher: [
-    { id: 4, agentKey: 'sms_dispatcher', startedAt: '2025-04-11T09:00:00', completedAt: '2025-04-11T09:05:45', itemsProcessed: 156, successCount: 148, errorCount: 8, status: 'completed' },
-  ],
-  commission_calculator: [
-    { id: 5, agentKey: 'commission_calculator', startedAt: '2025-04-10T23:00:00', completedAt: '2025-04-10T23:01:20', itemsProcessed: 42, successCount: 42, errorCount: 0, status: 'completed' },
-  ],
-  payment_reconciler: [
-    { id: 6, agentKey: 'payment_reconciler', startedAt: '2025-04-11T06:00:00', completedAt: '2025-04-11T06:04:12', itemsProcessed: 89, successCount: 85, errorCount: 4, status: 'completed' },
-  ],
-  welcome_pack_sender: [
-    { id: 7, agentKey: 'welcome_pack_sender', startedAt: '2025-04-10T18:00:00', completedAt: '2025-04-10T18:02:05', itemsProcessed: 8, successCount: 8, errorCount: 0, status: 'completed' },
-  ],
-}
-
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
@@ -100,8 +69,8 @@ function timeAgo(dateStr: string): string {
 }
 
 export default function AiAgents() {
-  const [statuses, setStatuses] = useState<AiAgentStatus[]>(demoStatuses)
-  const [history, setHistory] = useState<Record<string, AiAgentRun[]>>(demoHistory)
+  const [statuses, setStatuses] = useState<AiAgentStatus[]>([])
+  const [history, setHistory] = useState<Record<string, AiAgentRun[]>>({})
   const [expanded, setExpanded] = useState<string | null>(null)
   const [running, setRunning] = useState<string | null>(null)
 
@@ -149,7 +118,7 @@ export default function AiAgents() {
         const runs = await getAiAgentHistory(agentKey)
         setHistory((prev) => ({ ...prev, [agentKey]: runs }))
       } catch {
-        // keep demo
+        // handle
       }
     }
   }
@@ -197,7 +166,7 @@ export default function AiAgents() {
                           ? 'bg-blue-100 text-blue-600'
                           : isError
                             ? 'bg-red-100 text-red-600'
-                            : 'bg-[#128FAF]/10 text-[#128FAF]'
+                            : 'bg-primary/10 text-primary'
                       )}
                     >
                       <Icon className={cn('h-5 w-5', isRunning && 'animate-pulse')} />
@@ -267,7 +236,7 @@ export default function AiAgents() {
                       onClick={() => handleToggleAuto(agent.agentKey, agent.autoRun)}
                       className={cn(
                         'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors',
-                        agent.autoRun ? 'bg-[#96ca4f]' : 'bg-gray-300'
+                        agent.autoRun ? 'bg-primary-light' : 'bg-gray-300'
                       )}
                     >
                       <span
@@ -283,7 +252,7 @@ export default function AiAgents() {
                 {/* Expand history */}
                 <button
                   onClick={() => handleExpand(agent.agentKey)}
-                  className="mt-3 flex w-full items-center justify-center gap-1 text-xs font-medium text-[#128FAF] hover:underline"
+                  className="mt-3 flex w-full items-center justify-center gap-1 text-xs font-medium text-primary hover:underline"
                 >
                   {expanded === agent.agentKey ? 'Hide' : 'View'} History
                   {expanded === agent.agentKey ? (

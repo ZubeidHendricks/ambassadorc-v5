@@ -99,7 +99,7 @@ export function DataTable<T extends Record<string, any>>({
             setPage(0)
           }}
           placeholder={searchPlaceholder}
-          className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-sm placeholder:text-gray-400 focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+          className="w-full max-w-sm rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm shadow-sm placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
       )}
       <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -160,7 +160,7 @@ export function DataTable<T extends Record<string, any>>({
                   key={idx}
                   className={cn(
                     'border-b border-gray-100 transition-colors',
-                    onRowClick && 'cursor-pointer hover:bg-[#128FAF]/5',
+                    onRowClick && 'cursor-pointer hover:bg-primary/5',
                     !onRowClick && 'hover:bg-gray-50/50'
                   )}
                   onClick={() => onRowClick?.(row)}
@@ -217,7 +217,7 @@ export function DataTable<T extends Record<string, any>>({
                   className={cn(
                     'h-8 w-8 rounded-lg text-sm font-medium transition-colors',
                     page === pageNum
-                      ? 'bg-[#128FAF] text-white'
+                      ? 'bg-primary text-white'
                       : 'text-gray-600 hover:bg-gray-100'
                   )}
                 >

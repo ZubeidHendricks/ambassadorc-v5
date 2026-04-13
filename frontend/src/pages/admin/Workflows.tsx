@@ -41,7 +41,7 @@ import { cn } from '@/lib/utils'
 const actionTypeIcons: Record<string, { icon: typeof MessageSquare; color: string; bg: string }> = {
   SEND_SMS: { icon: MessageSquare, color: 'text-blue-600', bg: 'bg-blue-50' },
   SEND_EMAIL: { icon: Mail, color: 'text-purple-600', bg: 'bg-purple-50' },
-  RUN_AGENT: { icon: Bot, color: 'text-[#128FAF]', bg: 'bg-[#128FAF]/10' },
+  RUN_AGENT: { icon: Bot, color: 'text-primary', bg: 'bg-primary/10' },
   UPDATE_STATUS: { icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
   WAIT: { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100' },
   APPROVAL: { icon: ShieldCheck, color: 'text-amber-600', bg: 'bg-amber-50' },
@@ -197,7 +197,7 @@ export default function Workflows() {
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-center py-24">
-          <RefreshCw className="h-8 w-8 animate-spin text-[#128FAF]" />
+          <RefreshCw className="h-8 w-8 animate-spin text-primary" />
         </div>
       </div>
     )
@@ -256,7 +256,7 @@ export default function Workflows() {
                 key={wf.id}
                 className={cn(
                   'cursor-pointer transition-all duration-200',
-                  isExpanded && 'lg:col-span-2 xl:col-span-3 ring-2 ring-[#128FAF]/30'
+                  isExpanded && 'lg:col-span-2 xl:col-span-3 ring-2 ring-primary/30'
                 )}
               >
                 <CardHeader
@@ -280,7 +280,7 @@ export default function Workflows() {
                     </div>
                     <div className="flex items-center gap-2">
                       {wf.isActive ? (
-                        <ToggleRight className="h-5 w-5 text-[#96ca4f]" />
+                        <ToggleRight className="h-5 w-5 text-primary-light" />
                       ) : (
                         <ToggleLeft className="h-5 w-5 text-gray-400" />
                       )}
@@ -302,7 +302,7 @@ export default function Workflows() {
                     <span
                       className={cn(
                         'text-xs font-medium',
-                        wf.isActive ? 'text-[#96ca4f]' : 'text-gray-400'
+                        wf.isActive ? 'text-primary-light' : 'text-gray-400'
                       )}
                     >
                       {wf.isActive ? 'Active' : 'Inactive'}
@@ -358,7 +358,7 @@ export default function Workflows() {
                                 </div>
                               </div>
                               {idx < (wf.steps?.length || 0) - 1 && (
-                                <div className="mx-1.5 mt-[-20px] h-0.5 w-8 bg-gradient-to-r from-[#128FAF]/40 to-[#128FAF]/20" />
+                                <div className="mx-1.5 mt-[-20px] h-0.5 w-8 bg-gradient-to-r from-primary/40 to-primary/20" />
                               )}
                             </div>
                           )
@@ -384,7 +384,7 @@ export default function Workflows() {
                 className={cn(
                   'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
                   instanceFilter === f
-                    ? 'bg-[#128FAF] text-white'
+                    ? 'bg-primary text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 )}
               >
@@ -452,7 +452,7 @@ export default function Workflows() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center rounded-full bg-[#128FAF]/10 px-2 py-0.5 text-xs font-medium text-[#128FAF]">
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                           Step {inst.currentStep}
                         </span>
                       </td>

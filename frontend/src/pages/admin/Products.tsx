@@ -12,47 +12,8 @@ import {
   type RequestPremiumChangePayload,
 } from '@/lib/api'
 
-const demoProducts: Product[] = [
-  {
-    id: 1,
-    name: 'Family Cover',
-    type: 'Life',
-    description: 'Comprehensive family life cover with funeral benefits.',
-    active: true,
-    premiumTiers: [
-      { id: 1, productId: 1, tierName: 'Basic', premiumAmount: 150, coverAmount: 15000, active: true },
-      { id: 2, productId: 1, tierName: 'Standard', premiumAmount: 250, coverAmount: 30000, active: true },
-      { id: 3, productId: 1, tierName: 'Premium', premiumAmount: 450, coverAmount: 60000, active: true },
-    ],
-    createdAt: '2024-06-01',
-  },
-  {
-    id: 2,
-    name: 'Funeral Plan',
-    type: 'Funeral',
-    description: 'Affordable funeral cover for individuals and families.',
-    active: true,
-    premiumTiers: [
-      { id: 4, productId: 2, tierName: 'Individual', premiumAmount: 80, coverAmount: 10000, active: true },
-      { id: 5, productId: 2, tierName: 'Family', premiumAmount: 150, coverAmount: 20000, active: true },
-    ],
-    createdAt: '2024-07-15',
-  },
-  {
-    id: 3,
-    name: 'Accident Cover',
-    type: 'Accident',
-    description: 'Personal accident cover.',
-    active: false,
-    premiumTiers: [
-      { id: 6, productId: 3, tierName: 'Standard', premiumAmount: 120, coverAmount: 25000, active: true },
-    ],
-    createdAt: '2024-08-20',
-  },
-]
-
 export default function Products() {
-  const [products, setProducts] = useState<Product[]>(demoProducts)
+  const [products, setProducts] = useState<Product[]>([])
   const [expanded, setExpanded] = useState<number | null>(null)
   const [productModal, setProductModal] = useState(false)
   const [premiumModal, setPremiumModal] = useState(false)
@@ -176,7 +137,7 @@ export default function Products() {
               </div>
               <button
                 onClick={() => setExpanded(expanded === product.id ? null : product.id)}
-                className="mt-3 flex items-center gap-1 text-xs font-medium text-[#128FAF] hover:underline"
+                className="mt-3 flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
                 {expanded === product.id ? 'Hide' : 'View'} tiers
                 {expanded === product.id ? (
@@ -242,7 +203,7 @@ export default function Products() {
                 step={5}
                 value={newPremium}
                 onChange={(e) => setNewPremium(Number(e.target.value))}
-                className="w-full accent-[#128FAF]"
+                className="w-full accent-primary"
               />
               <div className="mt-2 flex items-center gap-3">
                 <input
@@ -250,7 +211,7 @@ export default function Products() {
                   min={0}
                   value={newPremium}
                   onChange={(e) => setNewPremium(Number(e.target.value))}
-                  className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                  className="w-28 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <span
                   className={`text-sm font-semibold ${Number(changePercent) > 0 ? 'text-red-600' : Number(changePercent) < 0 ? 'text-emerald-600' : 'text-gray-500'}`}
@@ -272,7 +233,7 @@ export default function Products() {
                 required
                 value={effectiveDate}
                 onChange={(e) => setEffectiveDate(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div className="rounded-lg bg-amber-50 p-3">
@@ -306,7 +267,7 @@ export default function Products() {
               required
               value={productForm.name}
               onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <div>
@@ -315,7 +276,7 @@ export default function Products() {
               required
               value={productForm.type}
               onChange={(e) => setProductForm({ ...productForm, type: e.target.value })}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="">Select type...</option>
               <option value="Life">Life</option>
@@ -330,7 +291,7 @@ export default function Products() {
               value={productForm.description}
               onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
               rows={2}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#128FAF] focus:outline-none focus:ring-2 focus:ring-[#128FAF]/20"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">
