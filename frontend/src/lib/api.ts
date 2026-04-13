@@ -855,18 +855,9 @@ export interface LeaderboardEntry {
 
 export async function getLeaderboard(period?: string): Promise<LeaderboardEntry[]> {
   try {
-    const agents = await getAgents()
-    return agents
-      .sort((a, b) => b.referralCount - a.referralCount || b.totalEarnings - a.totalEarnings)
-      .map((a, i) => ({
-        rank: i + 1,
-        name: `${a.firstName} ${a.lastName}`,
-        referrals: a.referralCount,
-        leads: a.leadCount,
-        earnings: a.totalEarnings,
-        tier: a.tier || 'Bronze',
-        trend: 'same' as const,
-      }))
+    const params = period ? `?period=${period}` : ''
+    const res = await request<LeaderboardEntry[]>(`/leaderboard${params}`)
+    return res.data ?? []
   } catch {
     return []
   }

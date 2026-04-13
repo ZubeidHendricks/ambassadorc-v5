@@ -31,6 +31,7 @@ import { seedWorkflowTemplates } from "./workflows/templates";
 import integrationRoutes from "./routes/integrations";
 import queryRoutes from "./routes/query";
 import syncRoutes from "./routes/sync";
+import leaderboardRoutes from "./routes/leaderboard";
 import { seedIntegrationConfigs } from "./integrations/index";
 import { scheduleDailySync } from "./sync/engine";
 import { runLeadScorer } from "./agents/lead-scorer";
@@ -125,6 +126,7 @@ app.use("/api/workflows", workflowRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/query", queryRoutes);
 app.use("/api/sync", syncRoutes);
+app.use("/api/leaderboard", leaderboardRoutes);
 
 // ─── Serve Static Frontend (Production) ────────────────────────────────────
 

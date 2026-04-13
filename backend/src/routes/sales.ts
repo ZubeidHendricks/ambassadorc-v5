@@ -7,6 +7,7 @@ import {
   updateCampaignSchema,
 } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { hasSyncTables } from "../lib/syncCheck";
 
 const router = Router();
 
@@ -87,12 +88,61 @@ router.post("/", async (req: AuthRequest, res: Response) => {
 router.get("/", async (req: AuthRequest, res: Response) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
 
     const status = req.query.status as string | undefined;
     const agentId = req.query.agentId ? parseInt(req.query.agentId as string) : undefined;
     const productId = req.query.productId ? parseInt(req.query.productId as string) : undefined;
+
+    // ── Native Prisma path (production — no sync tables) ──────────────────
+    if (!(await hasSyncTables())) {
+      const where: any = {};
+      if (status) where.status = status;
+      if (agentId && !isNaN(agentId)) where.agentId = agentId;
+      if (productId && !isNaN(productId)) where.productId = productId;
+
+      const [sales, total] = await Promise.all([
+        prisma.sale.findMany({
+          where,
+          skip,
+          take: limit,
+          orderBy: { createdAt: "desc" },
+          include: {
+            client: { select: { id: true, firstName: true, lastName: true } },
+            product: { select: { id: true, name: true, premiumAmount: true } },
+            agent: { select: { id: true, firstName: true, lastName: true } },
+          },
+        }),
+        prisma.sale.count({ where }),
+      ]);
+
+      const mapped = sales.map((s: any) => ({
+        id: s.id,
+        clientId: s.clientId,
+        clientName: `${s.client.firstName} ${s.client.lastName}`,
+        productId: s.productId,
+        productName: s.product.name,
+        agentId: s.agentId,
+        agentName: `${s.agent.firstName} ${s.agent.lastName}`,
+        premiumAmount: Number(s.product.premiumAmount ?? 129),
+        status: ({ NEW: 'new', QA_PENDING: 'qa_pending', QA_APPROVED: 'approved', QA_REJECTED: 'cancelled', ACTIVE: 'active', CANCELLED: 'cancelled' } as Record<string, string>)[s.status] ?? 'new',
+        campaignId: null,
+        campaignName: null,
+        createdAt: s.createdAt,
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          sales: mapped,
+          pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        },
+      });
+      return;
+    }
+
+    // ── Sync path (ETL environment) ───────────────────────────────────────
 
     // Build dynamic WHERE from sync_sales_data columns
     let whereClauses: string[] = [];
@@ -100,9 +150,13 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     let p = 1;
 
     if (status) {
-      whereClauses.push(`"Status" ILIKE $${p}`);
-      params.push(`%${status}%`);
-      p++;
+      // Map normalized status back to FoxPro patterns
+      if (status === 'cancelled') { whereClauses.push(`("Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%' OR "Status" ILIKE '%delet%')`); }
+      else if (status === 'active') { whereClauses.push(`("Status" ILIKE '%active%' OR "Status" = 'Active Client')`); }
+      else if (status === 'approved') { whereClauses.push(`("Status" ILIKE '%passed%' OR "Status" ILIKE '%approved%' OR "Status" ILIKE '%ok%')`); }
+      else if (status === 'qa_pending') { whereClauses.push(`("Status" ILIKE '%qa%' OR "Status" ILIKE '%quality%' OR "Status" ILIKE '%pending%' OR "Status" ILIKE '%awaiting%')`); }
+      else if (status === 'new') { whereClauses.push(`("Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%delet%' AND "Status" NOT ILIKE '%active%' AND "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%approved%' AND "Status" NOT ILIKE '%qa%' AND "Status" NOT ILIKE '%pending%' AND "Status" NOT ILIKE '%awaiting%')`); }
+      else { whereClauses.push(`"Status" ILIKE $${p}`); params.push(`%${status}%`); p++; }
     }
 
     const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
@@ -116,10 +170,24 @@ router.get("/", async (req: AuthRequest, res: Response) => {
                 COALESCE("ProductName", 'Unknown') as "productName",
                 0 as "agentId",
                 COALESCE("SalesAgentUserName", '') as "agentName",
-                0 as "premiumAmount",
-                COALESCE("Status", 'Unknown') as status,
-                "CampaignID"::integer as "campaignId",
+                COALESCE(
+                  NULLIF(
+                    (SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
+                     FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = "IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1),
+                    0
+                  ),
+                  CASE COALESCE("ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
+                ) as "premiumAmount",
+                CASE
+                  WHEN "Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%' OR "Status" ILIKE '%delet%' THEN 'cancelled'
+                  WHEN "Status" ILIKE '%active%' OR "Status" = 'Active Client' THEN 'active'
+                  WHEN "Status" ILIKE '%passed%' OR "Status" ILIKE '%approved%' OR "Status" ILIKE '%ok%' THEN 'approved'
+                  WHEN "Status" ILIKE '%qa%' OR "Status" ILIKE '%quality%' OR "Status" ILIKE '%pending%' OR "Status" ILIKE '%awaiting%' THEN 'qa_pending'
+                  ELSE 'new'
+                END as status,
+                NULL::bigint as "campaignId",
                 NULL::text as "campaignName",
+                COALESCE("Status", 'Unknown') as "rawStatus",
                 _synced_at as "createdAt"
          FROM sync_sales_data
          ${whereSQL}
