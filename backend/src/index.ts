@@ -58,9 +58,11 @@ app.use(
 
 // ─── Rate Limiting ──────────────────────────────────────────────────────────
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: isDev ? 10_000 : 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -71,7 +73,7 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // Stricter limit for auth endpoints
+  max: isDev ? 500 : 20, // Stricter limit for auth endpoints
   standardHeaders: true,
   legacyHeaders: false,
   message: {
