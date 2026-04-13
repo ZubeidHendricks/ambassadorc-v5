@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
+import { Logo, LogoMark } from '@/components/ui/Logo'
 import {
   LayoutDashboard,
   Users,
@@ -120,15 +121,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 px-4 border-b border-white/10">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary font-bold text-white text-sm">
-          AC
-        </div>
-        {!collapsed && (
-          <span className="text-lg font-bold text-white tracking-tight">
-            Ambassador<span className="text-primary-light">C</span>
-          </span>
-        )}
-        {/* Mobile close */}
+        {collapsed
+          ? <LogoMark size={32} />
+          : <Logo size={32} textSize="text-base" />
+        }
         <button
           onClick={onMobileClose}
           className="ml-auto md:hidden rounded-lg p-1.5 text-white/60 hover:text-white hover:bg-white/10"

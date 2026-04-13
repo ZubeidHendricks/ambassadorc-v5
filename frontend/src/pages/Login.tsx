@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/toast'
 import { ArrowRight, Eye, EyeOff } from 'lucide-react'
+import { Logo, LogoMark } from '@/components/ui/Logo'
 
 export default function Login() {
   const { login } = useAuth()
@@ -61,10 +62,7 @@ export default function Login() {
         </div>
 
         {/* Logo */}
-        <div className="relative flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#004D99] text-xs font-black text-white">AC</div>
-          <span className="text-sm font-semibold text-white">AmbassadorC</span>
-        </div>
+        <Logo size={30} textSize="text-sm" className="relative" />
 
         {/* Content */}
         <div className="relative">
@@ -112,9 +110,8 @@ export default function Login() {
         <div className="w-full max-w-sm">
 
           {/* Mobile logo */}
-          <div className="lg:hidden mb-10 flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#004D99] text-xs font-black text-white">AC</div>
-            <span className="text-sm font-semibold text-white">AmbassadorC</span>
+          <div className="lg:hidden mb-10">
+            <Logo size={28} textSize="text-sm" />
           </div>
 
           {/* Heading */}

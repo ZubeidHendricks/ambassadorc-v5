@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Shield, Bot, Zap, TrendingUp, Users, Send, CheckCircle } from 'lucide-react'
+import { LogoMark } from '@/components/ui/Logo'
 
 const stats = [
   { value: '1.1M+', label: 'Records synced' },
@@ -76,9 +77,9 @@ export default function Landing() {
       {/* ─── Nav ───────────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-12 h-14"
         style={{ background: 'rgba(8,12,20,0.7)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#004D99] text-xs font-black text-white">AC</div>
-          <span className="text-sm font-semibold tracking-tight text-white">AmbassadorC</span>
+        <div className="flex items-center gap-2.5">
+          <LogoMark size={28} />
+          <span className="text-sm font-semibold tracking-tight text-white">Ambassador<span style={{ color: '#0AB3CC' }}>C</span></span>
         </div>
         <div className="hidden md:flex items-center gap-8 text-xs font-medium text-white/50">
           <a href="#platform" className="hover:text-white transition-colors">Platform</a>
@@ -334,7 +335,7 @@ export default function Landing() {
       <footer className="px-6 pb-10" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <div className="mx-auto max-w-5xl flex flex-col md:flex-row items-center justify-between gap-4 pt-8">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#004D99] text-[10px] font-black text-white">AC</div>
+            <LogoMark size={22} />
             <span className="text-xs font-semibold text-white/40">AmbassadorC</span>
           </div>
           <p className="text-[11px] text-white/20">

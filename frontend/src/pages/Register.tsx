@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/components/ui/toast'
 import { ArrowRight, Zap } from 'lucide-react'
+import { Logo, LogoMark } from '@/components/ui/Logo'
 
 const SA_PROVINCES = [
   'Eastern Cape',
@@ -132,10 +133,7 @@ export default function Register() {
             style={{ background: 'radial-gradient(ellipse, #0FCC85 0%, transparent 70%)', filter: 'blur(60px)' }} />
         </div>
 
-        <div className="relative flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#004D99] text-xs font-black text-white">AC</div>
-          <span className="text-sm font-semibold text-white">AmbassadorC</span>
-        </div>
+        <Logo size={30} textSize="text-sm" className="relative" />
 
         <div className="relative">
           <p className="mb-3 text-[10px] uppercase tracking-[0.2em] font-semibold text-white/30">Refer &amp; Earn</p>
@@ -182,9 +180,8 @@ export default function Register() {
         <div className="w-full max-w-md">
 
           {/* Mobile logo */}
-          <div className="lg:hidden mb-8 flex items-center gap-2.5">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#004D99] text-xs font-black text-white">AC</div>
-            <span className="text-sm font-semibold text-white">AmbassadorC</span>
+          <div className="lg:hidden mb-8">
+            <Logo size={28} textSize="text-sm" />
           </div>
 
           <div className="mb-7">
