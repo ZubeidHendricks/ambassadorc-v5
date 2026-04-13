@@ -29,28 +29,43 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
     const [rows, countRow] = await Promise.all([
       prisma.$queryRawUnsafe<any[]>(
-        `SELECT _sync_id::integer as id,
+        `SELECT s._sync_id::integer as id,
                 0 as "agentId",
-                COALESCE("SalesAgentUserName", 'Unknown') as "agentName",
-                _sync_id::integer as "saleId",
-                CONCAT("FirstName", ' ', "LastName") as "clientName",
-                COALESCE("ProductName", 'Unknown') as "productName",
-                0 as amount,
+                COALESCE(s."SalesAgentUserName", 'Unknown') as "agentName",
+                s._sync_id::integer as "saleId",
+                CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
+                COALESCE(s."ProductName", 'Unknown') as "productName",
+                COALESCE(
+                  NULLIF(
+                    (SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
+                     FROM sync_sagepay_transactions sp
+                     WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != ''
+                     LIMIT 1),
+                    0
+                  ),
+                  CASE COALESCE(s."ProductName", '')
+                    WHEN 'Life Saver Legal' THEN 129
+                    WHEN 'LegalNet'         THEN 129
+                    WHEN 'Life Saver 24'   THEN 199
+                    WHEN 'Five-In-One'     THEN 199
+                    ELSE 129
+                  END
+                ) as amount,
                 CASE
-                  WHEN "Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%' THEN 'paid'
-                  WHEN "Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%' THEN 'cancelled'
+                  WHEN s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%active%' OR s."Status" ILIKE '%ok%' THEN 'paid'
+                  WHEN s."Status" ILIKE '%cancel%' OR s."Status" ILIKE '%lapse%' THEN 'cancelled'
                   ELSE 'pending'
                 END as status,
                 NULL::text as "paidAt",
-                _synced_at as "createdAt"
-         FROM sync_sales_data
+                s._synced_at as "createdAt"
+         FROM sync_sales_data s
          ${whereSQL}
-         ORDER BY _synced_at DESC
+         ORDER BY s._synced_at DESC
          LIMIT $1 OFFSET $2`,
         limit, skip
       ),
       prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data ${whereSQL}`
+        `SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`
       ),
     ]);
 
