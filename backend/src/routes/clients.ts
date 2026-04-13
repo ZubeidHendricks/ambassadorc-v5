@@ -93,8 +93,8 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       [clientRows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
           `SELECT _sync_id::integer as id, "Title" as title, "FirstName" as "firstName", "LastName" as "lastName",
-                  "IDNumber" as "idNumber", "CellPhone" as cellphone, NULL::text as email,
-                  NULL::text as province, "Status" as status, "ProductName" as product,
+                  "IDNumber" as "idNumber", "CellPhone" as cellphone, "CellPhone" as phone,
+                  NULL::text as email, NULL::text as province, "Status" as status, "ProductName" as product,
                   "SalesAgentUserName" as agent, _synced_at as "createdAt"
            FROM sync_sales_data
            WHERE "FirstName" ILIKE $1 OR "LastName" ILIKE $1 OR "IDNumber" ILIKE $1 OR "CellPhone" ILIKE $1
@@ -112,8 +112,8 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       [clientRows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
           `SELECT _sync_id::integer as id, "Title" as title, "FirstName" as "firstName", "LastName" as "lastName",
-                  "IDNumber" as "idNumber", "CellPhone" as cellphone, NULL::text as email,
-                  NULL::text as province, "Status" as status, "ProductName" as product,
+                  "IDNumber" as "idNumber", "CellPhone" as cellphone, "CellPhone" as phone,
+                  NULL::text as email, NULL::text as province, "Status" as status, "ProductName" as product,
                   "SalesAgentUserName" as agent, _synced_at as "createdAt"
            FROM sync_sales_data
            ORDER BY _synced_at DESC

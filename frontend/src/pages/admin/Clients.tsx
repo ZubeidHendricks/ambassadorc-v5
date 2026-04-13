@@ -19,8 +19,16 @@ const columns: Column<Client>[] = [
     ),
   },
   { key: 'idNumber', header: 'ID Number' },
-  { key: 'phone', header: 'Phone' },
-  { key: 'province', header: 'Province' },
+  {
+    key: 'phone',
+    header: 'Phone',
+    render: (row) => (row as any).phone || (row as any).cellphone || <span className="text-gray-400">—</span>,
+  },
+  {
+    key: 'province',
+    header: 'Province',
+    render: (row) => row.province || <span className="text-gray-400">N/A</span>,
+  },
   {
     key: 'policyCount',
     header: 'Policies',
