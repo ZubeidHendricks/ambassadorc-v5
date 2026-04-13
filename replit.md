@@ -44,9 +44,17 @@ Frontend proxies `/api/*` requests to the backend at `localhost:3001`.
 
 ## Database
 
-Uses Replit's managed PostgreSQL. Schema managed by Prisma.
-- Connection string stored in `DATABASE_URL` environment variable
-- Run `cd backend && npx prisma db push` to sync schema changes
+Connected to **DigitalOcean Managed PostgreSQL** (production database).
+- Host: `ambassadorc-db-do-user-35795027-0.j.db.ondigitalocean.com:25060`
+- Database: `ambassadorc`
+- SSL: required
+- Schema managed by Prisma (`backend/prisma/schema.prisma`, 34 tables)
+
+## Admin Credentials
+
+- Mobile: `0800000000`
+- Password: `Admin@2024`
+- Role: ADMIN
 
 ## Environment Variables
 
@@ -56,6 +64,15 @@ Backend `.env` (not committed):
 - `JWT_EXPIRES_IN` — Token expiry (default: 7d)
 - `PORT` — Backend port (default: 3001)
 - `NODE_ENV` — development / production
+
+## SQL Console
+
+Available at `/admin/sql` (ADMIN only). Supports SELECT / WITH / EXPLAIN queries.
+- View schema browser with table/column explorer
+- 9 preset queries for common data lookups
+- Query history (last 30 runs)
+- Export results as CSV
+- Backend route: `POST /api/query/sql`, `GET /api/query/schema`, `GET /api/query/stats`
 
 ## Production Deployment
 

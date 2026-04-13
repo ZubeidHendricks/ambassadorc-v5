@@ -29,6 +29,7 @@ import { orchestrator } from "./agents/index";
 import { workflowEngine } from "./workflows/engine";
 import { seedWorkflowTemplates } from "./workflows/templates";
 import integrationRoutes from "./routes/integrations";
+import queryRoutes from "./routes/query";
 import { seedIntegrationConfigs } from "./integrations/index";
 import { runLeadScorer } from "./agents/lead-scorer";
 import { runQaAutoChecker } from "./agents/qa-auto-checker";
@@ -118,6 +119,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/agents", agentRoutes);
 app.use("/api/workflows", workflowRoutes);
 app.use("/api/integrations", integrationRoutes);
+app.use("/api/query", queryRoutes);
 
 // ─── Serve Static Frontend (Production) ────────────────────────────────────
 

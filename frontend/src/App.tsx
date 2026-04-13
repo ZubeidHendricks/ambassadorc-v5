@@ -30,6 +30,7 @@ import WorkflowInstance from '@/pages/admin/WorkflowInstance'
 import Documents from '@/pages/admin/Documents'
 import SmsCenter from '@/pages/admin/SmsCenter'
 import Integrations from '@/pages/admin/Integrations'
+import SqlQuery from '@/pages/admin/SqlQuery'
 
 export default function App() {
   return (
@@ -236,6 +237,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
               <Integrations />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/sql"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <SqlQuery />
             </ProtectedRoute>
           }
         />
