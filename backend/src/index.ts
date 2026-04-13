@@ -30,7 +30,9 @@ import { workflowEngine } from "./workflows/engine";
 import { seedWorkflowTemplates } from "./workflows/templates";
 import integrationRoutes from "./routes/integrations";
 import queryRoutes from "./routes/query";
+import syncRoutes from "./routes/sync";
 import { seedIntegrationConfigs } from "./integrations/index";
+import { scheduleDailySync } from "./sync/engine";
 import { runLeadScorer } from "./agents/lead-scorer";
 import { runQaAutoChecker } from "./agents/qa-auto-checker";
 import { runSmsDispatcher } from "./agents/sms-dispatcher";
@@ -120,6 +122,7 @@ app.use("/api/agents", agentRoutes);
 app.use("/api/workflows", workflowRoutes);
 app.use("/api/integrations", integrationRoutes);
 app.use("/api/query", queryRoutes);
+app.use("/api/sync", syncRoutes);
 
 // ─── Serve Static Frontend (Production) ────────────────────────────────────
 
@@ -215,6 +218,14 @@ app.listen(PORT, async () => {
     console.log("Integration configs initialised");
   } catch (err) {
     console.error("Failed to seed integration configs:", err);
+  }
+
+  // Schedule daily FoxPro SQL Server sync at 2:00 AM UTC
+  try {
+    scheduleDailySync(2);
+    console.log("FoxPro daily sync scheduler started (runs at 02:00 UTC)");
+  } catch (err) {
+    console.error("Failed to start daily sync scheduler:", err);
   }
 });
 

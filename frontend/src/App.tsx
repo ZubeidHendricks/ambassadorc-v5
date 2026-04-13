@@ -31,6 +31,7 @@ import Documents from '@/pages/admin/Documents'
 import SmsCenter from '@/pages/admin/SmsCenter'
 import Integrations from '@/pages/admin/Integrations'
 import SqlQuery from '@/pages/admin/SqlQuery'
+import SyncDashboard from '@/pages/admin/SyncDashboard'
 
 export default function App() {
   return (
@@ -245,6 +246,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
               <SqlQuery />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/sync"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <SyncDashboard />
             </ProtectedRoute>
           }
         />

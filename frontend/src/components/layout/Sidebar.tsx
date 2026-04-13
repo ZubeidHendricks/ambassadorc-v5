@@ -27,6 +27,7 @@ import {
   History,
   X,
   Terminal,
+  ArrowLeftRight,
 } from 'lucide-react'
 
 interface NavItem {
@@ -84,6 +85,7 @@ const sections: NavSection[] = [
       { to: '/admin/sms', label: 'SMS Center', icon: MessageSquare },
       { to: '/admin/integrations', label: 'Integrations', icon: Plug },
       { to: '/admin/sql', label: 'SQL Console', icon: Terminal },
+      { to: '/admin/sync', label: 'FoxPro Sync', icon: ArrowLeftRight },
     ],
   },
 ]

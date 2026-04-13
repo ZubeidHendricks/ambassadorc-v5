@@ -81,6 +81,42 @@ Available at `/admin/sql` (ADMIN only). Supports SELECT / WITH / EXPLAIN queries
 - Express serves static frontend files from `backend/public/` in production
 - Backend handles all `/api/*` routes; frontend SPA handles all other routes
 
+## FoxPro Sync Pipeline
+
+ETL pipeline that replicates FoxPro SQL Server (foxpro.co.za:3231) into PostgreSQL `sync_*` staging tables.
+
+### Architecture
+- 29 tables mapped in `backend/src/sync/table-map.ts`
+- Engine: `backend/src/sync/engine.ts`
+- Three sync strategies:
+  1. **Keyset pagination** (`WHERE id > lastId ORDER BY id`) — for indexed tables with small-medium row counts
+  2. **OFFSET/FETCH** — for tables without an `id` column (small tables)
+  3. **Stream dump** (`streamDump: true`) — for wide/unindexed tables (SalesData, SalesLeads, SagePayTransactions). Uses mssql streaming mode with `SELECT * WITH (NOLOCK)` — no ORDER BY, no WHERE — rows flow in heap order. Avoids full-table scan + sort that caused 10+ minute timeouts on SQL Server Express.
+- **Checkpoints**: `sync_checkpoints` table tracks `(source_table, last_id, rows_synced)` — persists across process restarts so interrupted syncs resume automatically
+- **Schedule**: daily at 02:00 UTC via `node-schedule`
+- **API**: `POST /api/sync/run` (with optional `tables[]` and `forceReset: true`), `GET /api/sync/status`, `GET /api/sync/checkpoints`
+
+### Current Sync Status (as of 2026-04-13)
+All 29 tables synced — **1,182,293 total rows**:
+- `sync_sales_history`: 502,111 rows
+- `sync_sagepay_transactions`: 354,224 rows (streamDump)
+- `sync_sales_leads`: 112,562 rows (streamDump)
+- `sync_sales_data`: 103,830 rows (streamDump)
+- `sync_invoice_data`: 48,674 rows
+- `sync_welcome_pack_history`: 19,849 rows
+- `sync_premium_updates`: 18,860 rows
+- `sync_sales_transactions`: 17,757 rows
+- + 21 smaller tables
+
+### UI: Sync Dashboard
+Available at `/admin/sync` (ADMIN only):
+- Live progress polling (5s interval while running)
+- Force Reset checkbox to clear checkpoints and reload from scratch
+- Progress tab showing active checkpoints
+- History tab showing past sync jobs
+- Table cards with last-result status indicators
+- Preview panel: click any table to see latest 50 rows
+
 ## Key Features
 
 - Ambassador/Agent registration and management
