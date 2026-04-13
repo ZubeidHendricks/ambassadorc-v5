@@ -6,3 +6,9 @@ id = "R1k_bNOXT0tSZvNpR_Ubh"
 uri = "file://AmbassadorC_v5_Status_Report.docx"
 type = "word_document"
 title = "AmbassadorC v5 - Application Status Report"
+
+[[outputs]]
+id = "oN5KTimgh3M1hoR71SVGu"
+uri = "file://AmbassadorC_v5_Complete_Documentation.docx"
+type = "word_document"
+title = "AmbassadorC v5 — Complete System Documentation"
