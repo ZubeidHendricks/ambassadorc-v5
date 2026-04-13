@@ -99,7 +99,7 @@ export default function Dashboard() {
       </div>
 
       {/* Tier progress card */}
-      <div className="rounded-2xl border border-gray-100 bg-gradient-to-r from-primary-dark via-primary to-primary-light p-6 text-white shadow-lg">
+      <div className="rounded-xl bg-gradient-to-r from-primary-dark via-primary to-primary-light p-6 text-white" style={{ boxShadow: '0 4px 12px rgba(0,77,153,0.25), 0 16px 40px rgba(0,77,153,0.15)' }}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
@@ -164,8 +164,8 @@ export default function Dashboard() {
       {/* Chart & Quick Actions */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Chart */}
-        <div className="lg:col-span-2 rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Monthly Activity</h2>
+        <div className="lg:col-span-2 win11-card p-6">
+          <h2 className="text-[15px] font-semibold text-gray-900 mb-4">Monthly Activity</h2>
           {monthly.length > 0 ? (
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
@@ -195,8 +195,8 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Quick Actions</h2>
+        <div className="win11-card p-6">
+          <h2 className="text-[15px] font-semibold text-gray-900 mb-4">Quick Actions</h2>
           <div className="space-y-3">
             <Button asChild className="w-full justify-between" size="lg">
               <Link to="/referrals">

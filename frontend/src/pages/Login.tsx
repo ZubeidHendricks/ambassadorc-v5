@@ -42,7 +42,7 @@ export default function Login() {
   }
 
   return (
-    <div className="relative flex min-h-screen overflow-hidden" style={{ background: '#080C14', fontFamily: "'Google Sans', 'Inter', system-ui, sans-serif" }}>
+    <div className="relative flex min-h-screen overflow-hidden" style={{ background: '#080C14', fontFamily: "'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>
 
       {/* Noise texture */}
       <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.025]"

@@ -41,10 +41,10 @@
   --color-brand-teal-light: #0AB3CC;
   --color-brand-blue-light: #3366CC;
 
-  /* Surfaces - D8tavision */
+  /* Surfaces — Windows 11 warm neutrals */
   --color-surface: #FFFFFF;
-  --color-surface-dim: #F7F9FC;
-  --color-surface-bright: #EEF3F8;
+  --color-surface-dim: #F3F3F3;
+  --color-surface-bright: #EBEBEB;
 
   /* Chart colours */
   --color-chart-1: #004D99;
@@ -53,21 +53,46 @@
   --color-chart-4: #9933FF;
   --color-chart-5: #F0527A;
 
-  /* Typography - Google Sans with Inter fallback */
-  --font-sans: 'Google Sans', 'Google Sans Display', 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Typography — Windows 11 Segoe UI Variable */
+  --font-sans: 'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'Cascadia Mono', 'Consolas', ui-monospace, monospace;
 
-  /* Tight border radius per D8tavision guide */
-  --radius-sm: 0.05rem;
-  --radius-md: 0.175rem;
-  --radius-lg: 0.3rem;
-  --radius-xl: 0.55rem;
+  /* Windows 11 border radii */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
 }
 
 /* ─── Base ────────────────────────────────────────────────── */
 
 body {
   @apply bg-surface-dim text-gray-900 antialiased;
+  font-feature-settings: 'kern' 1, 'liga' 1;
+  text-rendering: optimizeLegibility;
+}
+
+/* ─── Windows 11 card surface ────────────────────────────── */
+
+.win11-card {
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.04);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.win11-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+
+/* ─── Windows 11 Mica/Acrylic surface ────────────────────── */
+
+.win11-mica {
+  background: rgba(243, 243, 243, 0.9);
+  backdrop-filter: blur(30px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* ─── Glassmorphism utilities ─────────────────────────────── */
@@ -96,28 +121,28 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
+  background: rgba(0,0,0,0.15);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: rgba(0,0,0,0.25);
 }
 
 /* ─── Sidebar scrollbar ──────────────────────────────────── */
 
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 /* ─── Animations ─────────────────────────────────────────── */
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -127,18 +152,18 @@ body {
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
 
 .animate-fade-in {
-  animation: fade-in 0.3s ease-out forwards;
+  animation: fade-in 0.2s ease-out forwards;
 }
 
 .animate-slide-in {
-  animation: slide-in-left 0.3s ease-out forwards;
+  animation: slide-in-left 0.25s ease-out forwards;
 }
 
 .animate-scale-in {
-  animation: scale-in 0.2s ease-out forwards;
+  animation: scale-in 0.15s ease-out forwards;
 }

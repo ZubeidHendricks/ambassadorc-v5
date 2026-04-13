@@ -137,9 +137,9 @@ export default function AdminDashboard() {
       {/* Charts row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Revenue chart */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="win11-card p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-gray-900">Revenue (Last 12 Months)</h2>
+            <h2 className="text-[15px] font-semibold text-gray-900">Revenue (Last 12 Months)</h2>
             <span className="flex items-center gap-1 text-xs font-medium text-success">
               <ArrowUpRight className="h-3.5 w-3.5" />
               15%
@@ -168,8 +168,8 @@ export default function AdminDashboard() {
         </div>
 
         {/* Pipeline chart */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Sales Pipeline</h2>
+        <div className="win11-card p-6">
+          <h2 className="text-[15px] font-semibold text-gray-900 mb-4">Sales Pipeline</h2>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={pipeline}>
@@ -191,8 +191,8 @@ export default function AdminDashboard() {
       {/* Bottom row */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Top agents */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Top Agents</h2>
+        <div className="win11-card p-6">
+          <h2 className="text-[15px] font-semibold text-gray-900 mb-4">Top Agents</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm" role="table">
               <thead>
@@ -231,8 +231,8 @@ export default function AdminDashboard() {
         </div>
 
         {/* Recent activity */}
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-gray-900 mb-4">Recent Activity</h2>
+        <div className="win11-card p-6">
+          <h2 className="text-[15px] font-semibold text-gray-900 mb-4">Recent Activity</h2>
           <div className="space-y-3">
             {activity.map((item) => (
               <div key={item.id} className="flex items-start gap-3 rounded-xl p-2.5 hover:bg-gray-50/80 transition-colors">

@@ -67,7 +67,7 @@ const steps = [
 
 export default function Landing() {
   return (
-    <div className="bg-[#080C14] text-white min-h-screen overflow-x-hidden" style={{ fontFamily: "'Google Sans', 'Inter', system-ui, sans-serif" }}>
+    <div className="bg-[#080C14] text-white min-h-screen overflow-x-hidden" style={{ fontFamily: "'Segoe UI Variable', 'Segoe UI', system-ui, -apple-system, sans-serif" }}>
 
       {/* ─── Noise texture overlay ─────────────────────────────── */}
       <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.025]"

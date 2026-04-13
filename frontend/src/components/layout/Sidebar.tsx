@@ -157,10 +157,10 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                     onClick={onMobileClose}
                     title={collapsed ? item.label : undefined}
                     className={cn(
-                      'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
+                      'group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-all duration-100',
                       active
-                        ? 'bg-primary text-white shadow-lg shadow-primary/25'
-                        : 'text-white/70 hover:bg-white/8 hover:text-white',
+                        ? 'bg-white/12 text-white font-semibold'
+                        : 'font-normal text-white/60 hover:bg-white/6 hover:text-white/90',
                       collapsed && 'justify-center px-2'
                     )}
                   >

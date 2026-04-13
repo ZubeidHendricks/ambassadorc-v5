@@ -42,7 +42,7 @@ export default function Header({ onMobileMenuToggle, onCommandPaletteOpen }: Hea
   if (!user) return null
 
   return (
-    <header className="sticky top-0 z-20 h-[52px] border-b border-gray-200/60 bg-white/90 backdrop-blur-xl">
+    <header className="win11-mica sticky top-0 z-20 h-[52px]">
       <div className="flex h-full items-center justify-between px-5 lg:px-7">
 
         {/* Left */}
