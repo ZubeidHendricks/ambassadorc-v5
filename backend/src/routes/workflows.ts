@@ -62,6 +62,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
+          steps: { orderBy: { order: 'asc' } },
           _count: { select: { steps: true, instances: true } },
         },
       }),

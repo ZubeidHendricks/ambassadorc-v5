@@ -1157,8 +1157,19 @@ export async function processWorkflows() {
 }
 
 export async function getWorkflowStats() {
-  const res = await request<WorkflowStats>('/workflows/stats')
-  return res.data!
+  const res = await request<any>('/workflows/stats')
+  const d = res.data!
+  // Backend returns nested shape; map to flat WorkflowStats
+  if (d && (d.workflows || d.instances)) {
+    return {
+      activeWorkflows:   d.workflows?.active  ?? 0,
+      runningInstances:  d.instances?.active  ?? 0,
+      completedToday:    d.instances?.completed ?? 0,
+      failedCount:       d.instances?.failed   ?? 0,
+      pendingApproval:   d.instances?.paused   ?? 0,
+    } as WorkflowStats
+  }
+  return d as WorkflowStats
 }
 
 // ─── Admin Stats & Audit ──────────────────────────────────────────
