@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { DollarSign, Clock, CheckCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatCard } from '@/components/ui/stat-card'
@@ -10,20 +10,44 @@ import {
   markCommissionPaid,
   type CommissionSummary,
   type Commission,
+  type PaginationInfo,
 } from '@/lib/api'
+
+const PAGE_SIZE = 20
 
 export default function Commissions() {
   const [summary, setSummary] = useState<CommissionSummary>({ totalEarned: 0, pending: 0, paidThisMonth: 0 })
   const [commissions, setCommissions] = useState<Commission[]>([])
   const [statusFilter, setStatusFilter] = useState('')
   const [agentFilter, setAgentFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
   const [processing, setProcessing] = useState<number | null>(null)
+
+  const loadCommissions = useCallback(async () => {
+    try {
+      const result = await getCommissions(
+        { status: statusFilter || undefined, agentId: agentFilter ? Number(agentFilter) : undefined },
+        page,
+        PAGE_SIZE
+      )
+      setCommissions(result.data)
+      setPagination(result.pagination)
+    } catch {
+      // handle
+    }
+  }, [statusFilter, agentFilter, page])
 
   useEffect(() => {
     getCommissionSummary().then(setSummary).catch(() => {})
-    getCommissions({ status: statusFilter || undefined, agentId: agentFilter ? Number(agentFilter) : undefined })
-      .then(setCommissions)
-      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    loadCommissions()
+  }, [loadCommissions])
+
+  useEffect(() => {
+    setPage(1)
   }, [statusFilter, agentFilter])
 
   const handleMarkPaid = async (id: number) => {
@@ -138,7 +162,18 @@ export default function Commissions() {
         </select>
       </div>
 
-      <DataTable data={commissions} columns={columns} pageSize={10} />
+      <DataTable
+        data={commissions}
+        columns={columns}
+        pageSize={PAGE_SIZE}
+        serverPagination={{
+          page: pagination.page,
+          totalPages: pagination.totalPages,
+          total: pagination.total,
+          pageSize: PAGE_SIZE,
+          onPageChange: setPage,
+        }}
+      />
     </div>
   )
 }

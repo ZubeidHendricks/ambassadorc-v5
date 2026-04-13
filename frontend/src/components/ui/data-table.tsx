@@ -10,6 +10,14 @@ export interface Column<T> {
   className?: string
 }
 
+export interface ServerPaginationProps {
+  page: number
+  totalPages: number
+  total: number
+  pageSize: number
+  onPageChange: (page: number) => void
+}
+
 interface DataTableProps<T> {
   data: T[]
   columns: Column<T>[]
@@ -20,6 +28,7 @@ interface DataTableProps<T> {
   searchable?: boolean
   searchPlaceholder?: string
   searchKeys?: string[]
+  serverPagination?: ServerPaginationProps
 }
 
 type SortDir = 'asc' | 'desc' | null
@@ -34,6 +43,7 @@ export function DataTable<T extends Record<string, any>>({
   searchable = false,
   searchPlaceholder = 'Search...',
   searchKeys = [],
+  serverPagination,
 }: DataTableProps<T>) {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
@@ -85,12 +95,27 @@ export function DataTable<T extends Record<string, any>>({
     })
   }, [filtered, sortKey, sortDir])
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize))
-  const paged = sorted.slice(page * pageSize, (page + 1) * pageSize)
+  const totalPages = serverPagination
+    ? serverPagination.totalPages
+    : Math.max(1, Math.ceil(sorted.length / pageSize))
+  const paged = serverPagination ? sorted : sorted.slice(page * pageSize, (page + 1) * pageSize)
+
+  const currentPage = serverPagination ? serverPagination.page - 1 : page
+  const activeTotalPages = serverPagination ? serverPagination.totalPages : totalPages
+  const activeTotal = serverPagination ? serverPagination.total : sorted.length
+  const activePageSize = serverPagination ? serverPagination.pageSize : pageSize
+
+  const handlePageChange = (p: number) => {
+    if (serverPagination) {
+      serverPagination.onPageChange(p + 1)
+    } else {
+      setPage(p)
+    }
+  }
 
   return (
     <div className={cn('space-y-4', className)}>
-      {searchable && (
+      {searchable && !serverPagination && (
         <input
           type="text"
           value={search}
@@ -184,39 +209,39 @@ export function DataTable<T extends Record<string, any>>({
           </tbody>
         </table>
       </div>
-      {totalPages > 1 && (
+      {activeTotalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <p className="text-gray-500">
-            Showing {page * pageSize + 1}--{Math.min((page + 1) * pageSize, sorted.length)} of{' '}
-            {sorted.length}
+            Showing {currentPage * activePageSize + 1}–{Math.min((currentPage + 1) * activePageSize, activeTotal)} of{' '}
+            {activeTotal}
           </p>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
+              onClick={() => handlePageChange(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
               className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Previous page"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+            {Array.from({ length: Math.min(activeTotalPages, 5) }, (_, i) => {
               let pageNum: number
-              if (totalPages <= 5) {
+              if (activeTotalPages <= 5) {
                 pageNum = i
-              } else if (page < 3) {
+              } else if (currentPage < 3) {
                 pageNum = i
-              } else if (page > totalPages - 4) {
-                pageNum = totalPages - 5 + i
+              } else if (currentPage > activeTotalPages - 4) {
+                pageNum = activeTotalPages - 5 + i
               } else {
-                pageNum = page - 2 + i
+                pageNum = currentPage - 2 + i
               }
               return (
                 <button
                   key={pageNum}
-                  onClick={() => setPage(pageNum)}
+                  onClick={() => handlePageChange(pageNum)}
                   className={cn(
                     'h-8 w-8 rounded-lg text-sm font-medium transition-colors',
-                    page === pageNum
+                    currentPage === pageNum
                       ? 'bg-primary text-white'
                       : 'text-gray-600 hover:bg-gray-100'
                   )}
@@ -226,8 +251,8 @@ export function DataTable<T extends Record<string, any>>({
               )
             })}
             <button
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={page === totalPages - 1}
+              onClick={() => handlePageChange(Math.min(activeTotalPages - 1, currentPage + 1))}
+              disabled={currentPage === activeTotalPages - 1}
               className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
               aria-label="Next page"
             >

@@ -1,17 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { getQAItems, submitQAVerdict, type QAItem } from '@/lib/api'
+import { getQAItems, submitQAVerdict, type QAItem, type PaginationInfo } from '@/lib/api'
+
+const PAGE_SIZE = 20
 
 export default function QualityAssurance() {
   const [items, setItems] = useState<QAItem[]>([])
   const [filter, setFilter] = useState<string>('pending')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
   const [notes, setNotes] = useState<Record<number, string>>({})
   const [processing, setProcessing] = useState<number | null>(null)
 
+  const loadItems = useCallback(async () => {
+    try {
+      const result = await getQAItems(filter || undefined, page, PAGE_SIZE)
+      setItems(result.data)
+      setPagination(result.pagination)
+    } catch {
+      // handle
+    }
+  }, [filter, page])
+
   useEffect(() => {
-    getQAItems(filter || undefined).then(setItems).catch(() => {})
+    loadItems()
+  }, [loadItems])
+
+  useEffect(() => {
+    setPage(1)
   }, [filter])
 
   const handleVerdict = async (id: number, verdict: string) => {
@@ -31,7 +49,6 @@ export default function QualityAssurance() {
   }
 
   const filters = ['pending', 'passed', 'failed', 'escalated', '']
-  const filtered = filter ? items.filter((i) => i.status === filter) : items
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -59,12 +76,12 @@ export default function QualityAssurance() {
       </div>
 
       <div className="space-y-4">
-        {filtered.length === 0 && (
+        {items.length === 0 && (
           <div className="rounded-xl border-2 border-dashed border-gray-200 p-12 text-center text-gray-400">
             No QA items found.
           </div>
         )}
-        {filtered.map((item) => (
+        {items.map((item) => (
           <div
             key={item.id}
             className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
@@ -156,6 +173,33 @@ export default function QualityAssurance() {
           </div>
         ))}
       </div>
+
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <p className="text-gray-500">
+            Showing {(pagination.page - 1) * PAGE_SIZE + 1}–{Math.min(pagination.page * PAGE_SIZE, pagination.total)} of {pagination.total}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={pagination.page === 1}
+              className="rounded-lg px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1.5 text-sm text-gray-600">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+              disabled={pagination.page === pagination.totalPages}
+              className="rounded-lg px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

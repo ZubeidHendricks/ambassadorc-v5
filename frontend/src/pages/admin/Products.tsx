@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, ChevronDown, ChevronUp, Edit2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Plus, ChevronDown, ChevronUp, Edit2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Modal } from '@/components/ui/modal'
@@ -10,10 +10,15 @@ import {
   type Product,
   type CreateProductPayload,
   type RequestPremiumChangePayload,
+  type PaginationInfo,
 } from '@/lib/api'
+
+const PAGE_SIZE = 20
 
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([])
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
   const [expanded, setExpanded] = useState<number | null>(null)
   const [productModal, setProductModal] = useState(false)
   const [premiumModal, setPremiumModal] = useState(false)
@@ -34,9 +39,19 @@ export default function Products() {
   })
   const [saving, setSaving] = useState(false)
 
+  const loadProducts = useCallback(async () => {
+    try {
+      const result = await getProducts(page, PAGE_SIZE)
+      setProducts(result.data)
+      setPagination(result.pagination)
+    } catch {
+      // handle
+    }
+  }, [page])
+
   useEffect(() => {
-    getProducts().then(setProducts).catch(() => {})
-  }, [])
+    loadProducts()
+  }, [loadProducts])
 
   const openPremiumChange = (
     productId: number,
@@ -77,8 +92,7 @@ export default function Products() {
       await createProduct(productForm)
       setProductModal(false)
       setProductForm({ name: '', type: '', description: '', active: true, premiumTiers: [] })
-      const data = await getProducts()
-      setProducts(data)
+      loadProducts()
     } catch {
       // handle
     } finally {
@@ -182,6 +196,35 @@ export default function Products() {
           </div>
         ))}
       </div>
+
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm">
+          <p className="text-gray-500">
+            Showing {(pagination.page - 1) * PAGE_SIZE + 1}–{Math.min(pagination.page * PAGE_SIZE, pagination.total)} of {pagination.total}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={pagination.page === 1}
+              className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="px-2 text-sm text-gray-600">
+              {pagination.page} / {pagination.totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+              disabled={pagination.page === pagination.totalPages}
+              className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Premium Change Modal */}
       <Modal

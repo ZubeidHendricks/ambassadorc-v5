@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { LayoutGrid, List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { DataTable, type Column } from '@/components/ui/data-table'
-import { getSales, updateSaleStatus, type Sale } from '@/lib/api'
+import { getSales, updateSaleStatus, type Sale, type PaginationInfo } from '@/lib/api'
 import { cn } from '@/lib/utils'
+
+const PAGE_SIZE = 20
 
 const pipelineStatuses = ['new', 'qa_pending', 'approved', 'active', 'cancelled']
 const pipelineLabels: Record<string, string> = {
@@ -29,10 +31,30 @@ export default function Sales() {
   const [sales, setSales] = useState<Sale[]>([])
   const [view, setView] = useState<'kanban' | 'table'>('kanban')
   const [agentFilter, setAgentFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
+
+  const loadSales = useCallback(async () => {
+    try {
+      const result = await getSales(
+        { agentId: agentFilter ? Number(agentFilter) : undefined },
+        view === 'table' ? page : 1,
+        view === 'table' ? PAGE_SIZE : 200
+      )
+      setSales(result.data)
+      setPagination(result.pagination)
+    } catch {
+      // handle
+    }
+  }, [agentFilter, page, view])
 
   useEffect(() => {
-    getSales().then(setSales).catch(() => {})
-  }, [])
+    loadSales()
+  }, [loadSales])
+
+  useEffect(() => {
+    setPage(1)
+  }, [agentFilter, view])
 
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
@@ -43,9 +65,9 @@ export default function Sales() {
     setSales((prev) => prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s)))
   }
 
-  const agents = [...new Set(sales.map((s) => s.agentName))]
+  const agents = [...new Map(sales.map((s) => [s.agentId, { id: s.agentId, name: s.agentName }])).values()]
   const filtered = agentFilter
-    ? sales.filter((s) => s.agentName === agentFilter)
+    ? sales.filter((s) => String(s.agentId) === agentFilter)
     : sales
 
   return (
@@ -65,7 +87,7 @@ export default function Sales() {
           >
             <option value="">All Agents</option>
             {agents.map((a) => (
-              <option key={a} value={a}>{a}</option>
+              <option key={a.id} value={String(a.id)}>{a.name}</option>
             ))}
           </select>
           <div className="flex rounded-lg border border-gray-200 p-0.5">
@@ -150,7 +172,19 @@ export default function Sales() {
           })}
         </div>
       ) : (
-        <DataTable data={filtered} columns={tableColumns} pageSize={10} searchable searchPlaceholder="Search sales..." />
+        <DataTable
+          data={filtered}
+          columns={tableColumns}
+          pageSize={PAGE_SIZE}
+          searchable={false}
+          serverPagination={{
+            page: pagination.page,
+            totalPages: pagination.totalPages,
+            total: pagination.total,
+            pageSize: PAGE_SIZE,
+            onPageChange: setPage,
+          }}
+        />
       )}
     </div>
   )

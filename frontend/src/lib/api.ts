@@ -243,9 +243,11 @@ export interface Client {
   lastName: string
   idNumber: string
   phone: string
+  cellphone?: string
   email?: string
   province: string
   address?: string
+  address1?: string
   policyCount: number
   createdAt: string
 }
@@ -503,12 +505,27 @@ export async function getRecentActivity(): Promise<ActivityItem[]> {
   }
 }
 
+export interface PaginationInfo {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+export interface PaginatedResult<T> {
+  data: T[]
+  pagination: PaginationInfo
+}
+
 // ─── Clients ───────────────────────────────────────────────────────
 
-export async function getClients(search?: string) {
-  const q = search ? `?search=${encodeURIComponent(search)}` : ''
-  const res = await request<{ clients: Client[]; pagination: any }>(`/clients${q}`)
-  return res.data!.clients
+export async function getClients(search?: string, page = 1, limit = 20): Promise<PaginatedResult<Client>> {
+  const params = new URLSearchParams()
+  if (search) params.set('search', search)
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  const res = await request<{ clients: Client[]; pagination: PaginationInfo }>(`/clients?${params.toString()}`)
+  return { data: res.data!.clients, pagination: res.data!.pagination }
 }
 
 export async function getClient(id: number) {
@@ -534,7 +551,16 @@ export async function createClient(payload: CreateClientPayload) {
   return res.data!
 }
 
-export async function updateClient(id: number, payload: Partial<CreateClientPayload>) {
+export interface UpdateClientPayload {
+  firstName?: string
+  lastName?: string
+  cellphone?: string
+  email?: string | null
+  province?: string | null
+  address1?: string | null
+}
+
+export async function updateClient(id: number, payload: UpdateClientPayload) {
   const res = await request<Client>(`/clients/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
@@ -566,9 +592,15 @@ export async function getClientSms(clientId: number) {
 
 // ─── Products ──────────────────────────────────────────────────────
 
-export async function getProducts() {
-  const res = await request<{ products: Product[]; pagination: any }>('/products')
-  return res.data!.products
+export async function getProducts(page = 1, limit = 20): Promise<PaginatedResult<Product>> {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  const res = await request<{ products: Product[]; pagination: PaginationInfo }>(`/products?${params.toString()}`)
+  const d = res.data!
+  const products = Array.isArray(d) ? d : (d.products ?? [])
+  const pagination: PaginationInfo = d.pagination ?? { page, limit, total: products.length, totalPages: 1 }
+  return { data: products, pagination }
 }
 
 export async function getProduct(id: number) {
@@ -642,14 +674,17 @@ export async function rejectPremiumChange(id: number, reason: string) {
 
 // ─── Policies ──────────────────────────────────────────────────────
 
-export async function getPolicies(filters?: { status?: string; search?: string }) {
+export async function getPolicies(filters?: { status?: string; search?: string }, page = 1, limit = 20): Promise<PaginatedResult<Policy>> {
   const params = new URLSearchParams()
   if (filters?.status) params.set('status', filters.status)
   if (filters?.search) params.set('search', filters.search)
-  const q = params.toString() ? `?${params.toString()}` : ''
-  const res = await request<any>(`/policies${q}`)
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  const res = await request<any>(`/policies?${params.toString()}`)
   const d = res.data!
-  return (Array.isArray(d) ? d : d.policies ?? []) as Policy[]
+  const policies = (Array.isArray(d) ? d : d.policies ?? []) as Policy[]
+  const pagination: PaginationInfo = d.pagination ?? { page, limit, total: policies.length, totalPages: 1 }
+  return { data: policies, pagination }
 }
 
 export async function getPolicy(id: number) {
@@ -672,16 +707,19 @@ export async function getSales(filters?: {
   agentId?: number
   productId?: number
   campaignId?: number
-}) {
+}, page = 1, limit = 20): Promise<PaginatedResult<Sale>> {
   const params = new URLSearchParams()
   if (filters?.status) params.set('status', filters.status)
   if (filters?.agentId) params.set('agentId', String(filters.agentId))
   if (filters?.productId) params.set('productId', String(filters.productId))
   if (filters?.campaignId) params.set('campaignId', String(filters.campaignId))
-  const q = params.toString() ? `?${params.toString()}` : ''
-  const res = await request<any>(`/sales${q}`)
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  const res = await request<any>(`/sales?${params.toString()}`)
   const d = res.data!
-  return (Array.isArray(d) ? d : d.sales ?? []) as Sale[]
+  const sales = (Array.isArray(d) ? d : d.sales ?? []) as Sale[]
+  const pagination: PaginationInfo = d.pagination ?? { page, limit, total: sales.length, totalPages: 1 }
+  return { data: sales, pagination }
 }
 
 export async function updateSaleStatus(id: number, status: string) {
@@ -694,11 +732,16 @@ export async function updateSaleStatus(id: number, status: string) {
 
 // ─── Quality Assurance ─────────────────────────────────────────────
 
-export async function getQAItems(status?: string) {
-  const q = status ? `?status=${encodeURIComponent(status)}` : ''
-  const res = await request<any>(`/qa${q}`)
+export async function getQAItems(status?: string, page = 1, limit = 20): Promise<PaginatedResult<QAItem>> {
+  const params = new URLSearchParams()
+  if (status) params.set('status', status)
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  const res = await request<any>(`/qa?${params.toString()}`)
   const d = res.data!
-  return (Array.isArray(d) ? d : d.qualityChecks ?? []) as QAItem[]
+  const items = (Array.isArray(d) ? d : d.qualityChecks ?? []) as QAItem[]
+  const pagination: PaginationInfo = d.pagination ?? { page, limit, total: items.length, totalPages: 1 }
+  return { data: items, pagination }
 }
 
 export async function submitQAVerdict(id: number, payload: { verdict: string; notes?: string }) {
@@ -732,16 +775,19 @@ export async function getCommissions(filters?: {
   status?: string
   dateFrom?: string
   dateTo?: string
-}) {
+}, page = 1, limit = 20): Promise<PaginatedResult<Commission>> {
   const params = new URLSearchParams()
   if (filters?.agentId) params.set('agentId', String(filters.agentId))
   if (filters?.status) params.set('status', filters.status)
   if (filters?.dateFrom) params.set('dateFrom', filters.dateFrom)
   if (filters?.dateTo) params.set('dateTo', filters.dateTo)
-  const q = params.toString() ? `?${params.toString()}` : ''
-  const res = await request<any>(`/commissions${q}`)
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  const res = await request<any>(`/commissions?${params.toString()}`)
   const d = res.data!
-  return (Array.isArray(d) ? d : d.commissions ?? []) as Commission[]
+  const commissions = (Array.isArray(d) ? d : d.commissions ?? []) as Commission[]
+  const pagination: PaginationInfo = d.pagination ?? { page, limit, total: commissions.length, totalPages: 1 }
+  return { data: commissions, pagination }
 }
 
 export async function markCommissionPaid(id: number) {

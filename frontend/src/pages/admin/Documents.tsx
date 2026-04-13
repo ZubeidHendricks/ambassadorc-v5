@@ -23,8 +23,8 @@ export default function Documents() {
 
   useEffect(() => {
     getWelcomePacks().then(setPacks).catch(() => {})
-    getClients().then(setClients).catch(() => {})
-    getProducts().then(setProducts).catch(() => {})
+    getClients(undefined, 1, 100).then((r) => setClients(r.data)).catch(() => {})
+    getProducts(1, 100).then((r) => setProducts(r.data)).catch(() => {})
   }, [])
 
   const handleGenerate = async () => {

@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { DataTable, type Column } from '@/components/ui/data-table'
-import { getPolicies, updatePolicyStatus, type Policy } from '@/lib/api'
+import { getPolicies, updatePolicyStatus, type Policy, type PaginationInfo } from '@/lib/api'
+
+const PAGE_SIZE = 20
 
 const statusFilters = ['', 'active', 'pending', 'qa_pending', 'cancelled', 'lapsed']
 const statusOptions = ['active', 'pending', 'qa_pending', 'cancelled', 'lapsed', 'suspended']
@@ -10,11 +12,29 @@ export default function Policies() {
   const [policies, setPolicies] = useState<Policy[]>([])
   const [statusFilter, setStatusFilter] = useState('')
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
+
+  const loadPolicies = useCallback(async () => {
+    try {
+      const result = await getPolicies(
+        { status: statusFilter || undefined, search: search || undefined },
+        page,
+        PAGE_SIZE
+      )
+      setPolicies(result.data)
+      setPagination(result.pagination)
+    } catch {
+      // handle
+    }
+  }, [statusFilter, search, page])
 
   useEffect(() => {
-    getPolicies({ status: statusFilter || undefined, search: search || undefined })
-      .then(setPolicies)
-      .catch(() => {})
+    loadPolicies()
+  }, [loadPolicies])
+
+  useEffect(() => {
+    setPage(1)
   }, [statusFilter, search])
 
   const handleStatusChange = async (id: number, status: string) => {
@@ -75,10 +95,6 @@ export default function Policies() {
     },
   ]
 
-  const filtered = statusFilter
-    ? policies.filter((p) => p.status === statusFilter)
-    : policies
-
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div>
@@ -113,7 +129,18 @@ export default function Policies() {
         />
       </div>
 
-      <DataTable data={filtered} columns={columns} pageSize={10} />
+      <DataTable
+        data={policies}
+        columns={columns}
+        pageSize={PAGE_SIZE}
+        serverPagination={{
+          page: pagination.page,
+          totalPages: pagination.totalPages,
+          total: pagination.total,
+          pageSize: PAGE_SIZE,
+          onPageChange: setPage,
+        }}
+      />
     </div>
   )
 }

@@ -4,7 +4,9 @@ import { Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import { Modal } from '@/components/ui/modal'
-import { getClients, createClient, type Client, type CreateClientPayload } from '@/lib/api'
+import { getClients, createClient, type Client, type CreateClientPayload, type PaginationInfo } from '@/lib/api'
+
+const PAGE_SIZE = 20
 
 const columns: Column<Client>[] = [
   {
@@ -61,22 +63,29 @@ export default function Clients() {
   const navigate = useNavigate()
   const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState<CreateClientPayload>(emptyForm)
   const [saving, setSaving] = useState(false)
 
   const loadClients = useCallback(async () => {
     try {
-      const data = await getClients(search || undefined)
-      setClients(data)
+      const result = await getClients(search || undefined, page, PAGE_SIZE)
+      setClients(result.data)
+      setPagination(result.pagination)
     } catch {
       // handle
     }
-  }, [search])
+  }, [search, page])
 
   useEffect(() => {
     loadClients()
   }, [loadClients])
+
+  useEffect(() => {
+    setPage(1)
+  }, [search])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -125,8 +134,15 @@ export default function Clients() {
         columns={columns}
         onRowClick={(row) => navigate(`/admin/clients/${row.id}`)}
         searchable={false}
-        pageSize={10}
+        pageSize={PAGE_SIZE}
         emptyMessage="No clients found."
+        serverPagination={{
+          page: pagination.page,
+          totalPages: pagination.totalPages,
+          total: pagination.total,
+          pageSize: PAGE_SIZE,
+          onPageChange: setPage,
+        }}
       />
 
       {/* Add Client Modal */}
