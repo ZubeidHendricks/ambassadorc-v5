@@ -134,17 +134,17 @@ const productTypeEnum = z.enum([
 
 export const createProductSchema = z.object({
   name: z.string().min(1, "Product name is required").max(200),
-  code: z.string().min(1, "Product code is required").max(50),
-  type: productTypeEnum,
-  premiumAmount: positiveDecimal,
+  code: z.string().max(50).optional(),
+  type: z.string().min(1, "Type is required"),
+  premiumAmount: z.coerce.number().min(0).optional().default(0),
   description: z.string().max(5000).optional().nullable(),
 });
 
 export const updateProductSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   code: z.string().min(1).max(50).optional(),
-  type: productTypeEnum.optional(),
-  premiumAmount: positiveDecimal.optional(),
+  type: z.string().optional(),
+  premiumAmount: z.coerce.number().min(0).optional(),
   description: z.string().max(5000).optional().nullable(),
   isActive: z.boolean().optional(),
 });

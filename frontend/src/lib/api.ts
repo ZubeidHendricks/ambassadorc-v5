@@ -255,9 +255,11 @@ export interface Client {
 export interface Product {
   id: number
   name: string
+  code?: string
   type: string
   description?: string
   active: boolean
+  premiumAmount?: number
   premiumTiers: PremiumTier[]
   createdAt: string
 }
@@ -612,8 +614,8 @@ export interface CreateProductPayload {
   name: string
   type: string
   description?: string
-  active: boolean
-  premiumTiers: Omit<PremiumTier, 'id' | 'productId'>[]
+  premiumAmount?: number
+  active?: boolean
 }
 
 export async function createProduct(payload: CreateProductPayload) {
@@ -624,7 +626,7 @@ export async function createProduct(payload: CreateProductPayload) {
   return res.data!
 }
 
-export async function updateProduct(id: number, payload: Partial<CreateProductPayload>) {
+export async function updateProduct(id: number, payload: Partial<CreateProductPayload> & { isActive?: boolean }) {
   const res = await request<Product>(`/products/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
