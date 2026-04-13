@@ -18,7 +18,10 @@ test.describe('Auth', () => {
     await page.fill('input[type="tel"]', '0700000000')
     await page.fill('input[type="password"]', 'WrongPass123')
     await page.click('button:has-text("Sign In")')
-    const error = page.locator('[class*="red"],[class*="error"],[class*="destructive"],text=Invalid,text=incorrect')
+    // Use .or() to combine CSS and text locators (can't mix them in a single selector string)
+    const cssError = page.locator('[class*="red"],[class*="error"],[class*="destructive"]')
+    const textError = page.getByText(/Invalid|incorrect|failed/i)
+    const error = cssError.or(textError)
     await expect(error.first()).toBeVisible({ timeout: 8_000 })
   })
 
