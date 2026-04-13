@@ -80,11 +80,12 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 p-6 lg:p-8 animate-fade-in">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Overview of your business performance and key metrics.
-        </p>
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-400 mb-1">Overview</p>
+          <h1 className="text-2xl font-black tracking-tight text-gray-900">Admin Dashboard</h1>
+        </div>
+        <p className="text-xs text-gray-400 hidden sm:block">Business performance &amp; key metrics</p>
       </div>
 
       {/* Stat cards */}

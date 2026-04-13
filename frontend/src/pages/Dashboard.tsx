@@ -77,12 +77,10 @@ export default function Dashboard() {
       {/* Welcome header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-gray-400 mb-1">Ambassador Portal</p>
+          <h1 className="text-2xl font-black tracking-tight text-gray-900">
             Welcome back, {user?.firstName}!
           </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Here's an overview of your ambassador activity.
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild size="sm">
