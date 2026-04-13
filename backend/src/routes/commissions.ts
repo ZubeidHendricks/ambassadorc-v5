@@ -88,18 +88,32 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
 router.get("/summary", async (req: AuthRequest, res: Response) => {
   try {
+    // Use product-based premiums for fast aggregate (sagepay correlated subquery too slow for 100K)
+    const premiumExpr = `
+      CASE COALESCE("ProductName", '')
+        WHEN 'Life Saver Legal' THEN 129
+        WHEN 'LegalNet'         THEN 129
+        WHEN 'Life Saver 24'   THEN 199
+        WHEN 'Five-In-One'     THEN 199
+        ELSE 129
+      END`;
+
     const [totalRow, pendingRow, paidRow] = await Promise.all([
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data WHERE "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
+      prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(
+        `SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt
+         FROM sync_sales_data
+         WHERE "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
       ),
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data
+      prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(
+        `SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt
+         FROM sync_sales_data
          WHERE "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%cancel%'
            AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%active%'
            AND "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
       ),
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data
+      prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(
+        `SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt
+         FROM sync_sales_data
          WHERE ("Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%')
            AND "Status" NOT ILIKE '%delet%'`
       ),
@@ -108,9 +122,9 @@ router.get("/summary", async (req: AuthRequest, res: Response) => {
     res.json({
       success: true,
       data: {
-        total: { amount: 0, count: Number(totalRow[0].n) },
-        pending: { amount: 0, count: Number(pendingRow[0].n) },
-        paid: { amount: 0, count: Number(paidRow[0].n) },
+        total:   { amount: Number(totalRow[0].amt)   || 0, count: Number(totalRow[0].n) },
+        pending: { amount: Number(pendingRow[0].amt) || 0, count: Number(pendingRow[0].n) },
+        paid:    { amount: Number(paidRow[0].amt)    || 0, count: Number(paidRow[0].n) },
       },
     });
   } catch (error) {

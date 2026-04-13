@@ -813,7 +813,7 @@ export async function getAgents() {
     leadCount: a._count?.leads ?? 0,
     saleCount: a._count?.sales ?? a.metrics?.approvedSales ?? 0,
     totalEarnings: a.metrics?.totalCommission ?? 0,
-    status: a.isActive ? 'active' : 'inactive',
+    status: a.status ?? (a.isActive ? 'active' : 'inactive'),
     createdAt: a.createdAt,
   })) as Agent[]
 }
