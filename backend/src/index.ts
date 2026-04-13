@@ -1,6 +1,15 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+// Enable BigInt JSON serialization (PostgreSQL raw queries return BigInt)
+(BigInt.prototype as any).toJSON = function () {
+  const val = this as bigint;
+  if (val >= BigInt(Number.MIN_SAFE_INTEGER) && val <= BigInt(Number.MAX_SAFE_INTEGER)) {
+    return Number(val);
+  }
+  return val.toString();
+};
+
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
@@ -43,6 +52,8 @@ import { runWelcomePackSender } from "./agents/welcome-pack-sender";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
+
+app.set("trust proxy", 1);
 
 // ─── Security Middleware ────────────────────────────────────────────────────
 

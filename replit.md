@@ -131,7 +131,15 @@ Detection is cached per process startup (single DB probe). The following routes 
 - `policies.ts` — policy list + premium changes
 - `documents.ts` — welcome pack list
 
-Production server (`root@142.93.44.48`, `/opt/ambassadorc-v5`, service `ambassadorc-backend`) has 85K clients in native Prisma tables, no sync_* tables. All 8 data endpoints verified returning `success: true` on both environments.
+Production server (`root@142.93.44.48`, `/opt/ambassadorc-v5`, service `ambassadorc-backend`) has 85K clients in native Prisma tables, no sync_* tables.
+
+### Sales route dual-path
+`sales.ts` now implements dual-path: sync path normalizes FoxPro statuses (`"Client Cancelled - Other"`, `"Exported Awaiting Outcome"`, etc.) into 5 kanban column values (`new`, `qa_pending`, `approved`, `active`, `cancelled`) via SQL `CASE` expression. Native path maps Prisma `SaleStatus` enum (`QA_APPROVED` → `approved`, etc.).
+
+### BigInt serialization
+`backend/src/index.ts` includes global `BigInt.prototype.toJSON` to handle PostgreSQL raw query BigInt returns (prevents `JSON.stringify` crash in client detail and other endpoints).
+
+All 15+ data endpoints verified returning `success: true` on both environments.
 
 ## Key Features
 

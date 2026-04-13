@@ -493,8 +493,9 @@ export async function getTopAgents(): Promise<TopAgent[]> {
 
 export async function getRecentActivity(): Promise<ActivityItem[]> {
   try {
-    const res = await request<{ entries: any[]; pagination: any }>('/admin/audit-log')
-    const entries = res.data?.entries ?? []
+    const res = await request<any>('/admin/audit-log')
+    const d = res.data!
+    const entries = d.entries ?? d.auditLogs ?? (Array.isArray(d) ? d : [])
     return entries.slice(0, 5).map((e: any, i: number) => ({
       id: e.id ?? i,
       type: e.action?.includes('sale') ? 'sale' : e.action?.includes('qa') ? 'qa' : e.action?.includes('commission') ? 'commission' : 'client',
