@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express, { Request, Response, NextFunction } from "express";
+import path from "path";
+import fs from "fs";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
@@ -36,7 +38,7 @@ import { runDebitOrderReconciler } from "./agents/debit-order-reconciler";
 import { runWelcomePackSender } from "./agents/welcome-pack-sender";
 
 const app = express();
-const PORT = parseInt(process.env.PORT || "4000", 10);
+const PORT = parseInt(process.env.PORT || "3001", 10);
 
 // ─── Security Middleware ────────────────────────────────────────────────────
 
@@ -44,7 +46,7 @@ app.use(helmet());
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
+    origin: true,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -117,14 +119,23 @@ app.use("/api/agents", agentRoutes);
 app.use("/api/workflows", workflowRoutes);
 app.use("/api/integrations", integrationRoutes);
 
-// ─── 404 Handler ────────────────────────────────────────────────────────────
+// ─── Serve Static Frontend (Production) ────────────────────────────────────
 
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({
-    success: false,
-    error: "Route not found.",
+const publicDir = path.join(__dirname, "..", "public");
+if (process.env.NODE_ENV === "production" && fs.existsSync(publicDir)) {
+  app.use(express.static(publicDir));
+  app.get("*", (_req: Request, res: Response) => {
+    res.sendFile(path.join(publicDir, "index.html"));
   });
-});
+} else {
+  // ─── 404 Handler ──────────────────────────────────────────────────────────
+  app.use((_req: Request, res: Response) => {
+    res.status(404).json({
+      success: false,
+      error: "Route not found.",
+    });
+  });
+}
 
 // ─── Global Error Handler ───────────────────────────────────────────────────
 
