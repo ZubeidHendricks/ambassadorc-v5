@@ -20,47 +20,50 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
     const skip = (page - 1) * limit;
-    const type = req.query.type as string | undefined;
 
-    const where: Record<string, unknown> = {};
-    if (type) {
-      where.type = type;
-    }
-
-    const [products, total] = await Promise.all([
-      prisma.product.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { name: "asc" },
-        include: {
-          premiumTiers: {
-            where: { isActive: true },
-            orderBy: { amount: "asc" },
-          },
-        },
-      }),
-      prisma.product.count({ where }),
+    // Extract distinct products from sync_sales_data
+    const [rows, countRow] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(
+        `SELECT ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC) as id,
+                "ProductName" as name,
+                'STANDARD' as type,
+                NULL::text as description,
+                true as active,
+                COUNT(*) as "salesCount",
+                ARRAY[]::jsonb[] as "premiumTiers",
+                NOW() as "createdAt"
+         FROM sync_sales_data
+         WHERE "ProductName" IS NOT NULL AND "ProductName" != ''
+         GROUP BY "ProductName"
+         ORDER BY COUNT(*) DESC
+         LIMIT $1 OFFSET $2`,
+        limit, skip
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(DISTINCT "ProductName") as n FROM sync_sales_data WHERE "ProductName" IS NOT NULL AND "ProductName" != ''`
+      ),
     ]);
+
+    const total = Number(countRow[0].n);
+
+    // Cast id from bigint to number and format premiumTiers as empty array
+    const products = rows.map((r: any) => ({
+      ...r,
+      id: Number(r.id),
+      salesCount: Number(r.salesCount),
+      premiumTiers: [],
+    }));
 
     res.json({
       success: true,
       data: {
         products,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       },
     });
   } catch (error) {
     console.error("List products error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 

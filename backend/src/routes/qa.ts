@@ -15,52 +15,66 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
+    const statusFilter = (req.query.status as string | undefined)?.toLowerCase();
 
-    const status = req.query.status as string | undefined;
+    // Map frontend status labels to sync_sales_data Status patterns
+    const qaStatusFilter = `("Status" ILIKE '%qa%' OR "Status" ILIKE '%quality%' OR "Status" ILIKE '%validation%' OR "Status" ILIKE '%awaiting%')`;
 
-    const where: Record<string, unknown> = {};
-    if (status && ["PENDING", "PASSED", "FAILED", "ESCALATED"].includes(status)) {
-      where.status = status;
+    let verdictFilter = "";
+    if (statusFilter === "passed") {
+      verdictFilter = ` AND ("Status" ILIKE '%passed%' OR "Status" ILIKE '%ok%')`;
+    } else if (statusFilter === "failed") {
+      verdictFilter = ` AND "Status" ILIKE '%fail%'`;
+    } else if (statusFilter === "escalated") {
+      verdictFilter = ` AND "Status" ILIKE '%escalat%'`;
+    } else if (statusFilter === "pending") {
+      verdictFilter = ` AND ("Status" ILIKE '%pending%' OR "Status" ILIKE '%awaiting%' OR "Status" ILIKE '%capture%')`;
     }
 
-    const [checks, total] = await Promise.all([
-      prisma.qualityCheck.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        include: {
-          sale: {
-            include: {
-              client: { select: { id: true, firstName: true, lastName: true } },
-              product: { select: { id: true, name: true, code: true } },
-              agent: { select: { id: true, firstName: true, lastName: true } },
-            },
-          },
-          checker: { select: { id: true, firstName: true, lastName: true } },
-        },
-      }),
-      prisma.qualityCheck.count({ where }),
+    const whereSQL = `WHERE ${qaStatusFilter}${verdictFilter}`;
+
+    const [rows, countRow] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(
+        `SELECT _sync_id::integer as id,
+                _sync_id::integer as "saleId",
+                CONCAT("FirstName", ' ', "LastName") as "clientName",
+                COALESCE("ProductName", 'Unknown') as "productName",
+                COALESCE("SalesAgentUserName", '') as "agentName",
+                0 as "premiumAmount",
+                CASE
+                  WHEN "Status" ILIKE '%passed%' OR "Status" ILIKE '%ok%' THEN 'passed'
+                  WHEN "Status" ILIKE '%fail%' THEN 'failed'
+                  WHEN "Status" ILIKE '%escalat%' THEN 'escalated'
+                  ELSE 'pending'
+                END as status,
+                "Status" as verdict,
+                NULL::text as notes,
+                NULL::text as "reviewedBy",
+                NULL::text as "reviewedAt",
+                _synced_at as "createdAt"
+         FROM sync_sales_data
+         ${whereSQL}
+         ORDER BY _synced_at DESC
+         LIMIT $1 OFFSET $2`,
+        limit, skip
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data ${whereSQL}`
+      ),
     ]);
+
+    const total = Number(countRow[0].n);
 
     res.json({
       success: true,
       data: {
-        qualityChecks: checks,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        qualityChecks: rows,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       },
     });
   } catch (error) {
     console.error("List QA checks error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 

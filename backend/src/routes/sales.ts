@@ -110,11 +110,17 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const [salesRows, countRow] = await Promise.all([
       prisma.$queryRawUnsafe<any[]>(
         `SELECT _sync_id::integer as id,
-                "Status" as status, "SubStatus" as "subStatus",
-                jsonb_build_object('id', _sync_id::integer, 'firstName', "FirstName", 'lastName', "LastName", 'idNumber', "IDNumber") as client,
-                jsonb_build_object('id', 0, 'name', COALESCE("ProductName",'Unknown'), 'code', COALESCE("ProductName",'N/A'), 'type', 'STANDARD') as product,
-                jsonb_build_object('id', 0, 'firstName', SPLIT_PART(COALESCE("SalesAgentUserName",'Unknown'),' ',1), 'lastName', SPLIT_PART(COALESCE("SalesAgentUserName",'Unknown'),' ',2)) as agent,
-                "CampaignID" as "campaignId", _synced_at as "createdAt"
+                0 as "clientId",
+                CONCAT("FirstName", ' ', "LastName") as "clientName",
+                0 as "productId",
+                COALESCE("ProductName", 'Unknown') as "productName",
+                0 as "agentId",
+                COALESCE("SalesAgentUserName", '') as "agentName",
+                0 as "premiumAmount",
+                COALESCE("Status", 'Unknown') as status,
+                "CampaignID"::integer as "campaignId",
+                NULL::text as "campaignName",
+                _synced_at as "createdAt"
          FROM sync_sales_data
          ${whereSQL}
          ORDER BY _synced_at DESC

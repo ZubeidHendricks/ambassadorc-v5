@@ -12,6 +12,50 @@ const router = Router();
 // All routes require authentication
 router.use(authenticate);
 
+// ─── GET /api/documents/welcome-pack ──────────────────────────────────────
+
+router.get("/welcome-pack", async (req: AuthRequest, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const skip = (page - 1) * limit;
+
+    const [packs, total] = await Promise.all([
+      prisma.welcomePack.findMany({
+        skip,
+        take: limit,
+        orderBy: { sentAt: "desc" },
+        include: {
+          client: { select: { id: true, firstName: true, lastName: true } },
+          policy: { include: { product: { select: { id: true, name: true } } } },
+        },
+      }),
+      prisma.welcomePack.count(),
+    ]);
+
+    const documents = packs.map((p) => ({
+      id: p.id,
+      clientId: p.clientId,
+      clientName: p.client ? `${p.client.firstName} ${p.client.lastName}` : "Unknown",
+      productId: p.policy?.product?.id ?? 0,
+      productName: p.policy?.product?.name ?? "Unknown",
+      status: p.signedAt ? "signed" : p.viewedAt ? "viewed" : "sent",
+      sentAt: p.sentAt,
+      viewedAt: p.viewedAt,
+      signedAt: p.signedAt,
+      downloadUrl: `/api/documents/welcome-pack/${p.id}`,
+    }));
+
+    res.json({
+      success: true,
+      data: { documents, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
+    });
+  } catch (error) {
+    console.error("List documents error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
+  }
+});
+
 // ─── POST /api/documents/welcome-pack ──────────────────────────────────────
 
 router.post("/welcome-pack", async (req: AuthRequest, res: Response) => {

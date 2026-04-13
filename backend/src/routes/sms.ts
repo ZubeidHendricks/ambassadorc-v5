@@ -161,6 +161,20 @@ router.get("/", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ─── GET /api/sms/templates ────────────────────────────────────────────────
+
+router.get("/templates", (_req: AuthRequest, res: Response) => {
+  const templates = [
+    { id: "welcome", name: "Welcome Message", body: "Welcome to AmbassadorC! Your policy is now active. For queries call 0800 000 000." },
+    { id: "qa_verify", name: "QA Verification", body: "Hi {name}, your sale is currently under Quality Assurance review. We will contact you shortly." },
+    { id: "premium_increase", name: "Premium Increase Notice", body: "Dear {name}, please note your monthly premium will increase to R{amount} effective {date}." },
+    { id: "payment_reminder", name: "Payment Reminder", body: "Hi {name}, your premium of R{amount} is due on {date}. Please ensure sufficient funds are available." },
+    { id: "callback", name: "Callback Confirmation", body: "Hi {name}, a consultant will call you back within 24 hours. Thank you for your patience." },
+    { id: "cancellation", name: "Cancellation Notice", body: "Dear {name}, your policy cancellation has been processed. Contact us if this was in error." },
+  ];
+  res.json({ success: true, data: { templates } });
+});
+
 // ─── POST /api/sms/premium-increase ────────────────────────────────────────
 
 router.post("/premium-increase", async (req: AuthRequest, res: Response) => {

@@ -14,63 +14,58 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
+    const statusFilter = (req.query.status as string | undefined)?.toLowerCase();
 
-    // Check if admin — admins can see all commissions
-    const ambassador = await prisma.ambassador.findUnique({
-      where: { id: req.ambassador!.id },
-      select: { role: true },
-    });
-
-    const isAdmin = ambassador?.role === "ADMIN";
-
-    const where: Record<string, unknown> = {};
-
-    if (!isAdmin) {
-      where.ambassadorId = req.ambassador!.id;
+    // Derive commissions from sync_sales_data — one record per active/approved sale
+    // Status mapping: cancelled/deleted → 'cancelled', qa-passed → 'paid', rest → 'pending'
+    let whereSQL = `WHERE "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`;
+    if (statusFilter === "paid") {
+      whereSQL += ` AND ("Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%')`;
+    } else if (statusFilter === "cancelled") {
+      whereSQL += ` AND ("Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%')`;
+    } else if (statusFilter === "pending") {
+      whereSQL += ` AND "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%active%'`;
     }
 
-    const status = req.query.status as string | undefined;
-    if (status && ["PENDING", "PAID", "CANCELLED"].includes(status)) {
-      where.status = status;
-    }
-
-    const [commissions, total] = await Promise.all([
-      prisma.commission.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        include: {
-          ambassador: { select: { id: true, firstName: true, lastName: true } },
-          sale: {
-            include: {
-              client: { select: { id: true, firstName: true, lastName: true } },
-              product: { select: { id: true, name: true, code: true } },
-            },
-          },
-        },
-      }),
-      prisma.commission.count({ where }),
+    const [rows, countRow] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(
+        `SELECT _sync_id::integer as id,
+                0 as "agentId",
+                COALESCE("SalesAgentUserName", 'Unknown') as "agentName",
+                _sync_id::integer as "saleId",
+                CONCAT("FirstName", ' ', "LastName") as "clientName",
+                COALESCE("ProductName", 'Unknown') as "productName",
+                0 as amount,
+                CASE
+                  WHEN "Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%' THEN 'paid'
+                  WHEN "Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%' THEN 'cancelled'
+                  ELSE 'pending'
+                END as status,
+                NULL::text as "paidAt",
+                _synced_at as "createdAt"
+         FROM sync_sales_data
+         ${whereSQL}
+         ORDER BY _synced_at DESC
+         LIMIT $1 OFFSET $2`,
+        limit, skip
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data ${whereSQL}`
+      ),
     ]);
+
+    const total = Number(countRow[0].n);
 
     res.json({
       success: true,
       data: {
-        commissions,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        commissions: rows,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       },
     });
   } catch (error) {
     console.error("List commissions error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 
@@ -78,59 +73,34 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
 router.get("/summary", async (req: AuthRequest, res: Response) => {
   try {
-    const ambassador = await prisma.ambassador.findUnique({
-      where: { id: req.ambassador!.id },
-      select: { role: true },
-    });
-
-    const isAdmin = ambassador?.role === "ADMIN";
-
-    const baseWhere: Record<string, unknown> = {};
-    if (!isAdmin) {
-      baseWhere.ambassadorId = req.ambassador!.id;
-    }
-
-    const [totalEarned, totalPending, totalPaid] = await Promise.all([
-      prisma.commission.aggregate({
-        where: { ...baseWhere },
-        _sum: { amount: true },
-        _count: true,
-      }),
-      prisma.commission.aggregate({
-        where: { ...baseWhere, status: "PENDING" },
-        _sum: { amount: true },
-        _count: true,
-      }),
-      prisma.commission.aggregate({
-        where: { ...baseWhere, status: "PAID" },
-        _sum: { amount: true },
-        _count: true,
-      }),
+    const [totalRow, pendingRow, paidRow] = await Promise.all([
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data WHERE "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data
+         WHERE "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%cancel%'
+           AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%active%'
+           AND "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data
+         WHERE ("Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%')
+           AND "Status" NOT ILIKE '%delet%'`
+      ),
     ]);
 
     res.json({
       success: true,
       data: {
-        total: {
-          amount: totalEarned._sum.amount || 0,
-          count: totalEarned._count,
-        },
-        pending: {
-          amount: totalPending._sum.amount || 0,
-          count: totalPending._count,
-        },
-        paid: {
-          amount: totalPaid._sum.amount || 0,
-          count: totalPaid._count,
-        },
+        total: { amount: 0, count: Number(totalRow[0].n) },
+        pending: { amount: 0, count: Number(pendingRow[0].n) },
+        paid: { amount: 0, count: Number(paidRow[0].n) },
       },
     });
   } catch (error) {
     console.error("Commission summary error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 

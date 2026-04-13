@@ -97,50 +97,62 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
-    const status = req.query.status as string | undefined;
-    const productId = req.query.productId ? parseInt(req.query.productId as string) : undefined;
+    const status = (req.query.status as string | undefined)?.toLowerCase();
+    const search = req.query.search as string | undefined;
 
-    const where: Record<string, unknown> = {};
+    const whereClauses: string[] = [];
+    const params: unknown[] = [];
+    let p = 1;
 
-    if (status && ["ACTIVE", "LAPSED", "CANCELLED", "PENDING"].includes(status)) {
-      where.status = status;
+    if (status) {
+      whereClauses.push(`LOWER("Status") ILIKE $${p++}`);
+      params.push(`%${status}%`);
     }
-    if (productId && !isNaN(productId)) {
-      where.productId = productId;
+    if (search) {
+      whereClauses.push(`("FirstName" ILIKE $${p} OR "LastName" ILIKE $${p} OR "IDNumber" ILIKE $${p} OR "ProductName" ILIKE $${p})`);
+      params.push(`%${search}%`); p++;
     }
 
-    const [policies, total] = await Promise.all([
-      prisma.policy.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        include: {
-          client: { select: { id: true, firstName: true, lastName: true, idNumber: true } },
-          product: { select: { id: true, name: true, code: true, type: true } },
-        },
-      }),
-      prisma.policy.count({ where }),
+    const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+    const [rows, countRow] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(
+        `SELECT _sync_id::integer as id,
+                CONCAT('POL-', _sync_id::integer) as "policyNumber",
+                _sync_id::integer as "clientId",
+                CONCAT("FirstName", ' ', "LastName") as "clientName",
+                0 as "productId",
+                COALESCE("ProductName", 'Unknown') as "productName",
+                0 as "premiumAmount",
+                COALESCE("Status", 'Unknown') as status,
+                COALESCE("DateLoaded"::text, _synced_at::text) as "startDate",
+                NULL::text as "endDate",
+                COALESCE("SalesAgentUserName", '') as "agentName",
+                _synced_at as "createdAt"
+         FROM sync_sales_data
+         ${whereSQL}
+         ORDER BY _synced_at DESC
+         LIMIT $${p} OFFSET $${p + 1}`,
+        ...params, limit, skip
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data ${whereSQL}`,
+        ...params
+      ),
     ]);
+
+    const total = Number(countRow[0].n);
 
     res.json({
       success: true,
       data: {
-        policies,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        policies: rows,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       },
     });
   } catch (error) {
     console.error("List policies error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 
