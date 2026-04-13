@@ -83,44 +83,55 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
-    const search = (req.query.search as string) || "";
+    const search = ((req.query.search as string) || "").trim();
 
-    const where: Record<string, unknown> = {};
+    let clientRows: any[];
+    let countRow: [{ n: bigint }];
 
     if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: "insensitive" } },
-        { lastName: { contains: search, mode: "insensitive" } },
-        { idNumber: { contains: search } },
-        { cellphone: { contains: search } },
-      ];
+      const like = `%${search}%`;
+      [clientRows, countRow] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT _sync_id::integer as id, "Title" as title, "FirstName" as "firstName", "LastName" as "lastName",
+                  "IDNumber" as "idNumber", "CellPhone" as cellphone, NULL::text as email,
+                  NULL::text as province, "Status" as status, "ProductName" as product,
+                  "SalesAgentUserName" as agent, _synced_at as "createdAt"
+           FROM sync_sales_data
+           WHERE "FirstName" ILIKE $1 OR "LastName" ILIKE $1 OR "IDNumber" ILIKE $1 OR "CellPhone" ILIKE $1
+           ORDER BY _synced_at DESC
+           LIMIT $2 OFFSET $3`,
+          like, limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(
+          `SELECT COUNT(*) as n FROM sync_sales_data
+           WHERE "FirstName" ILIKE $1 OR "LastName" ILIKE $1 OR "IDNumber" ILIKE $1 OR "CellPhone" ILIKE $1`,
+          like
+        ),
+      ]);
+    } else {
+      [clientRows, countRow] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT _sync_id::integer as id, "Title" as title, "FirstName" as "firstName", "LastName" as "lastName",
+                  "IDNumber" as "idNumber", "CellPhone" as cellphone, NULL::text as email,
+                  NULL::text as province, "Status" as status, "ProductName" as product,
+                  "SalesAgentUserName" as agent, _synced_at as "createdAt"
+           FROM sync_sales_data
+           ORDER BY _synced_at DESC
+           LIMIT $1 OFFSET $2`,
+          limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(
+          `SELECT COUNT(*) as n FROM sync_sales_data`
+        ),
+      ]);
     }
 
-    const [clients, total] = await Promise.all([
-      prisma.client.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          title: true,
-          firstName: true,
-          lastName: true,
-          idNumber: true,
-          cellphone: true,
-          email: true,
-          province: true,
-          createdAt: true,
-        },
-      }),
-      prisma.client.count({ where }),
-    ]);
+    const total = Number(countRow[0].n);
 
     res.json({
       success: true,
       data: {
-        clients,
+        clients: clientRows,
         pagination: {
           page,
           limit,
@@ -152,26 +163,16 @@ router.get("/search", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const clients = await prisma.client.findMany({
-      where: {
-        OR: [
-          { idNumber: { contains: q } },
-          { cellphone: { contains: q } },
-        ],
-      },
-      take: 20,
-      orderBy: { lastName: "asc" },
-      select: {
-        id: true,
-        title: true,
-        firstName: true,
-        lastName: true,
-        idNumber: true,
-        cellphone: true,
-        email: true,
-        province: true,
-      },
-    });
+    const like = `%${q}%`;
+    const clients = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT _sync_id::integer as id, "Title" as title, "FirstName" as "firstName", "LastName" as "lastName",
+              "IDNumber" as "idNumber", "CellPhone" as cellphone, NULL::text as email, NULL::text as province
+       FROM sync_sales_data
+       WHERE "IDNumber" ILIKE $1 OR "CellPhone" ILIKE $1 OR "FirstName" ILIKE $1 OR "LastName" ILIKE $1
+       ORDER BY "LastName" ASC
+       LIMIT 20`,
+      like
+    );
 
     res.json({ success: true, data: clients });
   } catch (error) {
@@ -194,24 +195,41 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const client = await prisma.client.findUnique({
-      where: { id },
-      include: {
-        policies: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            product: { select: { id: true, name: true, code: true, type: true } },
-          },
-        },
-      },
-    });
+    const rows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT _sync_id::integer as id, "Title" as title, "FirstName" as "firstName", "LastName" as "lastName",
+              "IDNumber" as "idNumber", "CellPhone" as cellphone, NULL::text as email,
+              NULL::text as province, "Address1" as address1, "Address2" as address2, "Address3" as address3,
+              "AddressCode" as "addressCode", "Status" as status, "SubStatus" as "subStatus",
+              "ProductName" as product, "SalesAgentUserName" as agent,
+              "DateOfBirth" as "dateOfBirth", _synced_at as "createdAt", "LastUpdated" as "updatedAt",
+              "CampaignID" as "campaignId", "DialerID" as "dialerId", "DataSource" as "dataSource",
+              "ContactAttempts" as "contactAttempts"
+       FROM sync_sales_data
+       WHERE _sync_id = $1`,
+      id
+    );
 
-    if (!client) {
+    if (!rows.length) {
       res.status(404).json({ success: false, error: "Client not found." });
       return;
     }
 
-    res.json({ success: true, data: client });
+    // Attach related sales history for this IDNumber
+    const client = rows[0];
+    let salesHistory: any[] = [];
+    if (client.idNumber) {
+      salesHistory = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT _sync_id::integer as id, "Status" as status, "ProductName" as product,
+                "SalesAgentUserName" as agent, _synced_at as "createdAt"
+         FROM sync_sales_data
+         WHERE "IDNumber" = $1
+         ORDER BY _synced_at DESC
+         LIMIT 10`,
+        client.idNumber
+      );
+    }
+
+    res.json({ success: true, data: { ...client, policies: salesHistory } });
   } catch (error) {
     console.error("Get client error:", error);
     res.status(500).json({

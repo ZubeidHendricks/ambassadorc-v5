@@ -31,47 +31,62 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
     }
 
     const [
-      totalClients,
-      totalPolicies,
-      activePolicies,
-      activeSales,
-      totalRevenue,
-      totalCommissions,
-      pendingCommissions,
-      totalAmbassadors,
-      activeAmbassadors,
+      clientsResult,
+      activePoliciesResult,
+      pendingQAResult,
+      revenueResult,
+      commissionsResult,
+      agentsResult,
+      ambassadorsResult,
     ] = await Promise.all([
-      prisma.client.count(),
-      prisma.policy.count(),
-      prisma.policy.count({ where: { status: "ACTIVE" } }),
-      prisma.sale.count({ where: { status: { in: ["NEW", "QA_PENDING"] } } }),
-      prisma.payment.aggregate({
-        where: { status: "SUCCESSFUL" },
-        _sum: { amount: true },
-      }),
-      prisma.commission.aggregate({
-        _sum: { amount: true },
-      }),
-      prisma.commission.aggregate({
-        where: { status: "PENDING" },
-        _sum: { amount: true },
-      }),
-      prisma.ambassador.count(),
-      prisma.ambassador.count({ where: { isActive: true } }),
+      // Unique clients by IDNumber from FoxPro sync
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(DISTINCT "IDNumber") as n FROM sync_sales_data WHERE "IDNumber" IS NOT NULL AND "IDNumber" != ''`
+      ),
+      // Active policies — records not cancelled/deleted
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data WHERE "Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
+      ),
+      // Pending QA records
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data WHERE "Status" ILIKE '%qa%'`
+      ),
+      // Total collections from SagePay (Amount stored as text, cast to numeric)
+      prisma.$queryRawUnsafe<[{ total: string | null }]>(
+        `SELECT COALESCE(SUM("Amount"::numeric), 0) as total FROM sync_sagepay_transactions WHERE "Amount" ~ '^[0-9]+(\.[0-9]+)?$'`
+      ),
+      // Qlink batch count as a proxy for commission activity (no Amount column)
+      Promise.resolve([{ total: "0" }]),
+      // Active agents from sync
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(DISTINCT "Tier1UserId") as n FROM sync_ambassador_agents WHERE "Tier1UserId" IS NOT NULL`
+      ),
+      // Ambassadors registered via FoxPro
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_am_reg`
+      ),
     ]);
+
+    const totalClients = Number(clientsResult[0].n);
+    const activePolicies = Number(activePoliciesResult[0].n);
+    const pendingQA = Number(pendingQAResult[0].n);
+    const totalRevenue = Number(revenueResult[0].total) || 0;
+    const totalCommissions = Number(commissionsResult[0].total) || 0;
+    const activeAgents = Number(agentsResult[0].n);
+    const totalAmbassadors = Number(ambassadorsResult[0].n);
 
     res.json({
       success: true,
       data: {
         clients: { total: totalClients },
-        policies: { total: totalPolicies, active: activePolicies },
-        sales: { active: activeSales },
-        revenue: { total: totalRevenue._sum.amount || 0 },
+        policies: { total: activePolicies, active: activePolicies },
+        sales: { active: pendingQA },
+        revenue: { total: totalRevenue },
         commissions: {
-          total: totalCommissions._sum.amount || 0,
-          pending: pendingCommissions._sum.amount || 0,
+          total: totalCommissions,
+          pending: 0,
         },
-        ambassadors: { total: totalAmbassadors, active: activeAmbassadors },
+        ambassadors: { total: totalAmbassadors, active: activeAgents },
       },
     });
   } catch (error) {

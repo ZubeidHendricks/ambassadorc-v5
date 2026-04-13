@@ -94,37 +94,45 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const agentId = req.query.agentId ? parseInt(req.query.agentId as string) : undefined;
     const productId = req.query.productId ? parseInt(req.query.productId as string) : undefined;
 
-    const where: Record<string, unknown> = {};
+    // Build dynamic WHERE from sync_sales_data columns
+    let whereClauses: string[] = [];
+    const params: (string | number)[] = [];
+    let p = 1;
 
-    if (status && ["NEW", "QA_PENDING", "QA_APPROVED", "QA_REJECTED", "ACTIVE", "CANCELLED"].includes(status)) {
-      where.status = status;
-    }
-    if (agentId && !isNaN(agentId)) {
-      where.agentId = agentId;
-    }
-    if (productId && !isNaN(productId)) {
-      where.productId = productId;
+    if (status) {
+      whereClauses.push(`"Status" ILIKE $${p}`);
+      params.push(`%${status}%`);
+      p++;
     }
 
-    const [sales, total] = await Promise.all([
-      prisma.sale.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        include: {
-          client: { select: { id: true, firstName: true, lastName: true } },
-          product: { select: { id: true, name: true, code: true, type: true } },
-          agent: { select: { id: true, firstName: true, lastName: true } },
-        },
-      }),
-      prisma.sale.count({ where }),
+    const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+    const [salesRows, countRow] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(
+        `SELECT _sync_id::integer as id,
+                "Status" as status, "SubStatus" as "subStatus",
+                jsonb_build_object('id', _sync_id::integer, 'firstName', "FirstName", 'lastName', "LastName", 'idNumber', "IDNumber") as client,
+                jsonb_build_object('id', 0, 'name', COALESCE("ProductName",'Unknown'), 'code', COALESCE("ProductName",'N/A'), 'type', 'STANDARD') as product,
+                jsonb_build_object('id', 0, 'firstName', SPLIT_PART(COALESCE("SalesAgentUserName",'Unknown'),' ',1), 'lastName', SPLIT_PART(COALESCE("SalesAgentUserName",'Unknown'),' ',2)) as agent,
+                "CampaignID" as "campaignId", _synced_at as "createdAt"
+         FROM sync_sales_data
+         ${whereSQL}
+         ORDER BY _synced_at DESC
+         LIMIT $${p} OFFSET $${p + 1}`,
+        ...params, limit, skip
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_sales_data ${whereSQL}`,
+        ...params
+      ),
     ]);
+
+    const total = Number(countRow[0].n);
 
     res.json({
       success: true,
       data: {
-        sales,
+        sales: salesRows,
         pagination: {
           page,
           limit,
