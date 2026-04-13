@@ -117,6 +117,22 @@ Available at `/admin/sync` (ADMIN only):
 - Table cards with last-result status indicators
 - Preview panel: click any table to see latest 50 rows
 
+## Dual-Path Database Architecture
+
+Routes detect which environment they're running in via `backend/src/lib/syncCheck.ts`:
+- **Sync path** (dev/ETL): queries `sync_*` staging tables populated by FoxPro ETL pipeline
+- **Native Prisma path** (production): queries native Prisma-managed tables (`clients`, `policies`, `commissions`, etc.)
+
+Detection is cached per process startup (single DB probe). The following routes implement dual-path:
+- `clients.ts` — client list + detail + search
+- `admin.ts` — dashboard stats + agents list
+- `commissions.ts` — commission list + summary
+- `qa.ts` — QA checks list
+- `policies.ts` — policy list + premium changes
+- `documents.ts` — welcome pack list
+
+Production server (`root@142.93.44.48`, `/opt/ambassadorc-v5`, service `ambassadorc-backend`) has 85K clients in native Prisma tables, no sync_* tables. All 8 data endpoints verified returning `success: true` on both environments.
+
 ## Key Features
 
 - Ambassador/Agent registration and management

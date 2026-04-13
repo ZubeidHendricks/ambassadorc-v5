@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { updateAgentTierSchema, updateAgentRoleSchema } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { hasSyncTables } from "../lib/syncCheck";
 
 const router = Router();
 
@@ -30,50 +31,41 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const [
-      clientsResult,
-      activePoliciesResult,
-      pendingQAResult,
-      revenueResult,
-      commissionsResult,
-      agentsResult,
-      ambassadorsResult,
-    ] = await Promise.all([
-      // Unique clients by IDNumber from FoxPro sync
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(DISTINCT "IDNumber") as n FROM sync_sales_data WHERE "IDNumber" IS NOT NULL AND "IDNumber" != ''`
-      ),
-      // Active policies — records not cancelled/deleted
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data WHERE "Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
-      ),
-      // Pending QA records
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data WHERE "Status" ILIKE '%qa%'`
-      ),
-      // Total collections from SagePay (Amount stored as text, cast to numeric)
-      prisma.$queryRawUnsafe<[{ total: string | null }]>(
-        `SELECT COALESCE(SUM("Amount"::numeric), 0) as total FROM sync_sagepay_transactions WHERE "Amount" ~ '^[0-9]+(\.[0-9]+)?$'`
-      ),
-      // Qlink batch count as a proxy for commission activity (no Amount column)
-      Promise.resolve([{ total: "0" }]),
-      // Active agents from sync
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(DISTINCT "Tier1UserId") as n FROM sync_ambassador_agents WHERE "Tier1UserId" IS NOT NULL`
-      ),
-      // Ambassadors registered via FoxPro
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_am_reg`
-      ),
-    ]);
+    const syncAvailable = await hasSyncTables();
 
-    const totalClients = Number(clientsResult[0].n);
-    const activePolicies = Number(activePoliciesResult[0].n);
-    const pendingQA = Number(pendingQAResult[0].n);
-    const totalRevenue = Number(revenueResult[0].total) || 0;
-    const totalCommissions = Number(commissionsResult[0].total) || 0;
-    const activeAgents = Number(agentsResult[0].n);
-    const totalAmbassadors = Number(ambassadorsResult[0].n);
+    let totalClients = 0, activePolicies = 0, pendingQA = 0, totalRevenue = 0, totalCommissions = 0, activeAgents = 0, totalAmbassadors = 0;
+
+    if (syncAvailable) {
+      const [clientsResult, activePoliciesResult, pendingQAResult, revenueResult, agentsResult, ambassadorsResult] = await Promise.all([
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(DISTINCT "IDNumber") as n FROM sync_sales_data WHERE "IDNumber" IS NOT NULL AND "IDNumber" != ''`),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(*) as n FROM sync_sales_data WHERE "Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(*) as n FROM sync_sales_data WHERE "Status" ILIKE '%qa%'`),
+        prisma.$queryRawUnsafe<[{ total: string | null }]>(`SELECT COALESCE(SUM("Amount"::numeric), 0) as total FROM sync_sagepay_transactions WHERE "Amount" ~ '^[0-9]+(\.[0-9]+)?$'`),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(DISTINCT TRIM("SalesAgentUserName")) as n FROM sync_sales_data WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''`),
+        Promise.resolve([{ n: BigInt(0) }]),
+      ]);
+      totalClients = Number(clientsResult[0].n);
+      activePolicies = Number(activePoliciesResult[0].n);
+      pendingQA = Number(pendingQAResult[0].n);
+      totalRevenue = Number(revenueResult[0].total) || 0;
+      activeAgents = Number(agentsResult[0].n);
+      totalAmbassadors = Number(ambassadorsResult[0].n);
+    } else {
+      const [clientsResult, policiesResult, qaResult, revenueResult, agentsResult, ambassadorsResult] = await Promise.all([
+        prisma.client.count(),
+        prisma.policy.count({ where: { status: { not: "CANCELLED" } } }),
+        prisma.qualityCheck.count({ where: { status: "PENDING" } }),
+        prisma.payment.aggregate({ _sum: { amount: true } }),
+        prisma.ambassador.count({ where: { isActive: true } }),
+        prisma.ambassador.count(),
+      ]);
+      totalClients = clientsResult;
+      activePolicies = policiesResult;
+      pendingQA = qaResult;
+      totalRevenue = Number(revenueResult._sum.amount ?? 0);
+      activeAgents = agentsResult;
+      totalAmbassadors = ambassadorsResult;
+    }
 
     res.json({
       success: true,
@@ -184,68 +176,87 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
     const skip = (page - 1) * limit;
 
-    // Pull real agents from sync_sales_data grouped by SalesAgentUserName
-    const [syncAgentRows, countRow, ambassadors] = await Promise.all([
-      prisma.$queryRawUnsafe<any[]>(
-        `SELECT
-          TRIM("SalesAgentUserName") as full_name,
-          COUNT(*)::integer as sale_count,
-          COUNT(CASE WHEN "Status" = 'Active Client' OR "Status" ILIKE 'active%' THEN 1 END)::integer as active_sales,
-          COUNT(CASE WHEN "Status" ILIKE '%cancel%' THEN 1 END)::integer as cancelled_sales,
-          MAX(_synced_at) as last_sale_at
-         FROM sync_sales_data
-         WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''
-         GROUP BY TRIM("SalesAgentUserName")
-         ORDER BY sale_count DESC
-         LIMIT $1 OFFSET $2`,
-        limit, skip
-      ),
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(DISTINCT TRIM("SalesAgentUserName")) as n
-         FROM sync_sales_data
-         WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''`
-      ),
-      prisma.ambassador.findMany({
-        select: { id: true, firstName: true, lastName: true, mobileNo: true, role: true, tier: true, isActive: true, createdAt: true },
-      }),
-    ]);
+    const syncAvailableForAgents = await hasSyncTables();
 
-    const total = Number(countRow[0].n);
+    let agentList: any[] = [];
+    let total = 0;
 
-    // Build ambassador lookup by full name (case-insensitive)
-    const ambassadorMap = new Map<string, typeof ambassadors[0]>();
-    for (const amb of ambassadors) {
-      const key = `${amb.firstName} ${amb.lastName}`.toLowerCase().trim();
-      ambassadorMap.set(key, amb);
+    if (syncAvailableForAgents) {
+      const [syncAgentRows, countRow, ambassadors] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT TRIM("SalesAgentUserName") as full_name,
+            COUNT(*)::integer as sale_count,
+            COUNT(CASE WHEN "Status" = 'Active Client' OR "Status" ILIKE 'active%' THEN 1 END)::integer as active_sales,
+            COUNT(CASE WHEN "Status" ILIKE '%cancel%' THEN 1 END)::integer as cancelled_sales,
+            MAX(_synced_at) as last_sale_at
+           FROM sync_sales_data
+           WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''
+           GROUP BY TRIM("SalesAgentUserName")
+           ORDER BY sale_count DESC LIMIT $1 OFFSET $2`,
+          limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(
+          `SELECT COUNT(DISTINCT TRIM("SalesAgentUserName")) as n
+           FROM sync_sales_data WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''`
+        ),
+        prisma.ambassador.findMany({
+          select: { id: true, firstName: true, lastName: true, mobileNo: true, role: true, tier: true, isActive: true, createdAt: true },
+        }),
+      ]);
+      total = Number(countRow[0].n);
+      const ambassadorMap = new Map<string, typeof ambassadors[0]>();
+      for (const amb of ambassadors) {
+        const key = `${amb.firstName} ${amb.lastName}`.toLowerCase().trim();
+        ambassadorMap.set(key, amb);
+      }
+      agentList = syncAgentRows.map((row, idx) => {
+        const nameParts = (row.full_name as string).split(" ");
+        const firstName = nameParts[0] || "Agent";
+        const lastName = nameParts.slice(1).join(" ") || String(idx + 1);
+        const amb = ambassadorMap.get(row.full_name.toLowerCase());
+        const earnings = Number(row.sale_count) * 109;
+        return {
+          id: amb?.id ?? (10000 + idx),
+          firstName, lastName,
+          mobileNo: amb?.mobileNo ?? "",
+          role: amb?.role ?? "AMBASSADOR",
+          tier: amb?.tier ?? "Bronze",
+          referralCount: 0, leadCount: 0,
+          saleCount: Number(row.sale_count),
+          totalEarnings: earnings,
+          status: Number(row.sale_count) > 0 ? "active" : "inactive",
+          createdAt: amb?.createdAt ?? row.last_sale_at,
+          _count: { sales: Number(row.sale_count), leads: 0, referralBatches: 0 },
+          metrics: { totalCommission: earnings, approvedSales: Number(row.active_sales) },
+        };
+      });
+    } else {
+      const [ambassadors, ambCount] = await Promise.all([
+        prisma.ambassador.findMany({
+          skip, take: limit,
+          orderBy: { createdAt: "desc" },
+          include: { _count: { select: { sales: true, leads: true, referralBatches: true } } },
+        }),
+        prisma.ambassador.count(),
+      ]);
+      total = ambCount;
+      agentList = ambassadors.map((a: any) => ({
+        id: a.id,
+        firstName: a.firstName,
+        lastName: a.lastName,
+        mobileNo: a.mobileNo,
+        role: a.role,
+        tier: a.tier ?? "Bronze",
+        referralCount: a._count?.referralBatches ?? 0,
+        leadCount: a._count?.leads ?? 0,
+        saleCount: a._count?.sales ?? 0,
+        totalEarnings: (a._count?.sales ?? 0) * 109,
+        status: a.isActive ? "active" : "inactive",
+        createdAt: a.createdAt,
+        _count: { sales: a._count?.sales ?? 0, leads: a._count?.leads ?? 0, referralBatches: a._count?.referralBatches ?? 0 },
+        metrics: { totalCommission: (a._count?.sales ?? 0) * 109, approvedSales: 0 },
+      }));
     }
-
-    const agentList = syncAgentRows.map((row, idx) => {
-      const nameParts = (row.full_name as string).split(" ");
-      const firstName = nameParts[0] || "Agent";
-      const lastName = nameParts.slice(1).join(" ") || String(idx + 1);
-      const matchKey = row.full_name.toLowerCase();
-      const amb = ambassadorMap.get(matchKey);
-
-      // Premium earnings: estimate R109 per sale (average across products)
-      const earnings = Number(row.sale_count) * 109;
-
-      return {
-        id: amb?.id ?? (10000 + idx),
-        firstName,
-        lastName,
-        mobileNo: amb?.mobileNo ?? "",
-        role: amb?.role ?? "AMBASSADOR",
-        tier: amb?.tier ?? "Bronze",
-        referralCount: 0,
-        leadCount: 0,
-        saleCount: Number(row.sale_count),
-        totalEarnings: earnings,
-        status: Number(row.sale_count) > 0 ? "active" : "inactive",
-        createdAt: amb?.createdAt ?? row.last_sale_at,
-        _count: { sales: Number(row.sale_count), leads: 0, referralBatches: 0 },
-        metrics: { totalCommission: earnings, approvedSales: Number(row.active_sales) },
-      };
-    });
 
     res.json({
       success: true,

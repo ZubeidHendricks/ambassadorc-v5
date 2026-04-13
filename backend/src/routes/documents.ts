@@ -6,6 +6,7 @@ import {
   requestCallbackSchema,
 } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { hasSyncTables } from "../lib/syncCheck";
 
 const router = Router();
 
@@ -20,47 +21,55 @@ router.get("/welcome-pack", async (req: AuthRequest, res: Response) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
 
-    // Pull from sync_welcome_pack_history; use CTE to paginate first, then join
-    const [rows, countRow] = await Promise.all([
-      prisma.$queryRawUnsafe<any[]>(
-        `WITH paged AS (
-           SELECT _sync_id, _synced_at, "MobileNumber", "ProductEndPoint", "SmartbillState", "Date",
-                  '0' || SUBSTRING("MobileNumber", 3) AS local_phone
-           FROM sync_welcome_pack_history
-           ORDER BY "Date" DESC NULLS LAST
-           LIMIT $1 OFFSET $2
-         )
-         SELECT
-           p._sync_id::integer as id,
-           sd._sync_id::integer as "clientId",
-           COALESCE(CONCAT(sd."FirstName", ' ', sd."LastName"), p."MobileNumber") as "clientName",
-           0 as "productId",
-           COALESCE(p."ProductEndPoint", sd."ProductName", 'Unknown') as "productName",
-           CASE
-             WHEN p."SmartbillState" ILIKE '%sign%' THEN 'signed'
-             WHEN p."SmartbillState" ILIKE '%view%' OR p."SmartbillState" ILIKE '%open%' THEN 'viewed'
-             ELSE 'sent'
-           END as status,
-           p."Date" as "sentAt",
-           NULL::timestamptz as "viewedAt",
-           NULL::timestamptz as "signedAt",
-           NULL::text as "downloadUrl",
-           p._synced_at as "createdAt"
-         FROM paged p
-         LEFT JOIN sync_sales_data sd ON sd."CellPhone" = p.local_phone`,
-        limit, skip
-      ),
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_welcome_pack_history`
-      ),
+    const syncAvailable = await hasSyncTables();
+
+    if (syncAvailable) {
+      const [rows, countRow] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `WITH paged AS (
+             SELECT _sync_id, _synced_at, "MobileNumber", "ProductEndPoint", "SmartbillState", "Date",
+                    '0' || SUBSTRING("MobileNumber", 3) AS local_phone
+             FROM sync_welcome_pack_history
+             ORDER BY "Date" DESC NULLS LAST LIMIT $1 OFFSET $2
+           )
+           SELECT p._sync_id::integer as id, sd._sync_id::integer as "clientId",
+             COALESCE(CONCAT(sd."FirstName", ' ', sd."LastName"), p."MobileNumber") as "clientName",
+             0 as "productId",
+             COALESCE(p."ProductEndPoint", sd."ProductName", 'Unknown') as "productName",
+             CASE WHEN p."SmartbillState" ILIKE '%sign%' THEN 'signed'
+                  WHEN p."SmartbillState" ILIKE '%view%' OR p."SmartbillState" ILIKE '%open%' THEN 'viewed' ELSE 'sent' END as status,
+             p."Date" as "sentAt", NULL::timestamptz as "viewedAt", NULL::timestamptz as "signedAt",
+             NULL::text as "downloadUrl", p._synced_at as "createdAt"
+           FROM paged p LEFT JOIN sync_sales_data sd ON sd."CellPhone" = p.local_phone`,
+          limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(*) as n FROM sync_welcome_pack_history`),
+      ]);
+      const total = Number(countRow[0].n);
+      return res.json({ success: true, data: { documents: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
+    }
+
+    // Native Prisma path — use minimal select to avoid schema mismatch
+    const [docs, total] = await Promise.all([
+      prisma.welcomePack.findMany({
+        skip, take: limit,
+        orderBy: { createdAt: "desc" },
+        select: { id: true, clientId: true, status: true, sentAt: true, viewedAt: true, signedAt: true, createdAt: true,
+          client: { select: { firstName: true, lastName: true } } },
+      }),
+      prisma.welcomePack.count(),
     ]);
-
-    const total = Number(countRow[0].n);
-
-    res.json({
-      success: true,
-      data: { documents: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
-    });
+    const rows = (docs as any[]).map((d) => ({
+      id: d.id,
+      clientId: d.clientId,
+      clientName: d.client ? `${d.client.firstName} ${d.client.lastName}` : "Unknown",
+      productId: 0,
+      productName: "Unknown",
+      status: d.status?.toLowerCase() ?? "sent",
+      sentAt: d.sentAt, viewedAt: d.viewedAt, signedAt: d.signedAt,
+      downloadUrl: null, createdAt: d.createdAt,
+    }));
+    res.json({ success: true, data: { documents: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
   } catch (error) {
     console.error("List documents error:", error);
     res.status(500).json({ success: false, error: "An unexpected error occurred." });

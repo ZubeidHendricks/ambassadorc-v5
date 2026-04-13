@@ -7,6 +7,7 @@ import {
   approvePremiumChangeSchema,
 } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { hasSyncTables } from "../lib/syncCheck";
 import crypto from "crypto";
 
 const router = Router();
@@ -100,69 +101,71 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const status = (req.query.status as string | undefined)?.toLowerCase();
     const search = req.query.search as string | undefined;
 
-    const whereClauses: string[] = [];
-    const params: unknown[] = [];
-    let p = 1;
+    const syncAvailable = await hasSyncTables();
 
-    if (status) {
-      whereClauses.push(`LOWER("Status") ILIKE $${p++}`);
-      params.push(`%${status}%`);
+    if (syncAvailable) {
+      const whereClauses: string[] = [];
+      const params: unknown[] = [];
+      let p = 1;
+      if (status) { whereClauses.push(`LOWER("Status") ILIKE $${p++}`); params.push(`%${status}%`); }
+      if (search) { whereClauses.push(`("FirstName" ILIKE $${p} OR "LastName" ILIKE $${p} OR "IDNumber" ILIKE $${p} OR "ProductName" ILIKE $${p})`); params.push(`%${search}%`); p++; }
+      const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+      const [rows, countRow] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT s._sync_id::integer as id,
+                  CONCAT('POL-', s._sync_id::integer) as "policyNumber",
+                  s._sync_id::integer as "clientId",
+                  CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
+                  0 as "productId",
+                  COALESCE(s."ProductName", 'Unknown') as "productName",
+                  COALESCE(NULLIF((SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
+                   FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1), 0),
+                   CASE COALESCE(s."ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
+                  ) as "premiumAmount",
+                  COALESCE(s."Status", 'Unknown') as status,
+                  COALESCE(s."DateLoaded"::text, s._synced_at::text) as "startDate",
+                  NULL::text as "endDate",
+                  COALESCE(s."SalesAgentUserName", '') as "agentName",
+                  s._synced_at as "createdAt"
+           FROM sync_sales_data s ${whereSQL} ORDER BY s._synced_at DESC LIMIT $${p} OFFSET $${p + 1}`,
+          ...params, limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`, ...params),
+      ]);
+      const total = Number(countRow[0].n);
+      return res.json({ success: true, data: { policies: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
     }
-    if (search) {
-      whereClauses.push(`("FirstName" ILIKE $${p} OR "LastName" ILIKE $${p} OR "IDNumber" ILIKE $${p} OR "ProductName" ILIKE $${p})`);
-      params.push(`%${search}%`); p++;
-    }
 
-    const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
-
-    const [rows, countRow] = await Promise.all([
-      prisma.$queryRawUnsafe<any[]>(
-        `SELECT s._sync_id::integer as id,
-                CONCAT('POL-', s._sync_id::integer) as "policyNumber",
-                s._sync_id::integer as "clientId",
-                CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
-                0 as "productId",
-                COALESCE(s."ProductName", 'Unknown') as "productName",
-                COALESCE(
-                  NULLIF(
-                    (SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
-                     FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1),
-                    0
-                  ),
-                  CASE COALESCE(s."ProductName", '')
-                    WHEN 'Life Saver Legal' THEN 129
-                    WHEN 'LegalNet' THEN 129
-                    WHEN 'Life Saver 24' THEN 199
-                    WHEN 'Five-In-One' THEN 199
-                    ELSE 129
-                  END
-                ) as "premiumAmount",
-                COALESCE(s."Status", 'Unknown') as status,
-                COALESCE(s."DateLoaded"::text, s._synced_at::text) as "startDate",
-                NULL::text as "endDate",
-                COALESCE(s."SalesAgentUserName", '') as "agentName",
-                s._synced_at as "createdAt"
-         FROM sync_sales_data s
-         ${whereSQL}
-         ORDER BY s._synced_at DESC
-         LIMIT $${p} OFFSET $${p + 1}`,
-        ...params, limit, skip
-      ),
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`,
-        ...params
-      ),
+    // Native Prisma path
+    const where: any = {};
+    if (status) where.status = status.toUpperCase();
+    if (search) where.OR = [
+      { policyNumber: { contains: search, mode: "insensitive" } },
+      { client: { OR: [{ firstName: { contains: search, mode: "insensitive" } }, { lastName: { contains: search, mode: "insensitive" } }] } },
+    ];
+    const [policies, total] = await Promise.all([
+      prisma.policy.findMany({
+        where, skip, take: limit,
+        orderBy: { createdAt: "desc" },
+        include: { client: { select: { firstName: true, lastName: true } }, product: { select: { name: true } } },
+      }),
+      prisma.policy.count({ where }),
     ]);
-
-    const total = Number(countRow[0].n);
-
-    res.json({
-      success: true,
-      data: {
-        policies: rows,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      },
-    });
+    const rows = policies.map((p: any) => ({
+      id: p.id, policyNumber: p.policyNumber,
+      clientId: p.clientId,
+      clientName: p.client ? `${p.client.firstName} ${p.client.lastName}` : "Unknown",
+      productId: p.productId,
+      productName: p.product?.name ?? "Unknown",
+      premiumAmount: Number(p.premiumAmount ?? 0),
+      status: p.status,
+      startDate: p.startDate,
+      endDate: p.endDate,
+      agentName: "",
+      createdAt: p.createdAt,
+    }));
+    res.json({ success: true, data: { policies: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
   } catch (error) {
     console.error("List policies error:", error);
     res.status(500).json({ success: false, error: "An unexpected error occurred." });
@@ -179,74 +182,60 @@ router.get("/premium-changes", async (req: AuthRequest, res: Response) => {
     const statusFilter = (req.query.status as string | undefined)?.toLowerCase();
 
     // Build status condition from sync_premium_updates QLinkResult / ErrorCode
-    let statusSQL = "";
-    if (statusFilter === "approved") {
-      statusSQL = `AND ("QLinkResult" IS NOT NULL AND "QLinkResult" != '' AND ("ErrorCode" IS NULL OR "ErrorCode" = ''))`;
-    } else if (statusFilter === "rejected") {
-      statusSQL = `AND ("ErrorCode" IS NOT NULL AND "ErrorCode" != '')`;
-    } else if (statusFilter === "pending") {
-      statusSQL = `AND ("QLinkResult" IS NULL OR "QLinkResult" = '') AND ("ErrorCode" IS NULL OR "ErrorCode" = '')`;
+    const syncAvailPC = await hasSyncTables();
+
+    if (syncAvailPC) {
+      let statusSQL = "";
+      if (statusFilter === "approved") statusSQL = `AND ("QLinkResult" IS NOT NULL AND "QLinkResult" != '' AND ("ErrorCode" IS NULL OR "ErrorCode" = ''))`;
+      else if (statusFilter === "rejected") statusSQL = `AND ("ErrorCode" IS NOT NULL AND "ErrorCode" != '')`;
+      else if (statusFilter === "pending") statusSQL = `AND ("QLinkResult" IS NULL OR "QLinkResult" = '') AND ("ErrorCode" IS NULL OR "ErrorCode" = '')`;
+
+      const [rows, countRow] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT _sync_id::integer as id, NULL::integer as "policyId",
+            CONCAT('UPD-', _sync_id::integer) as "policyNumber",
+            COALESCE("ProductName", 'Unknown') as "productName",
+            COALESCE("PremiumPlan", '') as "tierName",
+            COALESCE((SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE NULL END
+             FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = "MemberId" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1),
+             CASE WHEN "PremiumValue"::text ~ '^[0-9]+$' AND "PremiumValue"::integer > 0 THEN ROUND(("PremiumValue"::numeric / 100) * 0.88, 2) ELSE 0 END
+            ) as "currentAmount",
+            CASE WHEN "PremiumValue"::text ~ '^[0-9]+$' THEN "PremiumValue"::numeric / 100 ELSE 0 END as "newAmount",
+            COALESCE("UpdateType", 'UPDATE') as "changeType",
+            COALESCE("DateInserted"::text, _synced_at::text) as "effectiveDate",
+            NULL::text as reason,
+            CASE WHEN "ErrorCode" IS NOT NULL AND "ErrorCode" != '' THEN 'rejected'
+                 WHEN "QLinkResult" IS NOT NULL AND "QLinkResult" != '' THEN 'approved' ELSE 'pending' END as status,
+            NULL::integer as "affectedPolicies",
+            COALESCE("MemberId", '') as "requestedBy",
+            NULL::text as "approvedBy",
+            _synced_at as "createdAt"
+           FROM sync_premium_updates
+           WHERE ("PremiumValue"::text ~ '^[0-9]+$' AND "PremiumValue"::integer > 0) ${statusSQL}
+           ORDER BY _synced_at DESC LIMIT $1 OFFSET $2`,
+          limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(
+          `SELECT COUNT(*) as n FROM sync_premium_updates WHERE ("PremiumValue"::text ~ '^[0-9]+$' AND "PremiumValue"::integer > 0) ${statusSQL}`
+        ),
+      ]);
+      const total = Number(countRow[0].n);
+      return res.json({ success: true, data: { premiumChanges: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
     }
 
-    const [rows, countRow] = await Promise.all([
-      prisma.$queryRawUnsafe<any[]>(
-        `SELECT
-          _sync_id::integer as id,
-          NULL::integer as "policyId",
-          CONCAT('UPD-', _sync_id::integer) as "policyNumber",
-          COALESCE("ProductName", 'Unknown') as "productName",
-          COALESCE("PremiumPlan", '') as "tierName",
-          -- currentAmount: best effort from sagepay by MemberId treated as IDNumber
-          COALESCE(
-            (SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE NULL END
-             FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = "MemberId" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1),
-            CASE WHEN "PremiumValue"::text ~ '^[0-9]+$' AND "PremiumValue"::integer > 0
-                 THEN ROUND(("PremiumValue"::numeric / 100) * 0.88, 2)
-                 ELSE 0 END
-          ) as "currentAmount",
-          CASE WHEN "PremiumValue"::text ~ '^[0-9]+$'
-               THEN "PremiumValue"::numeric / 100
-               ELSE 0 END as "newAmount",
-          COALESCE("UpdateType", 'UPDATE') as "changeType",
-          COALESCE("DateInserted"::text, _synced_at::text) as "effectiveDate",
-          NULL::text as reason,
-          CASE
-            WHEN "ErrorCode" IS NOT NULL AND "ErrorCode" != '' THEN 'rejected'
-            WHEN "QLinkResult" IS NOT NULL AND "QLinkResult" != '' THEN 'approved'
-            ELSE 'pending'
-          END as status,
-          NULL::integer as "affectedPolicies",
-          COALESCE("MemberId", '') as "requestedBy",
-          NULL::text as "approvedBy",
-          _synced_at as "createdAt"
-        FROM sync_premium_updates
-        WHERE ("PremiumValue"::text ~ '^[0-9]+$' AND "PremiumValue"::integer > 0)
-        ${statusSQL}
-        ORDER BY _synced_at DESC
-        LIMIT $1 OFFSET $2`,
-        limit, skip
-      ),
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_premium_updates
-         WHERE ("PremiumValue"::text ~ '^[0-9]+$' AND "PremiumValue"::integer > 0)
-         ${statusSQL}`
-      ),
+    // Native Prisma path — return empty for now (premiumChange table rarely used in prod)
+    const where: any = statusFilter ? { status: statusFilter.toUpperCase() } : {};
+    const [changes, total] = await Promise.all([
+      prisma.premiumChange.findMany({ where, skip, take: limit, orderBy: { createdAt: "desc" } }),
+      prisma.premiumChange.count({ where }),
     ]);
-
-    const total = Number(countRow[0].n);
-
-    res.json({
-      success: true,
-      data: {
-        premiumChanges: rows,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
-      },
-    });
+    const rows = changes.map((c: any) => ({
+      id: c.id, policyId: c.policyId, policyNumber: `PC-${c.id}`,
+      productName: "Unknown", tierName: "", currentAmount: Number(c.currentAmount ?? 0), newAmount: Number(c.newAmount ?? 0),
+      changeType: c.changeType ?? "UPDATE", effectiveDate: c.effectiveDate, reason: c.reason,
+      status: c.status?.toLowerCase() ?? "pending", affectedPolicies: 0, requestedBy: String(c.requestedById ?? ""), approvedBy: null, createdAt: c.createdAt,
+    }));
+    res.json({ success: true, data: { premiumChanges: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
   } catch (error) {
     console.error("List premium changes error:", error);
     res.status(500).json({

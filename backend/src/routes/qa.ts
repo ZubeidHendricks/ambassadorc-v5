@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { createQaCheckSchema, updateQaCheckSchema } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { hasSyncTables } from "../lib/syncCheck";
 
 const router = Router();
 
@@ -17,74 +18,67 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const skip = (page - 1) * limit;
     const statusFilter = (req.query.status as string | undefined)?.toLowerCase();
 
-    // Map frontend status labels to sync_sales_data Status patterns
-    const qaStatusFilter = `(s."Status" ILIKE '%qa%' OR s."Status" ILIKE '%quality%' OR s."Status" ILIKE '%validation%' OR s."Status" ILIKE '%awaiting%')`;
+    const syncAvailable = await hasSyncTables();
 
-    let verdictFilter = "";
-    if (statusFilter === "passed") {
-      verdictFilter = ` AND (s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%')`;
-    } else if (statusFilter === "failed") {
-      verdictFilter = ` AND s."Status" ILIKE '%fail%'`;
-    } else if (statusFilter === "escalated") {
-      verdictFilter = ` AND s."Status" ILIKE '%escalat%'`;
-    } else if (statusFilter === "pending") {
-      verdictFilter = ` AND (s."Status" ILIKE '%pending%' OR s."Status" ILIKE '%awaiting%' OR s."Status" ILIKE '%capture%')`;
+    if (syncAvailable) {
+      const qaStatusFilter = `(s."Status" ILIKE '%qa%' OR s."Status" ILIKE '%quality%' OR s."Status" ILIKE '%validation%' OR s."Status" ILIKE '%awaiting%')`;
+      let verdictFilter = "";
+      if (statusFilter === "passed") verdictFilter = ` AND (s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%')`;
+      else if (statusFilter === "failed") verdictFilter = ` AND s."Status" ILIKE '%fail%'`;
+      else if (statusFilter === "escalated") verdictFilter = ` AND s."Status" ILIKE '%escalat%'`;
+      else if (statusFilter === "pending") verdictFilter = ` AND (s."Status" ILIKE '%pending%' OR s."Status" ILIKE '%awaiting%' OR s."Status" ILIKE '%capture%')`;
+      const whereSQL = `WHERE ${qaStatusFilter}${verdictFilter}`;
+
+      const [rows, countRow] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT s._sync_id::integer as id, s._sync_id::integer as "saleId",
+                  CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
+                  COALESCE(s."ProductName", 'Unknown') as "productName",
+                  COALESCE(s."SalesAgentUserName", '') as "agentName",
+                  COALESCE(NULLIF((SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
+                   FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1), 0),
+                   CASE COALESCE(s."ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
+                  ) as "premiumAmount",
+                  CASE WHEN s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%' THEN 'passed'
+                       WHEN s."Status" ILIKE '%fail%' THEN 'failed'
+                       WHEN s."Status" ILIKE '%escalat%' THEN 'escalated' ELSE 'pending' END as status,
+                  s."Status" as verdict, NULL::text as notes, NULL::text as "reviewedBy", NULL::text as "reviewedAt",
+                  s._synced_at as "createdAt"
+           FROM sync_sales_data s ${whereSQL} ORDER BY s._synced_at DESC LIMIT $1 OFFSET $2`,
+          limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`),
+      ]);
+      const total = Number(countRow[0].n);
+      return res.json({ success: true, data: { qualityChecks: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
     }
 
-    const whereSQL = `WHERE ${qaStatusFilter}${verdictFilter}`;
-
-    const [rows, countRow] = await Promise.all([
-      prisma.$queryRawUnsafe<any[]>(
-        `SELECT s._sync_id::integer as id,
-                s._sync_id::integer as "saleId",
-                CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
-                COALESCE(s."ProductName", 'Unknown') as "productName",
-                COALESCE(s."SalesAgentUserName", '') as "agentName",
-                COALESCE(
-                  NULLIF(
-                    (SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
-                     FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1),
-                    0
-                  ),
-                  CASE COALESCE(s."ProductName", '')
-                    WHEN 'Life Saver Legal' THEN 129
-                    WHEN 'LegalNet' THEN 129
-                    WHEN 'Life Saver 24' THEN 199
-                    WHEN 'Five-In-One' THEN 199
-                    ELSE 129
-                  END
-                ) as "premiumAmount",
-                CASE
-                  WHEN s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%' THEN 'passed'
-                  WHEN s."Status" ILIKE '%fail%' THEN 'failed'
-                  WHEN s."Status" ILIKE '%escalat%' THEN 'escalated'
-                  ELSE 'pending'
-                END as status,
-                s."Status" as verdict,
-                NULL::text as notes,
-                NULL::text as "reviewedBy",
-                NULL::text as "reviewedAt",
-                s._synced_at as "createdAt"
-         FROM sync_sales_data s
-         ${whereSQL}
-         ORDER BY s._synced_at DESC
-         LIMIT $1 OFFSET $2`,
-        limit, skip
-      ),
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`
-      ),
+    // Native Prisma path
+    const where: any = statusFilter
+      ? { status: statusFilter === "passed" ? "PASSED" : statusFilter === "failed" ? "FAILED" : statusFilter === "escalated" ? "ESCALATED" : "PENDING" }
+      : {};
+    const [checks, total] = await Promise.all([
+      prisma.qualityCheck.findMany({
+        where, skip, take: limit,
+        orderBy: { createdAt: "desc" },
+        include: { sale: { include: { client: { select: { firstName: true, lastName: true } }, product: { select: { name: true } }, agent: { select: { firstName: true, lastName: true } } } }, checker: { select: { firstName: true, lastName: true } } },
+      }),
+      prisma.qualityCheck.count({ where }),
     ]);
-
-    const total = Number(countRow[0].n);
-
-    res.json({
-      success: true,
-      data: {
-        qualityChecks: rows,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      },
-    });
+    const rows = checks.map((c: any) => ({
+      id: c.id, saleId: c.saleId,
+      clientName: c.sale?.client ? `${c.sale.client.firstName} ${c.sale.client.lastName}` : "Unknown",
+      productName: c.sale?.product?.name ?? "Unknown",
+      agentName: c.sale?.agent ? `${c.sale.agent.firstName} ${c.sale.agent.lastName}` : "Unknown",
+      premiumAmount: 129,
+      status: c.status?.toLowerCase() ?? "pending",
+      verdict: c.verdict,
+      notes: c.notes,
+      reviewedBy: c.checker ? `${c.checker.firstName} ${c.checker.lastName}` : null,
+      reviewedAt: c.updatedAt,
+      createdAt: c.createdAt,
+    }));
+    res.json({ success: true, data: { qualityChecks: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
   } catch (error) {
     console.error("List QA checks error:", error);
     res.status(500).json({ success: false, error: "An unexpected error occurred." });

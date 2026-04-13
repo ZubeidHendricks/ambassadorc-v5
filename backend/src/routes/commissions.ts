@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { hasSyncTables } from "../lib/syncCheck";
 
 const router = Router();
 
@@ -16,68 +17,65 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const skip = (page - 1) * limit;
     const statusFilter = (req.query.status as string | undefined)?.toLowerCase();
 
-    // Derive commissions from sync_sales_data — one record per active/approved sale
-    // Status mapping: cancelled/deleted → 'cancelled', qa-passed → 'paid', rest → 'pending'
-    let whereSQL = `WHERE "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`;
-    if (statusFilter === "paid") {
-      whereSQL += ` AND ("Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%')`;
-    } else if (statusFilter === "cancelled") {
-      whereSQL += ` AND ("Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%')`;
-    } else if (statusFilter === "pending") {
-      whereSQL += ` AND "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%active%'`;
+    const syncAvailable = await hasSyncTables();
+
+    if (syncAvailable) {
+      let whereSQL = `WHERE "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`;
+      if (statusFilter === "paid") whereSQL += ` AND ("Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%')`;
+      else if (statusFilter === "cancelled") whereSQL += ` AND ("Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%')`;
+      else if (statusFilter === "pending") whereSQL += ` AND "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%active%'`;
+
+      const [rows, countRow] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT s._sync_id::integer as id, 0 as "agentId",
+                  COALESCE(s."SalesAgentUserName", 'Unknown') as "agentName",
+                  s._sync_id::integer as "saleId",
+                  CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
+                  COALESCE(s."ProductName", 'Unknown') as "productName",
+                  COALESCE(NULLIF((SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
+                   FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1), 0),
+                   CASE COALESCE(s."ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
+                  ) as amount,
+                  CASE WHEN s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%active%' OR s."Status" ILIKE '%ok%' THEN 'paid'
+                       WHEN s."Status" ILIKE '%cancel%' OR s."Status" ILIKE '%lapse%' THEN 'cancelled' ELSE 'pending' END as status,
+                  NULL::text as "paidAt", s._synced_at as "createdAt"
+           FROM sync_sales_data s ${whereSQL} ORDER BY s._synced_at DESC LIMIT $1 OFFSET $2`,
+          limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`),
+      ]);
+      const total = Number(countRow[0].n);
+      return res.json({ success: true, data: { commissions: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
     }
 
-    const [rows, countRow] = await Promise.all([
-      prisma.$queryRawUnsafe<any[]>(
-        `SELECT s._sync_id::integer as id,
-                0 as "agentId",
-                COALESCE(s."SalesAgentUserName", 'Unknown') as "agentName",
-                s._sync_id::integer as "saleId",
-                CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
-                COALESCE(s."ProductName", 'Unknown') as "productName",
-                COALESCE(
-                  NULLIF(
-                    (SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
-                     FROM sync_sagepay_transactions sp
-                     WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != ''
-                     LIMIT 1),
-                    0
-                  ),
-                  CASE COALESCE(s."ProductName", '')
-                    WHEN 'Life Saver Legal' THEN 129
-                    WHEN 'LegalNet'         THEN 129
-                    WHEN 'Life Saver 24'   THEN 199
-                    WHEN 'Five-In-One'     THEN 199
-                    ELSE 129
-                  END
-                ) as amount,
-                CASE
-                  WHEN s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%active%' OR s."Status" ILIKE '%ok%' THEN 'paid'
-                  WHEN s."Status" ILIKE '%cancel%' OR s."Status" ILIKE '%lapse%' THEN 'cancelled'
-                  ELSE 'pending'
-                END as status,
-                NULL::text as "paidAt",
-                s._synced_at as "createdAt"
-         FROM sync_sales_data s
-         ${whereSQL}
-         ORDER BY s._synced_at DESC
-         LIMIT $1 OFFSET $2`,
-        limit, skip
-      ),
-      prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`
-      ),
+    // Native Prisma path
+    const where: any = statusFilter
+      ? { status: statusFilter === "paid" ? "PAID" : statusFilter === "cancelled" ? "CANCELLED" : "PENDING" }
+      : {};
+    const [commissions, total] = await Promise.all([
+      prisma.commission.findMany({
+        where, skip, take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          ambassador: { select: { id: true, firstName: true, lastName: true } },
+          sale: { include: { product: { select: { name: true } }, client: { select: { firstName: true, lastName: true } } } },
+        },
+      }),
+      prisma.commission.count({ where }),
     ]);
-
-    const total = Number(countRow[0].n);
-
-    res.json({
-      success: true,
-      data: {
-        commissions: rows,
-        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
-      },
-    });
+    const rows = commissions.map((c: any) => ({
+      id: c.id,
+      agentId: c.ambassadorId,
+      agentName: c.ambassador ? `${c.ambassador.firstName} ${c.ambassador.lastName}` : "Unknown",
+      saleId: c.saleId,
+      clientName: c.sale?.client ? `${c.sale.client.firstName} ${c.sale.client.lastName}` : "Unknown",
+      productName: c.sale?.product?.name ?? "Unknown",
+      amount: Number(c.amount ?? 0),
+      status: c.status?.toLowerCase() ?? "pending",
+      paidAt: c.paidAt,
+      createdAt: c.createdAt,
+    }));
+    res.json({ success: true, data: { commissions: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });
   } catch (error) {
     console.error("List commissions error:", error);
     res.status(500).json({ success: false, error: "An unexpected error occurred." });
@@ -88,45 +86,33 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
 router.get("/summary", async (req: AuthRequest, res: Response) => {
   try {
-    // Use product-based premiums for fast aggregate (sagepay correlated subquery too slow for 100K)
-    const premiumExpr = `
-      CASE COALESCE("ProductName", '')
-        WHEN 'Life Saver Legal' THEN 129
-        WHEN 'LegalNet'         THEN 129
-        WHEN 'Life Saver 24'   THEN 199
-        WHEN 'Five-In-One'     THEN 199
-        ELSE 129
-      END`;
+    const syncAvail = await hasSyncTables();
 
-    const [totalRow, pendingRow, paidRow] = await Promise.all([
-      prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(
-        `SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt
-         FROM sync_sales_data
-         WHERE "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
-      ),
-      prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(
-        `SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt
-         FROM sync_sales_data
-         WHERE "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%cancel%'
-           AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%active%'
-           AND "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`
-      ),
-      prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(
-        `SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt
-         FROM sync_sales_data
-         WHERE ("Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%')
-           AND "Status" NOT ILIKE '%delet%'`
-      ),
-    ]);
-
-    res.json({
-      success: true,
-      data: {
+    if (syncAvail) {
+      const premiumExpr = `CASE COALESCE("ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END`;
+      const [totalRow, pendingRow, paidRow] = await Promise.all([
+        prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(`SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt FROM sync_sales_data WHERE "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`),
+        prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(`SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt FROM sync_sales_data WHERE "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%active%' AND "Status" NOT ILIKE '%delet%' AND "Status" IS NOT NULL`),
+        prisma.$queryRawUnsafe<[{ n: bigint; amt: string }]>(`SELECT COUNT(*) as n, SUM(${premiumExpr}) as amt FROM sync_sales_data WHERE ("Status" ILIKE '%passed%' OR "Status" ILIKE '%active%' OR "Status" ILIKE '%ok%') AND "Status" NOT ILIKE '%delet%'`),
+      ]);
+      return res.json({ success: true, data: {
         total:   { amount: Number(totalRow[0].amt)   || 0, count: Number(totalRow[0].n) },
         pending: { amount: Number(pendingRow[0].amt) || 0, count: Number(pendingRow[0].n) },
         paid:    { amount: Number(paidRow[0].amt)    || 0, count: Number(paidRow[0].n) },
-      },
-    });
+      }});
+    }
+
+    // Native path
+    const [totalRow, pendingRow, paidRow] = await Promise.all([
+      prisma.commission.aggregate({ _sum: { amount: true }, _count: true }),
+      prisma.commission.aggregate({ where: { status: "PENDING" }, _sum: { amount: true }, _count: true }),
+      prisma.commission.aggregate({ where: { status: "PAID" }, _sum: { amount: true }, _count: true }),
+    ]);
+    res.json({ success: true, data: {
+      total:   { amount: Number(totalRow._sum.amount   ?? 0), count: totalRow._count },
+      pending: { amount: Number(pendingRow._sum.amount ?? 0), count: pendingRow._count },
+      paid:    { amount: Number(paidRow._sum.amount    ?? 0), count: paidRow._count },
+    }});
   } catch (error) {
     console.error("Commission summary error:", error);
     res.status(500).json({ success: false, error: "An unexpected error occurred." });
