@@ -92,13 +92,14 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       const like = `%${search}%`;
       [clientRows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
-          `SELECT _sync_id::integer as id, "Title" as title, "FirstName" as "firstName", "LastName" as "lastName",
-                  "IDNumber" as "idNumber", "CellPhone" as cellphone, "CellPhone" as phone,
-                  NULL::text as email, NULL::text as province, "Status" as status, "ProductName" as product,
-                  "SalesAgentUserName" as agent, _synced_at as "createdAt"
-           FROM sync_sales_data
-           WHERE "FirstName" ILIKE $1 OR "LastName" ILIKE $1 OR "IDNumber" ILIKE $1 OR "CellPhone" ILIKE $1
-           ORDER BY _synced_at DESC
+          `SELECT s._sync_id::integer as id, s."Title" as title, s."FirstName" as "firstName", s."LastName" as "lastName",
+                  s."IDNumber" as "idNumber", s."CellPhone" as cellphone, s."CellPhone" as phone,
+                  NULL::text as email, NULL::text as province, s."Status" as status, s."ProductName" as product,
+                  s."SalesAgentUserName" as agent, s._synced_at as "createdAt",
+                  (SELECT COUNT(*)::integer FROM sync_sales_data c WHERE c."IDNumber" = s."IDNumber") as "policyCount"
+           FROM sync_sales_data s
+           WHERE s."FirstName" ILIKE $1 OR s."LastName" ILIKE $1 OR s."IDNumber" ILIKE $1 OR s."CellPhone" ILIKE $1
+           ORDER BY s._synced_at DESC
            LIMIT $2 OFFSET $3`,
           like, limit, skip
         ),
@@ -111,12 +112,13 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     } else {
       [clientRows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
-          `SELECT _sync_id::integer as id, "Title" as title, "FirstName" as "firstName", "LastName" as "lastName",
-                  "IDNumber" as "idNumber", "CellPhone" as cellphone, "CellPhone" as phone,
-                  NULL::text as email, NULL::text as province, "Status" as status, "ProductName" as product,
-                  "SalesAgentUserName" as agent, _synced_at as "createdAt"
-           FROM sync_sales_data
-           ORDER BY _synced_at DESC
+          `SELECT s._sync_id::integer as id, s."Title" as title, s."FirstName" as "firstName", s."LastName" as "lastName",
+                  s."IDNumber" as "idNumber", s."CellPhone" as cellphone, s."CellPhone" as phone,
+                  NULL::text as email, NULL::text as province, s."Status" as status, s."ProductName" as product,
+                  s."SalesAgentUserName" as agent, s._synced_at as "createdAt",
+                  (SELECT COUNT(*)::integer FROM sync_sales_data c WHERE c."IDNumber" = s."IDNumber") as "policyCount"
+           FROM sync_sales_data s
+           ORDER BY s._synced_at DESC
            LIMIT $1 OFFSET $2`,
           limit, skip
         ),
@@ -291,6 +293,141 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
       success: false,
       error: "An unexpected error occurred.",
     });
+  }
+});
+
+// ─── GET /api/clients/:id/policies ───────────────────────────────────────
+
+router.get("/:id/policies", async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ success: false, error: "Invalid client ID." }); return; }
+
+    // Get the IDNumber for this client then fetch all their sales records
+    const clientRows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT "IDNumber" FROM sync_sales_data WHERE _sync_id = $1 LIMIT 1`, id
+    );
+    if (!clientRows.length) { res.json({ success: true, data: [] }); return; }
+
+    const idNumber = clientRows[0].IDNumber;
+    const rows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT _sync_id::integer as id,
+              CONCAT('POL-', _sync_id::integer) as "policyNumber",
+              COALESCE("ProductName", 'Unknown') as "productName",
+              0 as "premiumAmount",
+              COALESCE("Status", 'Unknown') as status,
+              COALESCE("DateLoaded"::text, _synced_at::text) as "startDate",
+              NULL::text as "endDate",
+              COALESCE("SalesAgentUserName", '') as "agentName",
+              _synced_at as "createdAt"
+       FROM sync_sales_data WHERE "IDNumber" = $1 ORDER BY _synced_at DESC LIMIT 20`,
+      idNumber
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error("Client policies error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
+  }
+});
+
+// ─── GET /api/clients/:id/payments ───────────────────────────────────────
+
+router.get("/:id/payments", async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ success: false, error: "Invalid client ID." }); return; }
+
+    const clientRows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT "IDNumber" FROM sync_sales_data WHERE _sync_id = $1 LIMIT 1`, id
+    );
+    if (!clientRows.length) { res.json({ success: true, data: [] }); return; }
+
+    const idNumber = clientRows[0].IDNumber;
+
+    // Look up payments in sagepay transactions by IdNumber
+    const rows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT _sync_id::integer as id,
+              CONCAT('POL-', _sync_id::integer) as "policyNumber",
+              CASE WHEN "Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN "Amount"::numeric ELSE 0 END as amount,
+              COALESCE("CollectionStatus", 'Unknown') as status,
+              COALESCE("Date"::text, _synced_at::text) as "paymentDate",
+              'Debit Order' as method,
+              "UniqueId" as reference,
+              "Product" as "productName"
+       FROM sync_sagepay_transactions
+       WHERE "IdNumber" = $1
+       ORDER BY "Date" DESC NULLS LAST
+       LIMIT 20`,
+      idNumber
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error("Client payments error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
+  }
+});
+
+// ─── GET /api/clients/:id/documents ──────────────────────────────────────
+
+router.get("/:id/documents", async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ success: false, error: "Invalid client ID." }); return; }
+    // Welcome packs are linked by Prisma clientId — likely empty until generated
+    const packs = await prisma.welcomePack.findMany({
+      where: { clientId: id },
+      include: { policy: { include: { product: { select: { name: true } } } } },
+      orderBy: { sentAt: "desc" },
+    });
+    const docs = packs.map((p) => ({
+      id: p.id,
+      productName: p.policy?.product?.name ?? "Unknown",
+      status: p.signedAt ? "signed" : p.viewedAt ? "viewed" : "sent",
+      sentAt: p.sentAt,
+      viewedAt: p.viewedAt,
+      signedAt: p.signedAt,
+      downloadUrl: `/api/documents/welcome-pack/${p.id}`,
+    }));
+    res.json({ success: true, data: docs });
+  } catch (error) {
+    console.error("Client documents error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
+  }
+});
+
+// ─── GET /api/clients/:id/sms ────────────────────────────────────────────
+
+router.get("/:id/sms", async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ success: false, error: "Invalid client ID." }); return; }
+
+    // Get client's phone number from sync data
+    const clientRows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT "CellPhone" FROM sync_sales_data WHERE _sync_id = $1 LIMIT 1`, id
+    );
+    if (!clientRows.length) { res.json({ success: true, data: [] }); return; }
+
+    const phone = clientRows[0].CellPhone;
+    const messages = await prisma.smsMessage.findMany({
+      where: { recipientNumber: phone ?? "" },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    const smsRecords = messages.map((m) => ({
+      id: m.id,
+      recipient: m.recipientNumber,
+      message: m.messageBody,
+      template: m.type,
+      status: m.status,
+      sentAt: m.sentAt ?? m.createdAt,
+    }));
+
+    res.json({ success: true, data: smsRecords });
+  } catch (error) {
+    console.error("Client SMS error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 
