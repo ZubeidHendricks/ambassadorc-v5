@@ -1,126 +1,200 @@
-# Lifesaver Refer & Earn - Ambassador Program v5
+# AmbassadorC v5 - Insurance Management Platform
 
-Modern rebuild of the Ambassador referral management system using React, TypeScript, PostgreSQL, and Express.
+A unified modern platform that consolidates three legacy .NET systems (AMBASSADORC, FoxBilling, FoxPro DNN) into a single full-stack web application for South African insurance operations.
+
+**Live:** http://142.93.44.48
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 19, TypeScript, Vite, TailwindCSS v4, shadcn/ui, Recharts |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, Radix UI, Recharts |
 | Backend | Express, TypeScript, Prisma ORM |
-| Database | PostgreSQL 16 |
+| Database | PostgreSQL 16 (DigitalOcean Managed) |
 | Auth | JWT + bcrypt |
-| DevOps | Docker Compose |
+| Infrastructure | DigitalOcean Droplet, Nginx, systemd |
+| AI Agents | Lead Scorer, Auto QA, SMS Dispatcher, Commission Calculator, Payment Reconciler, Welcome Pack Sender |
+| Integrations | QLink, SagePay, NetCash, GuardRisk, ViciDialer, WATI (WhatsApp), SMS Portal |
+
+## Architecture
+
+```
+Client Browser
+      |
+  Nginx :80
+   /      \
+Static    /api/* → Express :3001 → PostgreSQL 16
+/dist               (34 tables, 33 Prisma models)
+```
 
 ## Quick Start
 
-### Option 1: Docker Compose (recommended)
+### Docker Compose
 
 ```bash
 docker-compose up --build
 ```
 
-This starts:
-- PostgreSQL on port 5432
-- Backend API on http://localhost:3001
-- Frontend on http://localhost:5173
-
-### Option 2: Manual Setup
+### Manual Setup
 
 **Prerequisites**: Node.js 22+, PostgreSQL 16+
 
 ```bash
-# 1. Start PostgreSQL and create database
-createdb ambassadorc
-
-# 2. Backend
+# Backend
 cd backend
 npm install
-cp .env.example .env   # Edit DATABASE_URL if needed
-npx prisma migrate dev  # Creates tables
-npx prisma db seed      # Imports data from CSV exports
+cp .env.example .env   # Edit DATABASE_URL
+npx prisma migrate dev
+npx prisma db seed
 npm run dev
 
-# 3. Frontend (new terminal)
+# Frontend (new terminal)
 cd frontend
 npm install
 npm run dev
 ```
-
-Open http://localhost:5173
 
 ## Project Structure
 
 ```
 ambassadorc-v5/
 ├── backend/
-│   ├── prisma/
-│   │   └── schema.prisma       # Database schema (5 models)
-│   ├── src/
-│   │   ├── index.ts            # Express entry point
-│   │   ├── seed.ts             # CSV data importer
-│   │   ├── lib/
-│   │   │   ├── prisma.ts       # Prisma client singleton
-│   │   │   ├── jwt.ts          # JWT helpers
-│   │   │   └── validators.ts   # Zod request schemas
-│   │   ├── middleware/
-│   │   │   └── auth.ts         # JWT auth middleware
-│   │   └── routes/
-│   │       ├── auth.ts         # Register, login, me
-│   │       ├── ambassadors.ts  # Profile CRUD
-│   │       ├── referrals.ts    # Batch referral submission
-│   │       ├── leads.ts        # Lead submission
-│   │       └── dashboard.ts    # Stats & analytics
-│   └── Dockerfile
+│   ├── prisma/schema.prisma          # 33 models, 34 tables
+│   └── src/
+│       ├── index.ts                  # Express entry + middleware
+│       ├── routes/                   # 17 route modules
+│       │   ├── auth.ts               # Register, login, me
+│       │   ├── admin.ts              # Stats, agents, audit log
+│       │   ├── clients.ts            # Client CRUD
+│       │   ├── sales.ts              # Sales processing
+│       │   ├── policies.ts           # Policy lifecycle
+│       │   ├── products.ts           # Product catalog
+│       │   ├── commissions.ts        # Commission management
+│       │   ├── qa.ts                 # Quality assurance
+│       │   ├── sms.ts               # SMS center
+│       │   ├── documents.ts          # Welcome packs
+│       │   ├── workflows.ts          # Workflow engine
+│       │   ├── integrations.ts       # Third-party config
+│       │   ├── agents.ts             # AI agent orchestration
+│       │   ├── payments.ts           # Debit orders & billing
+│       │   ├── referrals.ts          # Referral batches
+│       │   ├── leads.ts              # Lead management
+│       │   ├── dashboard.ts          # Ambassador dashboard
+│       │   └── ambassadors.ts        # Ambassador profiles
+│       ├── agents/                   # 6 AI automation agents
+│       ├── integrations/             # 7 third-party connectors
+│       └── workflows/                # Workflow engine + templates
 ├── frontend/
-│   ├── src/
-│   │   ├── App.tsx             # Router + routes
-│   │   ├── context/            # Auth context
-│   │   ├── lib/                # API client, utils
-│   │   ├── components/
-│   │   │   ├── ui/             # Button, Input, Card, Select, Badge, Toast
-│   │   │   └── layout/         # Header, Layout
-│   │   └── pages/              # All page components
-│   └── Dockerfile
-├── docker-compose.yml
-└── README.md
+│   └── src/
+│       ├── lib/api.ts                # API client (all endpoints)
+│       ├── context/AuthContext.tsx    # JWT auth state
+│       ├── components/
+│       │   ├── ui/                   # Reusable UI components
+│       │   └── layout/               # Sidebar, Header, Layout
+│       └── pages/
+│           ├── Landing.tsx           # Public landing page
+│           ├── Login.tsx             # Authentication
+│           ├── Register.tsx          # Ambassador registration
+│           ├── Dashboard.tsx         # Ambassador dashboard
+│           ├── Leaderboard.tsx       # Ambassador rankings
+│           ├── SubmitReferrals.tsx   # Referral submission
+│           ├── SubmitLead.tsx        # Lead submission
+│           └── admin/               # 14 admin pages
+│               ├── AdminDashboard.tsx
+│               ├── Clients.tsx
+│               ├── Sales.tsx
+│               ├── Policies.tsx
+│               ├── Products.tsx
+│               ├── Commissions.tsx
+│               ├── QualityAssurance.tsx
+│               ├── Agents.tsx
+│               ├── AiAgents.tsx
+│               ├── Workflows.tsx
+│               ├── Documents.tsx
+│               ├── SmsCenter.tsx
+│               ├── PremiumChanges.tsx
+│               └── Integrations.tsx
+└── e2e-test.ts                       # Playwright E2E tests
 ```
 
-## API Endpoints
+## API Routes
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | /api/auth/register | No | Register new ambassador |
-| POST | /api/auth/login | No | Login with mobile + password |
-| GET | /api/auth/me | Yes | Get current profile |
-| GET | /api/ambassadors | Yes | List all ambassadors |
-| PUT | /api/ambassadors/:id | Yes | Update profile |
-| POST | /api/ambassadors/change-mobile | Yes | Request number change |
-| POST | /api/referrals/batch | Yes | Submit referral batch (1-10) |
-| GET | /api/referrals/batches | Yes | List referral batches |
-| GET | /api/referrals/batch/:id | Yes | Get batch detail |
-| POST | /api/leads | Yes | Submit a lead |
-| GET | /api/leads | Yes | List leads |
-| GET | /api/dashboard/stats | Yes | Dashboard statistics |
-| GET | /api/dashboard/stats/monthly | Yes | Monthly breakdown |
+All routes prefixed with `/api/`.
 
-## Data Migration
+### Public
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /auth/register | Register ambassador |
+| POST | /auth/login | Login (mobile + password) |
 
-The seed script (`backend/src/seed.ts`) imports data from the CSV exports in `AMBASSADORC_DB_Export/`:
-- `am_reg.csv` → Ambassador accounts
-- `am_ambassador.csv` → Profile enrichment
-- `am_refbatch.csv` → Referral batches + individual referrals
-- `am_amleads.csv` → Leads
+### Authenticated
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /auth/me | Current user profile |
+| GET | /dashboard/stats | Ambassador dashboard stats |
+| POST | /referrals/batch | Submit referral batch (1-10) |
+| GET | /referrals/batches | List referral batches |
+| POST | /leads | Submit a lead |
+| GET | /leads | List leads |
 
-All imported ambassadors get the default password: `Welcome123`
+### Admin
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /admin/stats | Platform-wide statistics |
+| GET | /admin/agents | List all ambassadors/agents |
+| GET | /admin/audit-log | Audit trail |
+| GET | /clients | Client management |
+| GET | /sales | Sales pipeline |
+| GET | /policies | Policy lifecycle |
+| GET | /products | Product catalog |
+| GET | /commissions | Commission tracking |
+| GET | /qa | Quality assurance queue |
+| GET | /sms | SMS history |
+| GET | /workflows | Workflow definitions |
+| GET | /workflows/instances | Running workflow instances |
+| GET | /agents | AI agent statuses |
+| GET | /integrations | Third-party integration config |
+| GET | /policies/premium-changes | Premium change requests |
+| GET | /payments/debit-orders | Debit order management |
 
-## Security Improvements over v4
+## Design System
 
-- Parameterized queries (Prisma ORM) — no SQL injection
-- Password authentication with bcrypt (cost 12)
-- JWT tokens with configurable expiry
-- Rate limiting on all endpoints
+D8tavision brand applied:
+
+| Token | Value |
+|-------|-------|
+| Primary | `#004D99` |
+| Primary Light | `#0AB3CC` |
+| Primary Dark | `#1A2C6B` |
+| Sidebar | `#0D1117` |
+| Font | Google Sans / Inter / JetBrains Mono |
+| Border Radius | 0.3rem (tight) |
+
+## E2E Testing
+
+```bash
+cd frontend
+npx tsx e2e-test.ts
+```
+
+Tests all 23 pages via Playwright - login, navigation, API connectivity, error boundaries, and blank page detection.
+
+**Latest results: 20 PASS, 3 WARN, 0 FAIL**
+
+## Legacy Systems Replaced
+
+| Legacy System | Technology | What it did |
+|---|---|---|
+| AMBASSADORC | DNN/.NET | Ambassador portal, leads, referrals |
+| FoxBilling | .NET | Billing, debit orders, SagePay, QLink |
+| FoxPro DNN | .NET/FoxPro | Sales, clients, SMS workflows |
+
+## Security
+
+- Prisma ORM (parameterized queries, no SQL injection)
+- bcrypt password hashing (cost factor 12)
+- JWT authentication with configurable expiry
+- Rate limiting (1000 general / 200 auth per 15 min)
 - Helmet security headers
 - CORS whitelist
-- Input validation with Zod
-- No hardcoded credentials
+- Zod input validation
