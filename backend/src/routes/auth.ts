@@ -131,8 +131,8 @@ router.post("/login", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Generate JWT
-    const token = signToken({ id: ambassador.id, mobileNo: ambassador.mobileNo });
+    // Generate JWT (include role so middleware and frontend can use it)
+    const token = signToken({ id: ambassador.id, mobileNo: ambassador.mobileNo, role: ambassador.role });
 
     // Return profile without passwordHash
     const { passwordHash: _, ...profile } = ambassador;
@@ -175,6 +175,10 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        role: true,
+        tier: true,
+        uniqueCode: true,
+        assignedCampaignId: true,
       },
     });
 
