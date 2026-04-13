@@ -182,52 +182,78 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
     let total = 0;
 
     if (syncAvailableForAgents) {
-      const [syncAgentRows, countRow, ambassadors] = await Promise.all([
-        prisma.$queryRawUnsafe<any[]>(
-          `SELECT TRIM("SalesAgentUserName") as full_name,
-            COUNT(*)::integer as sale_count,
-            COUNT(CASE WHEN "Status" = 'Active Client' OR "Status" ILIKE 'active%' THEN 1 END)::integer as active_sales,
-            COUNT(CASE WHEN "Status" ILIKE '%cancel%' THEN 1 END)::integer as cancelled_sales,
-            MAX(_synced_at) as last_sale_at
-           FROM sync_sales_data
-           WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''
-           GROUP BY TRIM("SalesAgentUserName")
-           ORDER BY sale_count DESC LIMIT $1 OFFSET $2`,
-          limit, skip
-        ),
-        prisma.$queryRawUnsafe<[{ n: bigint }]>(
-          `SELECT COUNT(DISTINCT TRIM("SalesAgentUserName")) as n
-           FROM sync_sales_data WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''`
-        ),
+      // Base: registered ambassadors with native leads/referrals.
+      // Sales = max(native sales, FoxPro name-match, lead phone-to-active-client conversions).
+      const [ambassadors, ambCount] = await Promise.all([
         prisma.ambassador.findMany({
-          select: { id: true, firstName: true, lastName: true, mobileNo: true, role: true, tier: true, isActive: true, createdAt: true },
+          skip, take: limit,
+          orderBy: { createdAt: "desc" },
+          include: { _count: { select: { sales: true, leads: true, referralBatches: true } } },
         }),
+        prisma.ambassador.count(),
       ]);
-      total = Number(countRow[0].n);
-      const ambassadorMap = new Map<string, typeof ambassadors[0]>();
-      for (const amb of ambassadors) {
-        const key = `${amb.firstName} ${amb.lastName}`.toLowerCase().trim();
-        ambassadorMap.set(key, amb);
+      total = ambCount;
+
+      // FoxPro name-matched sales (for ambassadors who are also FoxPro agents)
+      const foxproSalesByName = await prisma.$queryRawUnsafe<{ name_key: string; sale_count: number; active_sales: number }[]>(
+        `SELECT
+           LOWER(TRIM("SalesAgentUserName")) as name_key,
+           COUNT(*)::integer as sale_count,
+           COUNT(CASE WHEN "Status" ILIKE '%active%' OR "Status" = 'Active Client' THEN 1 END)::integer as active_sales
+         FROM sync_sales_data
+         WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''
+         GROUP BY LOWER(TRIM("SalesAgentUserName"))`
+      );
+      const foxproMap = new Map<string, { sale_count: number; active_sales: number }>();
+      for (const row of foxproSalesByName) {
+        foxproMap.set(row.name_key, { sale_count: Number(row.sale_count), active_sales: Number(row.active_sales) });
       }
-      agentList = syncAgentRows.map((row, idx) => {
-        const nameParts = (row.full_name as string).split(" ");
-        const firstName = nameParts[0] || "Agent";
-        const lastName = nameParts.slice(1).join(" ") || String(idx + 1);
-        const amb = ambassadorMap.get(row.full_name.toLowerCase());
-        const earnings = Number(row.sale_count) * 109;
+
+      // Lead-to-active-client conversions: leads whose contactNo matches an active FoxPro client
+      const ambIds = ambassadors.map((a: any) => a.id);
+      let convertedMap = new Map<number, number>();
+      if (ambIds.length > 0) {
+        const converted = await prisma.$queryRawUnsafe<{ ambassador_id: bigint; cnt: number }[]>(
+          `SELECT l."ambassadorId" as ambassador_id, COUNT(DISTINCT l.id)::integer as cnt
+           FROM leads l
+           INNER JOIN sync_sales_data sd
+             ON REGEXP_REPLACE(COALESCE(sd."CellPhone", ''), '[^0-9]', '', 'g')
+              = REGEXP_REPLACE(COALESCE(l."contactNo", ''), '[^0-9]', '', 'g')
+             AND LENGTH(REGEXP_REPLACE(COALESCE(l."contactNo", ''), '[^0-9]', '', 'g')) >= 9
+             AND (sd."Status" ILIKE '%active%' OR sd."Status" = 'Active Client')
+           WHERE l."ambassadorId" = ANY($1::int[])
+           GROUP BY l."ambassadorId"`,
+          ambIds
+        );
+        for (const row of converted) {
+          convertedMap.set(Number(row.ambassador_id), Number(row.cnt));
+        }
+      }
+
+      agentList = ambassadors.map((a: any) => {
+        const nameKey = `${a.firstName} ${a.lastName}`.toLowerCase().trim();
+        const fox = foxproMap.get(nameKey);
+        const saleCount = Math.max(
+          a._count?.sales ?? 0,
+          fox?.sale_count ?? 0,
+          convertedMap.get(a.id) ?? 0
+        );
+        const earnings = saleCount * 109;
         return {
-          id: amb?.id ?? (10000 + idx),
-          firstName, lastName,
-          mobileNo: amb?.mobileNo ?? "",
-          role: amb?.role ?? "AMBASSADOR",
-          tier: amb?.tier ?? "Bronze",
-          referralCount: 0, leadCount: 0,
-          saleCount: Number(row.sale_count),
+          id: a.id,
+          firstName: a.firstName,
+          lastName: a.lastName,
+          mobileNo: a.mobileNo,
+          role: a.role,
+          tier: a.tier ?? "Bronze",
+          referralCount: a._count?.referralBatches ?? 0,
+          leadCount: a._count?.leads ?? 0,
+          saleCount,
           totalEarnings: earnings,
-          status: Number(row.sale_count) > 0 ? "active" : "inactive",
-          createdAt: amb?.createdAt ?? row.last_sale_at,
-          _count: { sales: Number(row.sale_count), leads: 0, referralBatches: 0 },
-          metrics: { totalCommission: earnings, approvedSales: Number(row.active_sales) },
+          status: a.isActive ? "active" : "inactive",
+          createdAt: a.createdAt,
+          _count: { sales: saleCount, leads: a._count?.leads ?? 0, referralBatches: a._count?.referralBatches ?? 0 },
+          metrics: { totalCommission: earnings, approvedSales: fox?.active_sales ?? convertedMap.get(a.id) ?? 0 },
         };
       });
     } else {
