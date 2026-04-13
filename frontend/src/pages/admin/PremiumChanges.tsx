@@ -64,10 +64,11 @@ export default function PremiumChanges() {
       header: 'Change',
       render: (r) => {
         const diff = r.newAmount - r.currentAmount
-        const pct = ((diff / r.currentAmount) * 100).toFixed(1)
+        const pct = r.currentAmount > 0 ? ((diff / r.currentAmount) * 100).toFixed(1) : null
         return (
-          <span className={diff > 0 ? 'text-red-600 font-medium' : 'text-emerald-600 font-medium'}>
-            {diff > 0 ? '+' : ''}R{diff} ({diff > 0 ? '+' : ''}{pct}%)
+          <span className={diff > 0 ? 'text-red-600 font-medium' : diff < 0 ? 'text-emerald-600 font-medium' : 'text-gray-600'}>
+            {diff !== 0 ? `${diff > 0 ? '+' : ''}R${Math.abs(diff).toFixed(2)}` : r.changeType}
+            {pct !== null ? ` (${diff > 0 ? '+' : ''}${pct}%)` : ''}
           </span>
         )
       },

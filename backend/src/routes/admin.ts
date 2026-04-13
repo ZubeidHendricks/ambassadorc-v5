@@ -181,66 +181,76 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
     }
 
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string) || 50));
     const skip = (page - 1) * limit;
 
-    const [agents, total] = await Promise.all([
+    // Pull real agents from sync_sales_data grouped by SalesAgentUserName
+    const [syncAgentRows, countRow, ambassadors] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(
+        `SELECT
+          TRIM("SalesAgentUserName") as full_name,
+          COUNT(*)::integer as sale_count,
+          COUNT(CASE WHEN "Status" = 'Active Client' OR "Status" ILIKE 'active%' THEN 1 END)::integer as active_sales,
+          COUNT(CASE WHEN "Status" ILIKE '%cancel%' THEN 1 END)::integer as cancelled_sales,
+          MAX(_synced_at) as last_sale_at
+         FROM sync_sales_data
+         WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''
+         GROUP BY TRIM("SalesAgentUserName")
+         ORDER BY sale_count DESC
+         LIMIT $1 OFFSET $2`,
+        limit, skip
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(DISTINCT TRIM("SalesAgentUserName")) as n
+         FROM sync_sales_data
+         WHERE "SalesAgentUserName" IS NOT NULL AND TRIM("SalesAgentUserName") != ''`
+      ),
       prisma.ambassador.findMany({
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          mobileNo: true,
-          email: true,
-          role: true,
-          tier: true,
-          province: true,
-          department: true,
-          isActive: true,
-          createdAt: true,
-          _count: {
-            select: {
-              sales: true,
-              commissions: true,
-              leads: true,
-              referralBatches: true,
-            },
-          },
-        },
+        select: { id: true, firstName: true, lastName: true, mobileNo: true, role: true, tier: true, isActive: true, createdAt: true },
       }),
-      prisma.ambassador.count(),
     ]);
 
-    // Enrich with performance metrics
-    const agentsWithMetrics = await Promise.all(
-      agents.map(async (agent) => {
-        const [commissionTotal, salesApproved] = await Promise.all([
-          prisma.commission.aggregate({
-            where: { ambassadorId: agent.id },
-            _sum: { amount: true },
-          }),
-          prisma.sale.count({
-            where: { agentId: agent.id, status: "QA_APPROVED" },
-          }),
-        ]);
+    const total = Number(countRow[0].n);
 
-        return {
-          ...agent,
-          metrics: {
-            totalCommission: commissionTotal._sum.amount || 0,
-            approvedSales: salesApproved,
-          },
-        };
-      })
-    );
+    // Build ambassador lookup by full name (case-insensitive)
+    const ambassadorMap = new Map<string, typeof ambassadors[0]>();
+    for (const amb of ambassadors) {
+      const key = `${amb.firstName} ${amb.lastName}`.toLowerCase().trim();
+      ambassadorMap.set(key, amb);
+    }
+
+    const agentList = syncAgentRows.map((row, idx) => {
+      const nameParts = (row.full_name as string).split(" ");
+      const firstName = nameParts[0] || "Agent";
+      const lastName = nameParts.slice(1).join(" ") || String(idx + 1);
+      const matchKey = row.full_name.toLowerCase();
+      const amb = ambassadorMap.get(matchKey);
+
+      // Premium earnings: estimate R109 per sale (average across products)
+      const earnings = Number(row.sale_count) * 109;
+
+      return {
+        id: amb?.id ?? (10000 + idx),
+        firstName,
+        lastName,
+        mobileNo: amb?.mobileNo ?? "",
+        role: amb?.role ?? "AMBASSADOR",
+        tier: amb?.tier ?? "Bronze",
+        referralCount: 0,
+        leadCount: 0,
+        saleCount: Number(row.sale_count),
+        totalEarnings: earnings,
+        status: Number(row.sale_count) > 0 ? "active" : "inactive",
+        createdAt: amb?.createdAt ?? row.last_sale_at,
+        _count: { sales: Number(row.sale_count), leads: 0, referralBatches: 0 },
+        metrics: { totalCommission: earnings, approvedSales: Number(row.active_sales) },
+      };
+    });
 
     res.json({
       success: true,
       data: {
-        agents: agentsWithMetrics,
+        agents: agentList,
         pagination: {
           page,
           limit,

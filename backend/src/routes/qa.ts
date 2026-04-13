@@ -18,48 +18,61 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const statusFilter = (req.query.status as string | undefined)?.toLowerCase();
 
     // Map frontend status labels to sync_sales_data Status patterns
-    const qaStatusFilter = `("Status" ILIKE '%qa%' OR "Status" ILIKE '%quality%' OR "Status" ILIKE '%validation%' OR "Status" ILIKE '%awaiting%')`;
+    const qaStatusFilter = `(s."Status" ILIKE '%qa%' OR s."Status" ILIKE '%quality%' OR s."Status" ILIKE '%validation%' OR s."Status" ILIKE '%awaiting%')`;
 
     let verdictFilter = "";
     if (statusFilter === "passed") {
-      verdictFilter = ` AND ("Status" ILIKE '%passed%' OR "Status" ILIKE '%ok%')`;
+      verdictFilter = ` AND (s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%')`;
     } else if (statusFilter === "failed") {
-      verdictFilter = ` AND "Status" ILIKE '%fail%'`;
+      verdictFilter = ` AND s."Status" ILIKE '%fail%'`;
     } else if (statusFilter === "escalated") {
-      verdictFilter = ` AND "Status" ILIKE '%escalat%'`;
+      verdictFilter = ` AND s."Status" ILIKE '%escalat%'`;
     } else if (statusFilter === "pending") {
-      verdictFilter = ` AND ("Status" ILIKE '%pending%' OR "Status" ILIKE '%awaiting%' OR "Status" ILIKE '%capture%')`;
+      verdictFilter = ` AND (s."Status" ILIKE '%pending%' OR s."Status" ILIKE '%awaiting%' OR s."Status" ILIKE '%capture%')`;
     }
 
     const whereSQL = `WHERE ${qaStatusFilter}${verdictFilter}`;
 
     const [rows, countRow] = await Promise.all([
       prisma.$queryRawUnsafe<any[]>(
-        `SELECT _sync_id::integer as id,
-                _sync_id::integer as "saleId",
-                CONCAT("FirstName", ' ', "LastName") as "clientName",
-                COALESCE("ProductName", 'Unknown') as "productName",
-                COALESCE("SalesAgentUserName", '') as "agentName",
-                0 as "premiumAmount",
+        `SELECT s._sync_id::integer as id,
+                s._sync_id::integer as "saleId",
+                CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
+                COALESCE(s."ProductName", 'Unknown') as "productName",
+                COALESCE(s."SalesAgentUserName", '') as "agentName",
+                COALESCE(
+                  NULLIF(
+                    (SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
+                     FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1),
+                    0
+                  ),
+                  CASE COALESCE(s."ProductName", '')
+                    WHEN 'Life Saver Legal' THEN 129
+                    WHEN 'LegalNet' THEN 129
+                    WHEN 'Life Saver 24' THEN 199
+                    WHEN 'Five-In-One' THEN 199
+                    ELSE 129
+                  END
+                ) as "premiumAmount",
                 CASE
-                  WHEN "Status" ILIKE '%passed%' OR "Status" ILIKE '%ok%' THEN 'passed'
-                  WHEN "Status" ILIKE '%fail%' THEN 'failed'
-                  WHEN "Status" ILIKE '%escalat%' THEN 'escalated'
+                  WHEN s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%' THEN 'passed'
+                  WHEN s."Status" ILIKE '%fail%' THEN 'failed'
+                  WHEN s."Status" ILIKE '%escalat%' THEN 'escalated'
                   ELSE 'pending'
                 END as status,
-                "Status" as verdict,
+                s."Status" as verdict,
                 NULL::text as notes,
                 NULL::text as "reviewedBy",
                 NULL::text as "reviewedAt",
-                _synced_at as "createdAt"
-         FROM sync_sales_data
+                s._synced_at as "createdAt"
+         FROM sync_sales_data s
          ${whereSQL}
-         ORDER BY _synced_at DESC
+         ORDER BY s._synced_at DESC
          LIMIT $1 OFFSET $2`,
         limit, skip
       ),
       prisma.$queryRawUnsafe<[{ n: bigint }]>(
-        `SELECT COUNT(*) as n FROM sync_sales_data ${whereSQL}`
+        `SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`
       ),
     ]);
 

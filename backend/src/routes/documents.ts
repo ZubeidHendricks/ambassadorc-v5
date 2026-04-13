@@ -20,35 +20,46 @@ router.get("/welcome-pack", async (req: AuthRequest, res: Response) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
 
-    const [packs, total] = await Promise.all([
-      prisma.welcomePack.findMany({
-        skip,
-        take: limit,
-        orderBy: { sentAt: "desc" },
-        include: {
-          client: { select: { id: true, firstName: true, lastName: true } },
-          policy: { include: { product: { select: { id: true, name: true } } } },
-        },
-      }),
-      prisma.welcomePack.count(),
+    // Pull from sync_welcome_pack_history; use CTE to paginate first, then join
+    const [rows, countRow] = await Promise.all([
+      prisma.$queryRawUnsafe<any[]>(
+        `WITH paged AS (
+           SELECT _sync_id, _synced_at, "MobileNumber", "ProductEndPoint", "SmartbillState", "Date",
+                  '0' || SUBSTRING("MobileNumber", 3) AS local_phone
+           FROM sync_welcome_pack_history
+           ORDER BY "Date" DESC NULLS LAST
+           LIMIT $1 OFFSET $2
+         )
+         SELECT
+           p._sync_id::integer as id,
+           sd._sync_id::integer as "clientId",
+           COALESCE(CONCAT(sd."FirstName", ' ', sd."LastName"), p."MobileNumber") as "clientName",
+           0 as "productId",
+           COALESCE(p."ProductEndPoint", sd."ProductName", 'Unknown') as "productName",
+           CASE
+             WHEN p."SmartbillState" ILIKE '%sign%' THEN 'signed'
+             WHEN p."SmartbillState" ILIKE '%view%' OR p."SmartbillState" ILIKE '%open%' THEN 'viewed'
+             ELSE 'sent'
+           END as status,
+           p."Date" as "sentAt",
+           NULL::timestamptz as "viewedAt",
+           NULL::timestamptz as "signedAt",
+           NULL::text as "downloadUrl",
+           p._synced_at as "createdAt"
+         FROM paged p
+         LEFT JOIN sync_sales_data sd ON sd."CellPhone" = p.local_phone`,
+        limit, skip
+      ),
+      prisma.$queryRawUnsafe<[{ n: bigint }]>(
+        `SELECT COUNT(*) as n FROM sync_welcome_pack_history`
+      ),
     ]);
 
-    const documents = packs.map((p) => ({
-      id: p.id,
-      clientId: p.clientId,
-      clientName: p.client ? `${p.client.firstName} ${p.client.lastName}` : "Unknown",
-      productId: p.policy?.product?.id ?? 0,
-      productName: p.policy?.product?.name ?? "Unknown",
-      status: p.signedAt ? "signed" : p.viewedAt ? "viewed" : "sent",
-      sentAt: p.sentAt,
-      viewedAt: p.viewedAt,
-      signedAt: p.signedAt,
-      downloadUrl: `/api/documents/welcome-pack/${p.id}`,
-    }));
+    const total = Number(countRow[0].n);
 
     res.json({
       success: true,
-      data: { documents, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
+      data: { documents: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } },
     });
   } catch (error) {
     console.error("List documents error:", error);
