@@ -30,7 +30,7 @@ router.use(authenticate);
 // ── Helper: check admin role ───────────────────────────────────────────────
 
 function requireAdmin(req: Request, res: Response): boolean {
-  const user = (req as any).user;
+  const user = (req as any).ambassador;
   if (!user || user.role !== "ADMIN") {
     res.status(403).json({ success: false, error: "Admin access required" });
     return false;
@@ -77,7 +77,7 @@ router.get("/:name", async (req: Request, res: Response) => {
     }
 
     // Strip sensitive credential fields for non-admin
-    const user = (req as any).user;
+    const user = (req as any).ambassador;
     const safeConfig = {
       ...config,
       credentials: user?.role === "ADMIN" ? config.credentials : "***REDACTED***",
@@ -115,7 +115,7 @@ router.put("/:name", async (req: Request, res: Response) => {
 
     await prisma.auditLog.create({
       data: {
-        userId: (req as any).user?.id?.toString(),
+        userId: (req as any).ambassador?.id?.toString(),
         action: "INTEGRATION_CONFIG_UPDATED",
         entity: "IntegrationConfig",
         entityId: name,

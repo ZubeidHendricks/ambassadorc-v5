@@ -64,7 +64,7 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
     });
 
     // Generate JWT
-    const token = signToken({ id: ambassador.id, mobileNo: ambassador.mobileNo });
+    const token = signToken({ id: ambassador.id, mobileNo: ambassador.mobileNo, role: ambassador.role });
 
     res.status(201).json({
       success: true,
