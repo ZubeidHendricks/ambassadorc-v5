@@ -26,6 +26,8 @@ const routeTitles: Record<string, string> = {
   '/admin/premium-changes': 'Premium Changes',
   '/admin/sql': 'SQL Console',
   '/admin/sync': 'FoxPro Sync',
+  '/admin/reports': 'Reports',
+  '/payments': 'My Payments',
 }
 
 interface HeaderProps {

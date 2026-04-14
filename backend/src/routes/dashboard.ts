@@ -94,22 +94,42 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
         { referralCount: 0, leadCount: 0 }
       );
 
-    // Earnings: R100 per 10 referrals submitted, R100 per lead with PAID status
-    const paidLeads = await prisma.lead.count({
-      where: { ambassadorId, status: "PAID" },
-    });
+    // Earnings breakdown
+    const [paidReferralLeads, paidMemberSignups, convertedReferrals, referralBatchCount] = await Promise.all([
+      prisma.lead.count({ where: { ambassadorId, status: "PAID", type: "REFERRAL_LEAD" } }),
+      prisma.lead.count({ where: { ambassadorId, status: "PAID", type: "MEMBER_SIGNUP" } }),
+      prisma.referral.count({ where: { ambassadorId, status: "CONVERTED" } }),
+      prisma.referral.count({ where: { ambassadorId } }),
+    ]);
 
-    const convertedReferrals = await prisma.referral.count({
-      where: { ambassadorId, status: "CONVERTED" },
-    });
+    // R100 per batch of 10 referrals (regardless of outcome)
+    const referralBatchEarnings = Math.floor(referralBatchCount / 10) * 100;
+    // R100 per paid referral lead
+    const referralLeadEarnings = paidReferralLeads * 100;
+    // R100 per confirmed member signup conversion
+    const memberSignupEarnings = paidMemberSignups * 100;
+    const totalEarnings = referralBatchEarnings + referralLeadEarnings + memberSignupEarnings;
 
-    const referralEarnings = Math.floor(totalReferrals / 10) * 100;
-    const leadEarnings = paidLeads * 100;
+    // Ambassador payment records (FNB Cash Send history)
+    const ambassadorPayments = await prisma.ambassadorPayment.findMany({
+      where: { ambassadorId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        amount: true,
+        type: true,
+        status: true,
+        reference: true,
+        paidAt: true,
+        createdAt: true,
+      },
+    });
 
     res.json({
       success: true,
       data: {
-        totalReferrals,
+        totalReferrals: referralBatchCount,
         totalLeads,
         monthlyStats,
         yearlyTotal: {
@@ -117,12 +137,21 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
           ...yearlyTotal,
         },
         earnings: {
-          referralEarnings,
-          leadEarnings,
-          totalEarnings: referralEarnings + leadEarnings,
+          referralBatchEarnings,
+          referralLeadEarnings,
+          memberSignupEarnings,
+          totalEarnings,
+          referralBatchCount,
+          completedBatches: Math.floor(referralBatchCount / 10),
+          referralsToNextBatch: 10 - (referralBatchCount % 10),
+          paidReferralLeads,
+          paidMemberSignups,
           convertedReferrals,
-          paidLeads,
         },
+        recentPayments: ambassadorPayments.map((p) => ({
+          ...p,
+          amount: Number(p.amount),
+        })),
       },
     });
   } catch (error) {

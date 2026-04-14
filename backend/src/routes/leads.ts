@@ -5,7 +5,6 @@ import { authenticate, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
-// All routes require authentication
 router.use(authenticate);
 
 // ─── POST /api/leads ────────────────────────────────────────────────────────
@@ -23,15 +22,11 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const { firstName, lastName, contactNo, preferredContact } = validation.data;
+    const { firstName, lastName, contactNo, preferredContact, type, employerName, idNumber, notes } = validation.data;
     const ambassadorId = req.ambassador!.id;
 
-    // Check for duplicate contact number for this ambassador
     const existingLead = await prisma.lead.findFirst({
-      where: {
-        ambassadorId,
-        contactNo,
-      },
+      where: { ambassadorId, contactNo },
     });
 
     if (existingLead) {
@@ -49,6 +44,10 @@ router.post("/", async (req: AuthRequest, res: Response) => {
         lastName,
         contactNo,
         preferredContact: preferredContact ?? null,
+        type: type ?? "REFERRAL_LEAD",
+        employerName: employerName ?? null,
+        idNumber: idNumber ?? null,
+        notes: notes ?? null,
       },
       select: {
         id: true,
@@ -57,21 +56,19 @@ router.post("/", async (req: AuthRequest, res: Response) => {
         contactNo: true,
         preferredContact: true,
         status: true,
+        type: true,
+        employerName: true,
+        idNumber: true,
+        notes: true,
         datePaid: true,
         createdAt: true,
       },
     });
 
-    res.status(201).json({
-      success: true,
-      data: lead,
-    });
+    res.status(201).json({ success: true, data: lead });
   } catch (error) {
     console.error("Create lead error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 
@@ -84,12 +81,15 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
 
-    // Optional status filter
     const statusFilter = req.query.status as string | undefined;
+    const typeFilter = req.query.type as string | undefined;
     const where: Record<string, unknown> = { ambassadorId };
 
     if (statusFilter && ["NEW", "CONTACTED", "PAID", "CLOSED"].includes(statusFilter)) {
       where.status = statusFilter;
+    }
+    if (typeFilter && ["REFERRAL_LEAD", "MEMBER_SIGNUP"].includes(typeFilter)) {
+      where.type = typeFilter;
     }
 
     const [leads, total] = await Promise.all([
@@ -105,6 +105,10 @@ router.get("/", async (req: AuthRequest, res: Response) => {
           contactNo: true,
           preferredContact: true,
           status: true,
+          type: true,
+          employerName: true,
+          idNumber: true,
+          notes: true,
           datePaid: true,
           createdAt: true,
         },
@@ -126,10 +130,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("List leads error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 

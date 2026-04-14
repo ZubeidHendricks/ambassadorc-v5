@@ -35,6 +35,23 @@ enum LeadStatus {
   CLOSED
 }
 
+enum LeadType {
+  REFERRAL_LEAD
+  MEMBER_SIGNUP
+}
+
+enum AmbassadorPaymentStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum AmbassadorPaymentType {
+  REFERRAL_BATCH
+  MEMBER_SIGNUP_CONVERSION
+  MANUAL
+}
+
 enum NumberChangeStatus {
   PENDING
   APPROVED
@@ -185,6 +202,7 @@ model Ambassador {
   referrals            Referral[]
   leads                Lead[]
   numberChangeRequests NumberChangeRequest[]
+  ambassadorPayments   AmbassadorPayment[]
 
   // New relations
   assignedCampaign     SalesCampaign?   @relation(fields: [assignedCampaignId], references: [id], onDelete: SetNull)
@@ -241,15 +259,46 @@ model Lead {
   contactNo        String     @db.VarChar(15)
   preferredContact String?    @db.VarChar(50)
   status           LeadStatus @default(NEW)
+  type             LeadType   @default(REFERRAL_LEAD)
+  employerName     String?    @db.VarChar(200)
+  idNumber         String?    @db.VarChar(20)
+  notes            String?    @db.VarChar(1000)
   datePaid         DateTime?
   createdAt        DateTime   @default(now())
 
-  ambassador Ambassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  ambassador        Ambassador         @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  ambassadorPayment AmbassadorPayment? @relation(fields: [ambassadorPaymentId], references: [id])
+  ambassadorPaymentId Int?
 
   @@index([ambassadorId])
   @@index([status])
+  @@index([type])
   @@index([contactNo])
   @@map("leads")
+}
+
+model AmbassadorPayment {
+  id           Int                      @id @default(autoincrement())
+  ambassadorId Int
+  amount       Decimal                  @db.Decimal(10, 2)
+  type         AmbassadorPaymentType
+  status       AmbassadorPaymentStatus  @default(PENDING)
+  reference    String?                  @db.VarChar(100)
+  batchRef     String?                  @db.VarChar(100)
+  periodStart  DateTime?
+  periodEnd    DateTime?
+  paidAt       DateTime?
+  notes        String?                  @db.VarChar(500)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  ambassador Ambassador @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  leads      Lead[]
+
+  @@index([ambassadorId])
+  @@index([status])
+  @@index([type])
+  @@map("ambassador_payments")
 }
 
 model NumberChangeRequest {

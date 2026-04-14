@@ -11,6 +11,7 @@ import SubmitLead from '@/pages/SubmitLead'
 import LeadHistory from '@/pages/LeadHistory'
 import Profile from '@/pages/Profile'
 import Leaderboard from '@/pages/Leaderboard'
+import Payments from '@/pages/Payments'
 
 // Admin pages
 import AdminDashboard from '@/pages/admin/AdminDashboard'
@@ -32,6 +33,7 @@ import SmsCenter from '@/pages/admin/SmsCenter'
 import Integrations from '@/pages/admin/Integrations'
 import SqlQuery from '@/pages/admin/SqlQuery'
 import SyncDashboard from '@/pages/admin/SyncDashboard'
+import Reports from '@/pages/admin/Reports'
 
 export default function App() {
   return (
@@ -96,6 +98,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Leaderboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payments"
+          element={
+            <ProtectedRoute>
+              <Payments />
             </ProtectedRoute>
           }
         />
@@ -254,6 +264,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
               <SyncDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <Reports />
             </ProtectedRoute>
           }
         />

@@ -87,6 +87,10 @@ export const createLeadSchema = z.object({
   lastName: z.string().min(1, "Last name is required").max(100),
   contactNo: southAfricanMobile,
   preferredContact: z.string().max(50).optional().nullable(),
+  type: z.enum(["REFERRAL_LEAD", "MEMBER_SIGNUP"]).optional().default("REFERRAL_LEAD"),
+  employerName: z.string().max(200).optional().nullable(),
+  idNumber: z.string().max(20).optional().nullable(),
+  notes: z.string().max(1000).optional().nullable(),
 });
 
 // ─── Client Schemas ─────────────────────────────────────────────────────────

@@ -144,11 +144,17 @@ export async function getBatchDetail(id: number) {
 }
 
 // Leads
+export type LeadType = 'REFERRAL_LEAD' | 'MEMBER_SIGNUP'
+
 export interface LeadPayload {
   firstName: string
   lastName: string
   contactNo: string
   preferredContact: string
+  type?: LeadType
+  employerName?: string
+  idNumber?: string
+  notes?: string
 }
 
 export interface Lead {
@@ -158,6 +164,11 @@ export interface Lead {
   contactNo: string
   preferredContact: string
   status: string
+  type: LeadType
+  employerName?: string
+  idNumber?: string
+  notes?: string
+  datePaid?: string
   createdAt: string
 }
 
@@ -169,9 +180,54 @@ export async function submitLead(payload: LeadPayload) {
   return res.data!
 }
 
-export async function getLeads() {
-  const res = await request<{ leads: Lead[]; pagination: any }>('/leads')
+export async function getLeads(typeFilter?: LeadType) {
+  const params = typeFilter ? `?type=${typeFilter}` : ''
+  const res = await request<{ leads: Lead[]; pagination: any }>(`/leads${params}`)
   return res.data!.leads
+}
+
+// Ambassador Payments
+export interface AmbassadorPayment {
+  id: number
+  amount: number
+  type: 'REFERRAL_BATCH' | 'MEMBER_SIGNUP_CONVERSION' | 'MANUAL'
+  status: 'PENDING' | 'PAID' | 'CANCELLED'
+  reference?: string
+  batchRef?: string
+  periodStart?: string
+  periodEnd?: string
+  paidAt?: string
+  notes?: string
+  createdAt: string
+}
+
+export async function getAmbassadorPayments(): Promise<{
+  payments: AmbassadorPayment[]
+  summary: { totalPaid: number; totalPending: number }
+}> {
+  const res = await request<any>('/ambassador-payments')
+  return res.data!
+}
+
+export function downloadEarningsReport() {
+  const token = getToken()
+  const url = `/api/reports/ambassador-earnings`
+  const a = document.createElement('a')
+  a.href = url
+  a.setAttribute('download', '')
+  // Use fetch with auth header to trigger download
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then((r) => r.blob())
+    .then((blob) => {
+      const blobUrl = URL.createObjectURL(blob)
+      const date = new Date().toISOString().split('T')[0]
+      a.href = blobUrl
+      a.download = `Ambassador_Earnings_${date}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+    })
 }
 
 // Dashboard

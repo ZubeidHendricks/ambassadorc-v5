@@ -29,6 +29,8 @@ import {
   X,
   Terminal,
   ArrowLeftRight,
+  Wallet,
+  FileBarChart,
 } from 'lucide-react'
 
 interface NavItem {
@@ -52,6 +54,7 @@ const sections: NavSection[] = [
       { to: '/referrals/history', label: 'Referral History', icon: History },
       { to: '/leads', label: 'Submit Lead', icon: UserPlus },
       { to: '/leads/history', label: 'Lead History', icon: History },
+      { to: '/payments', label: 'My Payments', icon: Wallet },
       { to: '/leaderboard', label: 'Leaderboard', icon: Trophy },
     ],
   },
@@ -85,6 +88,7 @@ const sections: NavSection[] = [
       { to: '/admin/workflows', label: 'Workflows', icon: GitBranch },
       { to: '/admin/sms', label: 'SMS Center', icon: MessageSquare },
       { to: '/admin/integrations', label: 'Integrations', icon: Plug },
+      { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
       { to: '/admin/sql', label: 'SQL Console', icon: Terminal },
       { to: '/admin/sync', label: 'FoxPro Sync', icon: ArrowLeftRight },
     ],
