@@ -19,10 +19,23 @@ export interface TableMapping {
   /**
    * Skip COUNT(*) pre-query (expensive on unindexed tables) and skip
    * ORDER BY on the SELECT so SQL Server returns rows in heap order
-   * (fastest path). The dest table is truncated and fully re-loaded
-   * each sync. No checkpoint is used.
+   * (fastest path). On first run the dest table is fully loaded.
+   * On subsequent runs, if dateColumn is set, only rows updated within
+   * the last incrementalDays days are fetched (bandwidth saving mode).
    */
   streamDump?: boolean;
+  /**
+   * SQL Server column to use for incremental window filter on streamDump tables.
+   * e.g. "LastUpdated" or "Date". Once the initial full-load checkpoint exists,
+   * only rows WHERE [dateColumn] >= DATEADD(day, -incrementalDays, GETDATE())
+   * are fetched, avoiding a full table scan every day.
+   */
+  dateColumn?: string;
+  /**
+   * How many days back the incremental window looks. Defaults to 3 (so we
+   * always overlap by 2 days to catch any late-arriving updates).
+   */
+  incrementalDays?: number;
 }
 
 export const TABLE_MAPPINGS: TableMapping[] = [
@@ -80,7 +93,9 @@ export const TABLE_MAPPINGS: TableMapping[] = [
     pkColumn: "id",
     label: "Sales Data (clients)",
     category: "sales",
-    streamDump: true, // 60-col wide table, no index on id — use heap-order stream dump
+    streamDump: true,   // 60-col wide table, no index on id — heap-order stream
+    dateColumn: "LastUpdated", // incremental filter after initial full load
+    incrementalDays: 3,
   },
   {
     sourceTable: "SalesLeads",
@@ -88,7 +103,9 @@ export const TABLE_MAPPINGS: TableMapping[] = [
     pkColumn: "id",
     label: "Sales Leads",
     category: "sales",
-    streamDump: true, // wide table, no index on id — use heap-order stream dump
+    streamDump: true,   // wide table, no index on id — heap-order stream
+    dateColumn: "LastUpdated", // incremental filter after initial full load
+    incrementalDays: 3,
   },
   {
     sourceTable: "SalesHistory",
@@ -142,7 +159,9 @@ export const TABLE_MAPPINGS: TableMapping[] = [
     orderBy: "Date",
     label: "SagePay Transactions",
     category: "payments",
-    streamDump: true, // 353k rows, likely no index on id — use heap-order stream dump
+    streamDump: true,   // 353k rows, no index on id — heap-order stream
+    dateColumn: "Date", // incremental filter after initial full load
+    incrementalDays: 3,
   },
   {
     sourceTable: "SageBatchHistory",

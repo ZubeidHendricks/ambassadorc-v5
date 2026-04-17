@@ -227,13 +227,30 @@ async function syncTable(mapping: TableMapping, forceReset = false): Promise<Syn
       // Used for wide/unindexed tables (SalesData, SalesLeads, SagePayTransactions)
       // where COUNT(*) and ORDER BY cause full-table scans > 10 minutes.
       //
-      // Strategy: truncate dest, stream all rows in heap order (no WHERE/ORDER BY),
-      // insert in batches of 50. On interruption, restart from scratch next time
-      // (no checkpoint id, just row count as progress indicator).
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${destTable}" RESTART IDENTITY`);
-      await clearCheckpoint(sourceTable);
+      // Strategy:
+      //   FIRST RUN  — truncate dest, stream ALL rows in heap order, save checkpoint.
+      //   SUBSEQUENT — if dateColumn is set, only pull rows WHERE [dateColumn] >=
+      //                DATEADD(day, -N, GETDATE()). No truncate; use ON CONFLICT DO NOTHING.
+      //                This cuts daily bandwidth by ~99% for large historical tables.
 
-      let rowsSynced = 0;
+      const existingCheckpoint = await loadCheckpoint(sourceTable);
+      const { dateColumn, incrementalDays = 3 } = mapping;
+      const isIncrementalRun = !forceReset && !!existingCheckpoint && !!dateColumn;
+
+      if (!isIncrementalRun) {
+        // Full dump: clear everything and start fresh
+        await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${destTable}" RESTART IDENTITY`);
+        await clearCheckpoint(sourceTable);
+        console.log(`[Sync]   ${sourceTable} (stream/full): initial full load`);
+      } else {
+        console.log(`[Sync]   ${sourceTable} (stream/incremental): pulling last ${incrementalDays} days via [${dateColumn}]`);
+      }
+
+      const whereClause = isIncrementalRun
+        ? `WHERE [${dateColumn}] >= DATEADD(day, -${incrementalDays}, GETDATE())`
+        : "";
+
+      let rowsSynced = isIncrementalRun ? (existingCheckpoint?.rowsSynced ?? 0) : 0;
       let buffer: Record<string, unknown>[] = [];
 
       const flushBuffer = async () => {
@@ -241,17 +258,16 @@ async function syncTable(mapping: TableMapping, forceReset = false): Promise<Syn
         const { sql, values } = buildInsertSql(destTable, colNames, columns, buffer);
         await prisma.$executeRawUnsafe(sql, ...values);
         rowsSynced += buffer.length;
-        // Save progress (rows_synced only, no last_id since unordered)
         await saveCheckpoint(sourceTable, destTable, 0, rowsSynced);
-        console.log(`[Sync]   ${sourceTable} (stream): ${rowsSynced} rows`);
+        const mode = isIncrementalRun ? "incr" : "full";
+        console.log(`[Sync]   ${sourceTable} (${mode}): ${rowsSynced} rows`);
         buffer = [];
       };
 
       await new Promise<void>((resolve, reject) => {
         const request = pool.request();
         request.stream = true;
-        // Use NOLOCK and no ORDER BY so SQL Server returns rows in heap order
-        request.query(`SELECT * FROM [${sourceTable}] WITH (NOLOCK)`);
+        request.query(`SELECT * FROM [${sourceTable}] WITH (NOLOCK) ${whereClause}`);
 
         request.on("row", async (row: Record<string, unknown>) => {
           buffer.push(row);
@@ -270,7 +286,7 @@ async function syncTable(mapping: TableMapping, forceReset = false): Promise<Syn
 
         request.on("done", async () => {
           try {
-            await flushBuffer(); // flush remainder
+            await flushBuffer();
             resolve();
           } catch (e) {
             reject(e);
@@ -278,9 +294,22 @@ async function syncTable(mapping: TableMapping, forceReset = false): Promise<Syn
         });
       });
 
-      // Clear checkpoint on success so next sync knows to start fresh
-      await clearCheckpoint(sourceTable);
-      return { table: sourceTable, destTable, label, status: "success", rowsSynced, rowsTotal: rowsSynced, durationMs: Date.now() - start };
+      // On full load, save checkpoint so next run knows to go incremental
+      if (!isIncrementalRun) {
+        await saveCheckpoint(sourceTable, destTable, 0, rowsSynced);
+      }
+
+      const newRows = isIncrementalRun ? (rowsSynced - (existingCheckpoint?.rowsSynced ?? 0)) : rowsSynced;
+      return {
+        table: sourceTable,
+        destTable,
+        label,
+        status: "success",
+        rowsSynced: newRows,
+        rowsTotal: rowsSynced,
+        durationMs: Date.now() - start,
+        resumed: isIncrementalRun,
+      };
     }
 
     // For non-streamDump tables, get row count (used to decide full vs incremental)
