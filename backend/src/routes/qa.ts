@@ -35,9 +35,11 @@ router.get("/", async (req: AuthRequest, res: Response) => {
                        WHEN d.result = 'FAILED' THEN 'failed'
                        WHEN d.result = 'ESCALATED' THEN 'escalated'
                        ELSE ${sourceStatusCase} END`;
-      const effectiveWhere = ["passed", "failed", "escalated", "pending"].includes(statusFilter ?? "")
-        ? `WHERE status = '${statusFilter}'`
-        : "";
+      const effectiveFilter = ["passed", "failed", "escalated", "pending"].includes(statusFilter ?? "")
+        ? statusFilter
+        : null;
+      const rowEffectiveWhere = effectiveFilter ? "WHERE status = $3" : "";
+      const countEffectiveWhere = effectiveFilter ? "WHERE status = $1" : "";
       const cteSQL = `WITH latest_decisions AS (
              SELECT DISTINCT ON ("entityId")
                     "entityId"::integer as sync_id,
@@ -70,13 +72,14 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       const [rows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
           `${cteSQL}
-           SELECT * FROM qa_items ${effectiveWhere}
+           SELECT * FROM qa_items ${rowEffectiveWhere}
            ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2`,
-          limit, skip
+          ...(effectiveFilter ? [limit, skip, effectiveFilter] : [limit, skip])
         ),
         prisma.$queryRawUnsafe<[{ n: bigint }]>(
           `${cteSQL}
-           SELECT COUNT(*) as n FROM qa_items ${effectiveWhere}`
+           SELECT COUNT(*) as n FROM qa_items ${countEffectiveWhere}`,
+          ...(effectiveFilter ? [effectiveFilter] : [])
         ),
       ]);
       const total = Number(countRow[0].n);
