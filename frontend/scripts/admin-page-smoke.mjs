@@ -18,17 +18,51 @@ function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
-async function assertAmbassadorMarketingNav() {
-  const marketingSection = sections.find((section) => section.title === 'Marketing & Agents')
+function visibleRoutesForRole(role) {
+  return sections
+    .filter((section) => !section.roles || section.roles.includes(role))
+    .flatMap((section) => section.items)
+    .filter((item) => !item.roles || item.roles.includes(role))
+    .map((item) => item.to)
+}
+
+function assertRouteVisible(routes, route, role) {
+  assert(routes.includes(route), `${role} cannot see ${route} navigation`)
+}
+
+function assertRouteHidden(routes, route, role) {
+  assert(!routes.includes(route), `${role} should not see ${route} navigation`)
+}
+
+async function assertRoleNavigation() {
+  const marketingSection = sections.find((section) => section.id === 'marketing-agents')
   assert(marketingSection, 'Marketing navigation section is missing')
   assert(marketingSection.roles?.includes('AMBASSADOR'), 'Marketing navigation is not visible to ambassadors')
-  const visibleToAmbassador = marketingSection.items.filter((item) => !item.roles || item.roles.includes('AMBASSADOR'))
-  assert(visibleToAmbassador.some((item) => item.to === '/referrals'), 'Ambassadors cannot see referral submission navigation')
-  assert(visibleToAmbassador.some((item) => item.to === '/leads'), 'Ambassadors cannot see lead submission navigation')
+
+  const ambassadorRoutes = visibleRoutesForRole('AMBASSADOR')
+  assertRouteVisible(ambassadorRoutes, '/referrals', 'AMBASSADOR')
+  assertRouteVisible(ambassadorRoutes, '/leads', 'AMBASSADOR')
+  assertRouteHidden(ambassadorRoutes, '/admin/agents', 'AMBASSADOR')
+  assertRouteHidden(ambassadorRoutes, '/admin/ambassador-backend', 'AMBASSADOR')
+
+  const qaRoutes = visibleRoutesForRole('QA_OFFICER')
+  assertRouteVisible(qaRoutes, '/admin', 'QA_OFFICER')
+  assertRouteVisible(qaRoutes, '/admin/qa', 'QA_OFFICER')
+  assertRouteVisible(qaRoutes, '/admin/export-status', 'QA_OFFICER')
+  assertRouteVisible(qaRoutes, '/admin/documents', 'QA_OFFICER')
+  assertRouteHidden(qaRoutes, '/admin/reports', 'QA_OFFICER')
+  assertRouteHidden(qaRoutes, '/admin/sms', 'QA_OFFICER')
+
+  const adminRoutes = visibleRoutesForRole('ADMIN')
+  assertRouteVisible(adminRoutes, '/admin', 'ADMIN')
+  assertRouteVisible(adminRoutes, '/admin/agents', 'ADMIN')
+  assertRouteVisible(adminRoutes, '/admin/ambassador-backend', 'ADMIN')
+  assertRouteVisible(adminRoutes, '/admin/reports', 'ADMIN')
+  assertRouteVisible(adminRoutes, '/admin/sms', 'ADMIN')
 }
 
 async function main() {
-  await assertAmbassadorMarketingNav()
+  await assertRoleNavigation()
 
   for (const path of adminPaths) {
     const response = await fetch(`${FRONTEND_BASE}${path}`)

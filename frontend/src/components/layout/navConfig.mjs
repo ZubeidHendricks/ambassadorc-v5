@@ -1,5 +1,6 @@
 export const sections = [
   {
+    id: 'personal',
     title: 'Personal',
     items: [
       { to: '/dashboard', label: 'My Dashboard', icon: 'LayoutDashboard' },
@@ -10,6 +11,7 @@ export const sections = [
     ],
   },
   {
+    id: 'workspace-home',
     title: 'Workspace Home',
     roles: ['QA_OFFICER', 'ADMIN'],
     items: [
@@ -17,6 +19,7 @@ export const sections = [
     ],
   },
   {
+    id: 'marketing-agents',
     title: 'Marketing & Agents',
     roles: ['ADMIN', 'QA_OFFICER', 'AGENT', 'AMBASSADOR'],
     items: [
@@ -27,6 +30,7 @@ export const sections = [
     ],
   },
   {
+    id: 'engagement-collections',
     title: 'Engagement & Collections',
     roles: ['AGENT', 'QA_OFFICER', 'ADMIN'],
     items: [
@@ -40,6 +44,7 @@ export const sections = [
     ],
   },
   {
+    id: 'client-communications',
     title: 'Client Communications',
     roles: ['QA_OFFICER', 'ADMIN'],
     items: [
@@ -48,6 +53,7 @@ export const sections = [
     ],
   },
   {
+    id: 'system-admin',
     title: 'System Admin',
     roles: ['ADMIN'],
     items: [

@@ -6,6 +6,7 @@ export interface NavItemConfig {
 }
 
 export interface NavSectionConfig {
+  id: string
   title: string
   items: NavItemConfig[]
   roles?: string[]
