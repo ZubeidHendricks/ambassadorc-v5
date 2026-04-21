@@ -483,6 +483,14 @@ export interface QAItem {
   verdict?: string
   reviewedBy?: string
   reviewedAt?: string
+  writeBack?: {
+    status?: string
+    table?: string
+    sourceId?: number
+    rowsAffected?: number
+    writtenAt?: string
+    error?: string
+  }
   createdAt: string
 }
 

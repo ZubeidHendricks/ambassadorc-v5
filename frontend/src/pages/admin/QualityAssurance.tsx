@@ -13,6 +13,8 @@ export default function QualityAssurance() {
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
   const [notes, setNotes] = useState<Record<number, string>>({})
   const [processing, setProcessing] = useState<number | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionMessage, setActionMessage] = useState<string | null>(null)
 
   const loadItems = useCallback(async () => {
     try {
@@ -34,6 +36,8 @@ export default function QualityAssurance() {
 
   const handleVerdict = async (id: number, verdict: string) => {
     setProcessing(id)
+    setActionError(null)
+    setActionMessage(null)
     try {
       const updated = await submitQAVerdict(id, { verdict, notes: notes[id] || '' })
       const updatedStatus = updated.status?.toLowerCase() || (verdict === 'repair' ? 'repair' : verdict === 'cancel' ? 'failed' : verdict)
@@ -42,8 +46,11 @@ export default function QualityAssurance() {
           item.id === id ? { ...item, ...updated, status: updatedStatus } : item
         )
       )
-    } catch {
-      // handle
+      if (updated.writeBack?.status) {
+        setActionMessage(`FoxPro SalesData row ${updated.writeBack.sourceId ?? id} updated successfully.`)
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'QA update failed.')
     } finally {
       setProcessing(null)
     }
@@ -63,6 +70,18 @@ export default function QualityAssurance() {
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
         <span className="font-semibold">FoxPro QA flow:</span> Submit/Pass sends a sale to export, Repair keeps it in operations for correction, and Cancel/Fail stops the sale before collection.
       </div>
+
+      {actionError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {actionError}
+        </div>
+      )}
+
+      {actionMessage && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+          {actionMessage}
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {filters.map((f) => (
@@ -128,6 +147,12 @@ export default function QualityAssurance() {
                     {item.reviewedAt
                       ? new Date(item.reviewedAt).toLocaleString('en-ZA')
                       : '-'}
+                  </p>
+                )}
+                {item.writeBack?.status && (
+                  <p className="mt-1 text-xs text-emerald-700">
+                    FoxPro write-back {item.writeBack.status}
+                    {item.writeBack.sourceId ? ` for SalesData #${item.writeBack.sourceId}` : ''}.
                   </p>
                 )}
               </div>

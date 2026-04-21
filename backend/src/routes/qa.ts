@@ -4,7 +4,8 @@ import prisma from "../lib/prisma";
 import { createQaCheckSchema, updateQaCheckSchema } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { hasSyncTables } from "../lib/syncCheck";
-import { foxProStatusWhere } from "../lib/foxproStatus";
+import { FoxProQaResult, foxProStatusWhere } from "../lib/foxproStatus";
+import { writeQaResultToFoxPro } from "../sync/foxpro-writeback";
 
 const router = Router();
 
@@ -297,10 +298,13 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
     if (await hasSyncTables()) {
       const rows = await prisma.$queryRawUnsafe<any[]>(
         `SELECT s._sync_id::integer as id, s._sync_id::integer as "saleId",
+                s."id" as "sourceId",
                 CONCAT(COALESCE(s."FirstName", ''), ' ', COALESCE(s."LastName", '')) as "clientName",
                 COALESCE(s."ProductName", 'Unknown') as "productName",
                 COALESCE(s."SalesAgentUserName", '') as "agentName",
                 s."Status" as verdict,
+                s."Status" as "previousStatus",
+                s."SubStatus" as "previousSubStatus",
                 s._synced_at as "createdAt"
          FROM sync_sales_data s
          WHERE s._sync_id = $1
@@ -311,13 +315,67 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
         res.status(404).json({ success: false, error: "QA item not found." });
         return;
       }
+      const sourceId = Number(rows[0].sourceId);
+      let writeBack;
+      try {
+        writeBack = await writeQaResultToFoxPro(sourceId, status as FoxProQaResult);
+      } catch (writeBackError: any) {
+        const message = writeBackError?.message ?? String(writeBackError);
+        console.error("FoxPro QA write-back error:", { syncId: id, sourceId, result: status, error: message });
+        await prisma.auditLog.create({
+          data: {
+            userId: String(req.ambassador!.id),
+            action: "SYNC_QA_REVIEW_WRITEBACK_FAILED",
+            entity: "sync_sales_data",
+            entityId: String(id),
+            details: {
+              result: status,
+              notes,
+              sourceSystem: "FoxPro SalesData",
+              sourceId: Number.isFinite(sourceId) ? sourceId : null,
+              previousStatus: rows[0].previousStatus ?? null,
+              previousSubStatus: rows[0].previousSubStatus ?? null,
+              writeBack: { status: "failed", error: message },
+            },
+            ipAddress: req.ip ?? null,
+          },
+        });
+        res.status(502).json({ success: false, error: `FoxPro write-back failed: ${message}` });
+        return;
+      }
+      let localStagingUpdate: { status: string; error?: string } = { status: "success" };
+      try {
+        await prisma.$executeRawUnsafe(
+          `UPDATE sync_sales_data
+           SET "Status" = $1, "SubStatus" = $2, _synced_at = NOW()
+           WHERE _sync_id = $3`,
+          writeBack.status,
+          writeBack.subStatus,
+          id
+        );
+      } catch (localUpdateError: any) {
+        localStagingUpdate = {
+          status: "failed",
+          error: localUpdateError?.message ?? String(localUpdateError),
+        };
+        console.error("Local QA staging update error:", { syncId: id, sourceId, error: localStagingUpdate });
+      }
       await prisma.auditLog.create({
         data: {
           userId: String(req.ambassador!.id),
           action: "SYNC_QA_REVIEW",
           entity: "sync_sales_data",
           entityId: String(id),
-          details: { result: status, notes, message: "FoxPro write-back is not enabled; local audit captured only." },
+          details: {
+            result: status,
+            notes,
+            sourceSystem: "FoxPro SalesData",
+            sourceId,
+            previousStatus: rows[0].previousStatus ?? null,
+            previousSubStatus: rows[0].previousSubStatus ?? null,
+            writeBack: { status: "success", ...writeBack },
+            localStagingUpdate,
+          },
           ipAddress: req.ip ?? null,
         },
       });
@@ -329,6 +387,8 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
           notes,
           reviewedBy: `${req.ambassador!.id}`,
           reviewedAt: new Date().toISOString(),
+          verdict: writeBack.status,
+          writeBack,
         },
       });
       return;

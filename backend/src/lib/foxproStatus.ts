@@ -8,6 +8,15 @@ export type FoxProStatusGroup =
   | "repair"
   | "unknown";
 
+export type FoxProQaResult = "PASSED" | "FAILED" | "ESCALATED";
+
+export interface FoxProQaWriteBackValues {
+  result: FoxProQaResult;
+  status: string;
+  subStatus: string;
+  statusGroup: FoxProStatusGroup;
+}
+
 export interface FoxProStatusDefinition {
   group: FoxProStatusGroup;
   label: string;
@@ -135,5 +144,31 @@ export function foxProStatusWhere(group: string, alias = ""): string {
       return `NOT (${foxProStatusWhere("unknown", alias)} OR ${foxProStatusWhere("cancelled", alias)} OR ${foxProStatusWhere("repair", alias)} OR ${foxProStatusWhere("qa_passed", alias)} OR ${foxProStatusWhere("qa_pending", alias)} OR ${foxProStatusWhere("exported_awaiting_outcome", alias)} OR ${foxProStatusWhere("qlink_uploaded", alias)})`;
     default:
       return "TRUE";
+  }
+}
+
+export function foxProQaWriteBackValues(result: FoxProQaResult): FoxProQaWriteBackValues {
+  switch (result) {
+    case "PASSED":
+      return {
+        result,
+        status: "QA Validation Passed",
+        subStatus: "QA Validation Passed",
+        statusGroup: "qa_passed",
+      };
+    case "FAILED":
+      return {
+        result,
+        status: "Client Cancelled - Other",
+        subStatus: "Client Cancelled - QA",
+        statusGroup: "cancelled",
+      };
+    case "ESCALATED":
+      return {
+        result,
+        status: "INCOMPLETE",
+        subStatus: "QA Repair Required",
+        statusGroup: "repair",
+      };
   }
 }
