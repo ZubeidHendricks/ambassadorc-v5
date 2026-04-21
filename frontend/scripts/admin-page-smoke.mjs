@@ -1,3 +1,6 @@
+import React from 'react'
+import { renderToString } from 'react-dom/server'
+import { createServer } from 'vite'
 import { sections } from '../src/components/layout/navConfig.mjs'
 
 const FRONTEND_BASE = process.env.FRONTEND_BASE ?? 'http://127.0.0.1:5000'
@@ -12,6 +15,19 @@ const adminPaths = [
   '/admin/ambassador-backend',
   '/admin/documents',
   '/admin/sms',
+]
+
+const dashboardRequiredText = [
+  'Marketing &amp; Ambassador App',
+  'Engagement, Onboarding &amp; Collections',
+  'Client Communications',
+  'FoxPro Operations Center',
+  'QA validation passed',
+  'Exported awaiting outcome',
+  'Q-Link uploaded',
+  'RC/C',
+  't1',
+  'u',
 ]
 
 function assert(condition, message) {
@@ -61,8 +77,43 @@ async function assertRoleNavigation() {
   assertRouteVisible(adminRoutes, '/admin/sms', 'ADMIN')
 }
 
+async function assertDashboardContent() {
+  const vite = await createServer({
+    appType: 'custom',
+    logLevel: 'silent',
+    server: { middlewareMode: true },
+    plugins: [
+      {
+        name: 'smoke-router-mock',
+        enforce: 'pre',
+        transform(code, id) {
+          if (!id.endsWith('/src/pages/admin/AdminDashboard.tsx')) return null
+          return code.replace(
+            "import { Link } from 'react-router-dom'",
+            "const Link = ({ to, children, ...props }: any) => <a href={typeof to === 'string' ? to : '#'} {...props}>{children}</a>",
+          )
+        },
+      },
+    ],
+  })
+  const originalWarn = console.warn
+  try {
+    const module = await vite.ssrLoadModule('/src/pages/admin/AdminDashboard.tsx')
+    console.warn = () => {}
+    const html = renderToString(React.createElement(module.default))
+    console.warn = originalWarn
+    for (const requiredText of dashboardRequiredText) {
+      assert(html.includes(requiredText), `/admin workspace is missing required rendered text: ${requiredText}`)
+    }
+  } finally {
+    console.warn = originalWarn
+    await vite.close()
+  }
+}
+
 async function main() {
   await assertRoleNavigation()
+  await assertDashboardContent()
 
   for (const path of adminPaths) {
     const response = await fetch(`${FRONTEND_BASE}${path}`)
@@ -75,6 +126,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error.message)
+  console.error(error.stack || error.message)
   process.exit(1)
 })
