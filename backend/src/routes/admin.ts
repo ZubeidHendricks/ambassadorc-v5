@@ -331,7 +331,10 @@ router.put("/agents/:id/campaign", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const existing = await prisma.ambassador.findUnique({ where: { id } });
+    const existing = await prisma.ambassador.findUnique({
+      where: { id },
+      select: { id: true, assignedCampaignId: true },
+    });
     if (!existing) {
       res.status(404).json({ success: false, error: "Agent not found." });
       return;
@@ -352,7 +355,17 @@ router.put("/agents/:id/campaign", async (req: AuthRequest, res: Response) => {
     const agent = await prisma.ambassador.update({
       where: { id },
       data: { assignedCampaignId: campaignId },
-      include: { assignedCampaign: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        mobileNo: true,
+        role: true,
+        tier: true,
+        isActive: true,
+        assignedCampaignId: true,
+        assignedCampaign: { select: { id: true, name: true } },
+      },
     });
 
     await prisma.auditLog.create({

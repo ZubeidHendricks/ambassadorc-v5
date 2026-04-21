@@ -32,7 +32,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       const qaStatusFilter = `(${foxProStatusWhere("qa_pending", "s")} OR ${foxProStatusWhere("qa_passed", "s")} OR ${repairStatusFilter})`;
       const sourceStatusCase = `CASE
                        WHEN ${foxProStatusWhere("qa_passed", "s")} THEN 'passed'
-                       WHEN s."Status" ILIKE '%escalat%' THEN 'escalated'
+                       WHEN s."Status" ILIKE '%escalat%' THEN 'repair'
                        WHEN ${repairStatusFilter} THEN 'repair'
                        ELSE 'pending' END`;
       const effectiveStatusCase = `CASE
