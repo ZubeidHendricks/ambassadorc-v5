@@ -239,7 +239,7 @@ async function assertReportsContent(vite, setRole) {
   const { default: Reports } = await vite.ssrLoadModule('/src/pages/admin/Reports.tsx')
   setRole('ADMIN')
   const text = normalizeRenderedText(renderToString(React.createElement(Reports)))
-  assertIncludesAll(text, '/admin/reports monthly premium coverage', [
+  assertIncludesAll(text, '/admin/reports workbook worksheet coverage', [
     'Monthly Premium Page',
     'MONTHLY PREMIUM',
     'Debit Order',
@@ -253,7 +253,19 @@ async function assertReportsContent(vite, setRole) {
     'Lifesaver legal Basic',
     '105,129',
     '12,150',
+    'Global Book Page',
+    'Persal Monthly Summary',
+    'Jan-26',
+    'Dec-26',
+    'QREC',
+    'Recurring Premium',
+    'Q-Link Total',
+    'Q-Link Big',
+    'Netcash',
+    'Total Book & Premiums',
+    'Average Premiums',
     'Download Monthly Premium',
+    'Download Global Book',
   ])
 }
 
