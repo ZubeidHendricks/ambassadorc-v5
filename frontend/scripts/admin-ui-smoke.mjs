@@ -149,6 +149,31 @@ async function assertCallCentreControlContent(vite, setRole) {
   ])
 }
 
+async function assertSalesAgentContent(vite, setRole) {
+  const { default: Sales } = await vite.ssrLoadModule('/src/pages/admin/Sales.tsx')
+  setRole('AGENT')
+  const text = normalizeRenderedText(renderToString(React.createElement(Sales)))
+  assertIncludesAll(text, '/admin/sales sales agent capture coverage', [
+    'Sales agents page',
+    'Client Surname',
+    'Client ID',
+    'Client Address',
+    'Client Persal',
+    'Client Department',
+    'Client First Debit Date',
+    'Dependants',
+    'Submit Sale Button',
+    'Validate ID',
+    'Validate only 10 digits in Mobile Number',
+    'If possible Spelling Validation',
+    'Next page displays all details for Validation Agent',
+    'Edit Button',
+    'Validation Agent Name:',
+    'Submit Validation Button',
+    'Sale gets a T status and lies in the QA Bay for second check',
+  ])
+}
+
 async function assertRenderedSidebar(vite, setRole) {
   const { default: Sidebar } = await vite.ssrLoadModule('/src/components/layout/Sidebar.tsx')
   const renderSidebar = (role) => {
@@ -209,6 +234,7 @@ async function main() {
     await assertRoleNavigation(sections)
     await assertDashboardContent(vite, setRole)
     await assertCallCentreControlContent(vite, setRole)
+    await assertSalesAgentContent(vite, setRole)
     await assertRenderedSidebar(vite, setRole)
     console.log('Admin UI smoke checks passed')
   } finally {
