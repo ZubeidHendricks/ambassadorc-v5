@@ -9,7 +9,9 @@ const statusConfig: Record<string, { bg: string; text: string; dot: string }> = 
   paid: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
   signed: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
   delivered: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  qa_passed: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
   qa_validation_passed: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  qlink_uploaded: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
   q_link_uploaded: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
 
   // Info states

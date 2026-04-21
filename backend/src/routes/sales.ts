@@ -285,7 +285,12 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
 
     if (await hasSyncTables()) {
       const caseSQL = FOXPRO_STATUS_CASE_SQL.replaceAll('"Status"', 's."Status"');
-      const whereSQL = group && isFoxProStatusGroup(group) ? `WHERE (${caseSQL}) = '${group}'` : "";
+      const hasGroupFilter = group && isFoxProStatusGroup(group);
+      const whereSQL = hasGroupFilter ? `WHERE (${caseSQL}) = $1` : "";
+      const limitPlaceholder = hasGroupFilter ? "$2" : "$1";
+      const offsetPlaceholder = hasGroupFilter ? "$3" : "$2";
+      const statusParams = hasGroupFilter ? [group, limit, skip] : [limit, skip];
+      const countParams = hasGroupFilter ? [group] : [];
 
       const [summaryRows, statusRows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
@@ -309,11 +314,12 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
            FROM sync_sales_data s
            ${whereSQL}
            ORDER BY s."LastUpdated" DESC NULLS LAST, s._synced_at DESC
-           LIMIT $1 OFFSET $2`,
-          limit, skip
+           LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
+          ...statusParams
         ),
         prisma.$queryRawUnsafe<[{ n: bigint }]>(
-          `SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`
+          `SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`,
+          ...countParams
         ),
       ]);
 

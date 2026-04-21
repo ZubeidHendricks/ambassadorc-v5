@@ -34,7 +34,7 @@ const tableColumns: Column<Sale>[] = [
   { key: 'productName', header: 'Product' },
   { key: 'agentName', header: 'Agent' },
   { key: 'premiumAmount', header: 'Premium', render: (r) => `R${r.premiumAmount}` },
-  { key: 'status', header: 'Status', render: (r) => <StatusBadge status={pipelineLabels[r.status] ?? r.status} /> },
+  { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
   { key: 'rawStatus', header: 'FoxPro Status', render: (r) => r.rawStatus || '-' },
   { key: 'campaignName', header: 'Campaign', render: (r) => r.campaignName || '-' },
   { key: 'createdAt', header: 'Date', render: (r) => new Date(r.createdAt).toLocaleDateString('en-ZA') },

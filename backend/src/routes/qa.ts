@@ -24,9 +24,15 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
     if (syncAvailable) {
       const qaStatusFilter = `(${foxProStatusWhere("qa_pending", "s")} OR ${foxProStatusWhere("qa_passed", "s")})`;
+      const repairStatusFilter = foxProStatusWhere("repair", "s");
+      const syncStatusCase = `CASE
+                       WHEN ${foxProStatusWhere("qa_passed", "s")} THEN 'passed'
+                       WHEN s."Status" ILIKE '%escalat%' THEN 'escalated'
+                       WHEN ${repairStatusFilter} THEN 'failed'
+                       ELSE 'pending' END`;
       let selectedStatusFilter = qaStatusFilter;
       if (statusFilter === "passed") selectedStatusFilter = foxProStatusWhere("qa_passed", "s");
-      else if (statusFilter === "failed") selectedStatusFilter = foxProStatusWhere("repair", "s");
+      else if (statusFilter === "failed") selectedStatusFilter = repairStatusFilter;
       else if (statusFilter === "escalated") selectedStatusFilter = `s."Status" ILIKE '%escalat%'`;
       else if (statusFilter === "pending") selectedStatusFilter = foxProStatusWhere("qa_pending", "s");
       const whereSQL = `WHERE ${selectedStatusFilter}`;
@@ -41,9 +47,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
                    FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1), 0),
                    CASE COALESCE(s."ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
                   ) as "premiumAmount",
-                  CASE WHEN s."Status" ILIKE '%qa validation passed%' THEN 'passed'
-                       WHEN s."Status" ILIKE '%fail%' THEN 'failed'
-                       WHEN s."Status" ILIKE '%escalat%' THEN 'escalated' ELSE 'pending' END as status,
+                  ${syncStatusCase} as status,
                   s."Status" as verdict, NULL::text as notes, NULL::text as "reviewedBy", NULL::text as "reviewedAt",
                   s._synced_at as "createdAt"
            FROM sync_sales_data s ${whereSQL} ORDER BY s._synced_at DESC LIMIT $1 OFFSET $2`,
