@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { SaleStatus } from "@prisma/client";
 import prisma from "../lib/prisma";
 import { createQaCheckSchema, updateQaCheckSchema } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
@@ -303,9 +304,15 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
       data: { status, notes: notes || null, checkedAt: new Date() },
     });
 
+    const newSaleStatus: SaleStatus = status === "PASSED"
+      ? SaleStatus.QA_APPROVED
+      : status === "FAILED"
+        ? SaleStatus.QA_REJECTED
+        : SaleStatus.QA_PENDING;
+
     await prisma.sale.update({
       where: { id: existing.saleId },
-      data: { status: (status === "PASSED" ? "QA_APPROVED" : status === "FAILED" ? "QA_REJECTED" : "QA_PENDING") as any },
+      data: { status: newSaleStatus },
     });
 
     await prisma.auditLog.create({
@@ -384,18 +391,18 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
     });
 
     // Update sale status based on QA result
-    let newSaleStatus: string;
+    let newSaleStatus: SaleStatus;
     if (status === "PASSED") {
-      newSaleStatus = "QA_APPROVED";
+      newSaleStatus = SaleStatus.QA_APPROVED;
     } else if (status === "FAILED") {
-      newSaleStatus = "QA_REJECTED";
+      newSaleStatus = SaleStatus.QA_REJECTED;
     } else {
-      newSaleStatus = "QA_PENDING"; // ESCALATED stays pending
+      newSaleStatus = SaleStatus.QA_PENDING; // ESCALATED stays pending
     }
 
     await prisma.sale.update({
       where: { id: existing.saleId },
-      data: { status: newSaleStatus as any },
+      data: { status: newSaleStatus },
     });
 
     await prisma.auditLog.create({
