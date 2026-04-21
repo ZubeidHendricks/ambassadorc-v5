@@ -36,7 +36,7 @@ export default function QualityAssurance() {
     setProcessing(id)
     try {
       const updated = await submitQAVerdict(id, { verdict, notes: notes[id] || '' })
-      const updatedStatus = updated.status?.toLowerCase() || (verdict === 'repair' ? 'escalated' : verdict === 'cancel' ? 'failed' : verdict)
+      const updatedStatus = updated.status?.toLowerCase() || (verdict === 'repair' ? 'repair' : verdict === 'cancel' ? 'failed' : verdict)
       setItems((prev) =>
         prev.map((item) =>
           item.id === id ? { ...item, ...updated, status: updatedStatus } : item
@@ -49,7 +49,7 @@ export default function QualityAssurance() {
     }
   }
 
-  const filters = ['pending', 'passed', 'failed', 'escalated', '']
+  const filters = ['pending', 'passed', 'repair', 'failed', 'escalated', '']
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">

@@ -170,8 +170,8 @@ export default function Sales() {
                             className="w-full rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs focus:border-primary focus:outline-none"
                           >
                             {pipelineStatuses.map((s) => (
-                              <option key={s} value={s}>
-                                Move to: {pipelineLabels[s]}
+                              <option key={s} value={s} disabled={s === 'exported_awaiting_outcome'}>
+                                Move to: {pipelineLabels[s]}{s === 'exported_awaiting_outcome' ? ' (FoxPro sync only)' : ''}
                               </option>
                             ))}
                           </select>

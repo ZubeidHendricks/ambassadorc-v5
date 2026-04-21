@@ -28,14 +28,14 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       const sourceStatusCase = `CASE
                        WHEN ${foxProStatusWhere("qa_passed", "s")} THEN 'passed'
                        WHEN s."Status" ILIKE '%escalat%' THEN 'escalated'
-                       WHEN ${repairStatusFilter} THEN 'failed'
+                       WHEN ${repairStatusFilter} THEN 'repair'
                        ELSE 'pending' END`;
       const effectiveStatusCase = `CASE
                        WHEN d.result = 'PASSED' THEN 'passed'
                        WHEN d.result = 'FAILED' THEN 'failed'
-                       WHEN d.result = 'ESCALATED' THEN 'escalated'
+                       WHEN d.result = 'ESCALATED' THEN 'repair'
                        ELSE ${sourceStatusCase} END`;
-      const effectiveFilter = ["passed", "failed", "escalated", "pending"].includes(statusFilter ?? "")
+      const effectiveFilter = ["passed", "failed", "escalated", "pending", "repair"].includes(statusFilter ?? "")
         ? statusFilter
         : null;
       const rowEffectiveWhere = effectiveFilter ? "WHERE status = $3" : "";
@@ -88,7 +88,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
     // Native Prisma path
     const where: any = statusFilter
-      ? { status: statusFilter === "passed" ? "PASSED" : statusFilter === "failed" ? "FAILED" : statusFilter === "escalated" ? "ESCALATED" : "PENDING" }
+      ? { status: statusFilter === "passed" ? "PASSED" : statusFilter === "failed" ? "FAILED" : (statusFilter === "escalated" || statusFilter === "repair") ? "ESCALATED" : "PENDING" }
       : {};
     const [checks, total] = await Promise.all([
       prisma.qualityCheck.findMany({
@@ -286,7 +286,7 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
       res.status(400).json({ success: false, error: "Unknown QA verdict." });
       return;
     }
-    const responseStatus = status === "PASSED" ? "passed" : status === "FAILED" ? "failed" : "escalated";
+    const responseStatus = status === "PASSED" ? "passed" : status === "FAILED" ? "failed" : "repair";
 
     if (await hasSyncTables()) {
       const rows = await prisma.$queryRawUnsafe<any[]>(
