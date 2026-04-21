@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { ClipboardCheck, Edit3, LayoutGrid, List, Send, ShieldCheck, UserCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -86,6 +86,44 @@ const salesAgentFields: Array<{
   { key: 'clientFirstDebitDate', label: 'Client First Debit Date', type: 'date' },
   { key: 'dependants', label: 'Dependants', area: true },
 ]
+
+const worksheetProductRows = [
+  { productName: 'Lifesaver 24 Basic', premiumAmount: 259, sales: 400, value: 103600 },
+  { productName: 'Lifesaver 24 Plus', premiumAmount: 349, sales: 5, value: 1745 },
+  { productName: 'Lifesaver legal Basic', premiumAmount: 179, sales: 65, value: 11635 },
+  { productName: 'Lifesaver legal Plus', premiumAmount: 299, sales: 1, value: 299 },
+]
+
+const worksheetAgentRows = [
+  { agentId: 1, agentName: 'Agent 1', sales: 40, value: 10000 },
+  { agentId: 2, agentName: 'Agent 2', sales: 40, value: 10000 },
+  { agentId: 3, agentName: 'Agent 3', sales: 20, value: 5000 },
+  { agentId: 4, agentName: 'Agent 4', sales: 20, value: 5000 },
+  { agentId: 5, agentName: 'Agent 5', sales: 38, value: 9500 },
+  { agentId: 6, agentName: 'Agent 6', sales: 30, value: 7500 },
+  { agentId: 7, agentName: 'Agent 7', sales: 25, value: 6250 },
+  { agentId: 8, agentName: 'Agent 8', sales: 30, value: 7500 },
+  { agentId: 9, agentName: 'Agent 9', sales: 50, value: 12500 },
+  { agentId: 10, agentName: 'Agent 10', sales: 25, value: 6250 },
+  { agentId: 11, agentName: 'Agent 11', sales: 20, value: 5000 },
+  { agentId: 12, agentName: 'Agent 12', sales: 40, value: 10000 },
+  { agentId: 13, agentName: 'Agent 13', sales: 40, value: 10000 },
+  { agentId: 14, agentName: 'Agent 14', sales: 30, value: 7500 },
+  { agentId: 15, agentName: 'Agent 15', sales: 23, value: 5750 },
+]
+
+type SalesDashboardRow = {
+  productName?: string
+  premiumAmount?: number
+  agentId?: number
+  agentName?: string
+  sales: number
+  value: number
+}
+
+function formatNumber(value: number) {
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
 
 function validateSalesAgentForm(form: SalesAgentForm): SalesAgentValidation {
   const compactId = form.clientId.replace(/\D/g, '')
@@ -192,12 +230,41 @@ export default function Sales() {
   const filtered = agentFilter
     ? sales.filter((s) => String(s.agentId) === agentFilter)
     : sales
+  const productSpreadRows = useMemo<SalesDashboardRow[]>(() => {
+    if (sales.length === 0) return worksheetProductRows
+    const rows = new Map<string, SalesDashboardRow>()
+    sales.forEach((sale) => {
+      const productName = sale.productName || 'Unknown Product'
+      const premiumAmount = Number(sale.premiumAmount || 0)
+      const key = `${productName}|${premiumAmount}`
+      const row = rows.get(key) ?? { productName, premiumAmount, sales: 0, value: 0 }
+      row.sales += 1
+      row.value += premiumAmount
+      rows.set(key, row)
+    })
+    return Array.from(rows.values()).sort((a, b) => (a.productName ?? '').localeCompare(b.productName ?? ''))
+  }, [sales])
+  const activeAgentRows = useMemo<SalesDashboardRow[]>(() => {
+    if (sales.length === 0) return worksheetAgentRows
+    const rows = new Map<number, SalesDashboardRow>()
+    sales.forEach((sale) => {
+      const row = rows.get(sale.agentId) ?? { agentId: sale.agentId, agentName: sale.agentName || 'Unassigned Agent', sales: 0, value: 0 }
+      row.sales += 1
+      row.value += Number(sale.premiumAmount || 0)
+      rows.set(sale.agentId, row)
+    })
+    return Array.from(rows.values()).sort((a, b) => b.sales - a.sales || (a.agentName ?? '').localeCompare(b.agentName ?? ''))
+  }, [sales])
+  const productTotal = productSpreadRows.reduce((sum, row) => sum + row.sales, 0)
+  const productValueTotal = productSpreadRows.reduce((sum, row) => sum + row.value, 0)
+  const agentTotal = activeAgentRows.reduce((sum, row) => sum + row.sales, 0)
+  const agentValueTotal = activeAgentRows.reduce((sum, row) => sum + row.value, 0)
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sales Pipeline</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Sales Dashboard</h1>
           <p className="mt-1 text-sm text-gray-500">
             Follow the FoxPro operations flow from sales capture through QA, export, Q-Link upload, repair, and cancellation.
           </p>
@@ -240,6 +307,86 @@ export default function Sales() {
           </div>
         </div>
       </div>
+
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Sales dashboard</p>
+          <h2 className="mt-1 text-xl font-bold text-gray-900">Product spread</h2>
+          <p className="mt-1 text-sm text-gray-500">Product totals at the top, then Active Agents with linked names to see each agent product spread.</p>
+        </div>
+        <div className="grid gap-0 lg:grid-cols-[1fr_1.1fr]">
+          <div className="border-b border-gray-200 lg:border-b-0 lg:border-r">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-white text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                    <th className="border-b border-gray-200 px-3 py-3">Product</th>
+                    <th className="border-b border-gray-200 px-3 py-3 text-right">Premium</th>
+                    <th className="border-b border-gray-200 px-3 py-3 text-right">Sales</th>
+                    <th className="border-b border-gray-200 px-3 py-3 text-right">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productSpreadRows.map((row) => (
+                    <tr key={`${row.productName}-${row.premiumAmount}`} className="border-b border-gray-100">
+                      <td className="px-3 py-2 font-medium text-gray-900">{row.productName}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.premiumAmount ?? 0)}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.sales)}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.value)}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-gray-900 bg-gray-50 font-black text-gray-900">
+                    <td className="px-3 py-2" colSpan={2}>Total</td>
+                    <td className="px-3 py-2 text-right">{formatNumber(productTotal)}</td>
+                    <td className="px-3 py-2 text-right">{formatNumber(productValueTotal)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div className="border-b border-gray-200 px-5 py-3">
+              <h3 className="text-sm font-bold text-gray-900">Active Agents</h3>
+              <p className="text-xs text-gray-500">Click link & see Product spread</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-white text-left text-xs font-bold uppercase tracking-wide text-gray-500">
+                    <th className="border-b border-gray-200 px-3 py-3">Agent</th>
+                    <th className="border-b border-gray-200 px-3 py-3 text-right">Sales</th>
+                    <th className="border-b border-gray-200 px-3 py-3 text-right">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeAgentRows.map((row) => (
+                    <tr key={`${row.agentId}-${row.agentName}`} className="border-b border-gray-100">
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (row.agentId && agents.some((agent) => agent.id === row.agentId)) setAgentFilter(String(row.agentId))
+                          }}
+                          className="text-left font-medium text-blue-700 underline"
+                        >
+                          {row.agentName}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.sales)}</td>
+                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.value)}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-gray-900 bg-gray-50 font-black text-gray-900">
+                    <td className="px-3 py-2">Total</td>
+                    <td className="px-3 py-2 text-right">{formatNumber(agentTotal)}</td>
+                    <td className="px-3 py-2 text-right">{formatNumber(agentValueTotal)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">

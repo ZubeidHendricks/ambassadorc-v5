@@ -155,6 +155,16 @@ async function assertSalesAgentContent(vite, setRole) {
   setRole('AGENT')
   const text = normalizeRenderedText(renderToString(React.createElement(Sales)))
   assertIncludesAll(text, '/admin/sales sales agent capture coverage', [
+    'Sales Dashboard',
+    'Product spread',
+    'Active Agents',
+    'Click link & see Product spread',
+    'Lifesaver 24 Basic',
+    'Lifesaver 24 Plus',
+    'Lifesaver legal Basic',
+    'Lifesaver legal Plus',
+    'Agent 1',
+    '117,279',
     'Sales agents page',
     'Client Surname',
     'Client ID',
