@@ -1,7 +1,6 @@
 import ExcelJS from 'exceljs'
 
 const API_BASE = process.env.API_BASE ?? 'http://127.0.0.1:3001/api'
-const requiresExplicitCredentials = process.env.CI === 'true' || process.env.NODE_ENV === 'production'
 const ADMIN_MOBILE = process.env.SMOKE_ADMIN_MOBILE
 const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD
 
@@ -206,15 +205,13 @@ async function expectWorkbook(token, path, layout) {
 }
 
 async function main() {
-  if (requiresExplicitCredentials && (!ADMIN_MOBILE || !ADMIN_PASSWORD)) {
-    throw new Error('Set SMOKE_ADMIN_MOBILE and SMOKE_ADMIN_PASSWORD before running smoke checks in CI or production')
-  }
+  assert(ADMIN_MOBILE && ADMIN_PASSWORD, 'Set SMOKE_ADMIN_MOBILE and SMOKE_ADMIN_PASSWORD before running FoxPro operations smoke checks')
 
   const login = await request('/auth/login', {
     method: 'POST',
     body: JSON.stringify({
-      mobileNo: ADMIN_MOBILE ?? '0800000000',
-      password: ADMIN_PASSWORD ?? 'Admin@2024',
+      mobileNo: ADMIN_MOBILE,
+      password: ADMIN_PASSWORD,
     }),
   })
   assert(login.response.ok && login.body?.data?.token, 'Admin login failed for smoke checks')

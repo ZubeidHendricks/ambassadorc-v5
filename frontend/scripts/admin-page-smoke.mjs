@@ -3,7 +3,6 @@ import { execFileSync } from 'node:child_process'
 
 const FRONTEND_BASE = process.env.FRONTEND_BASE ?? 'http://127.0.0.1:5000'
 const API_BASE = process.env.API_BASE ?? 'http://127.0.0.1:3001/api'
-const requiresExplicitCredentials = process.env.CI === 'true' || process.env.NODE_ENV === 'production'
 const ADMIN_MOBILE = process.env.SMOKE_ADMIN_MOBILE
 const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD
 
@@ -44,16 +43,14 @@ function chromiumLaunchOptions() {
 }
 
 async function login() {
-  if (requiresExplicitCredentials && (!ADMIN_MOBILE || !ADMIN_PASSWORD)) {
-    throw new Error('Set SMOKE_ADMIN_MOBILE and SMOKE_ADMIN_PASSWORD before running smoke checks in CI or production')
-  }
+  assert(ADMIN_MOBILE && ADMIN_PASSWORD, 'Set SMOKE_ADMIN_MOBILE and SMOKE_ADMIN_PASSWORD before running authenticated frontend smoke checks')
 
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      mobileNo: ADMIN_MOBILE ?? '0800000000',
-      password: ADMIN_PASSWORD ?? 'Admin@2024',
+      mobileNo: ADMIN_MOBILE,
+      password: ADMIN_PASSWORD,
     }),
   })
   const body = await response.json()
