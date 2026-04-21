@@ -343,6 +343,10 @@ router.put("/agents/:id/campaign", async (req: AuthRequest, res: Response) => {
         res.status(404).json({ success: false, error: "Campaign not found." });
         return;
       }
+      if (!campaign.isActive) {
+        res.status(400).json({ success: false, error: "Only active campaigns can be assigned." });
+        return;
+      }
     }
 
     const agent = await prisma.ambassador.update({

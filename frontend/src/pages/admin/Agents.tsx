@@ -164,7 +164,7 @@ export default function Agents() {
           className="max-w-44 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
         >
           <option value="">Unassigned</option>
-          {campaigns.map((campaign) => (
+          {campaigns.filter((campaign) => campaign.isActive !== false).map((campaign) => (
             <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
           ))}
         </select>
