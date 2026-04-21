@@ -307,16 +307,22 @@ export function downloadEarningsReport() {
 
 export type OperationsReportType = 'export-status' | 'monthly-premium' | 'global-book'
 
+export interface OperationsReportPeriod {
+  year?: number
+  month?: number
+}
+
 const operationsReportFileNames: Record<OperationsReportType, string> = {
   'export-status': 'Export_Status_Report',
   'monthly-premium': 'Monthly_Premium_Report',
   'global-book': 'Global_Book_Report',
 }
 
-export async function downloadOperationsReport(type: OperationsReportType, options?: { year?: number }) {
+export async function downloadOperationsReport(type: OperationsReportType, options?: OperationsReportPeriod) {
   const token = getToken()
   const params = new URLSearchParams()
   if (options?.year) params.set('year', String(options.year))
+  if (options?.month) params.set('month', String(options.month))
   const url = `/api/reports/operations/${type}${params.toString() ? `?${params.toString()}` : ''}`
   const a = document.createElement('a')
   a.href = url
@@ -326,8 +332,13 @@ export async function downloadOperationsReport(type: OperationsReportType, optio
   const blob = await response.blob()
   const blobUrl = URL.createObjectURL(blob)
   const date = new Date().toISOString().split('T')[0]
-  const filenameBase = type === 'global-book' && options?.year
-    ? `${operationsReportFileNames[type]}_${options.year}`
+  const periodSuffix = options?.year
+    ? options.month
+      ? `${options.year}_${String(options.month).padStart(2, '0')}`
+      : `${options.year}`
+    : ''
+  const filenameBase = periodSuffix
+    ? `${operationsReportFileNames[type]}_${periodSuffix}`
     : operationsReportFileNames[type]
   a.href = blobUrl
   a.download = `${filenameBase}_${date}.xlsx`

@@ -13,8 +13,16 @@ import { FileDown, Users, CheckCircle2, FileSpreadsheet, BarChart3, BookOpen, Ga
 export default function Reports() {
   const [downloading, setDownloading] = useState(false)
   const [operationsDownload, setOperationsDownload] = useState<OperationsReportType | null>(null)
-  const [globalBookYear, setGlobalBookYear] = useState(new Date().getFullYear())
+  const [reportYear, setReportYear] = useState(new Date().getFullYear())
+  const [reportMonth, setReportMonth] = useState(0)
   const [downloadError, setDownloadError] = useState('')
+  const monthOptions = Array.from({ length: 12 }, (_, index) => ({
+    value: index + 1,
+    label: new Date(2000, index, 1).toLocaleString('en-ZA', { month: 'long' }),
+  }))
+  const selectedPeriodLabel = reportMonth
+    ? `${monthOptions.find((month) => month.value === reportMonth)?.label} ${reportYear}`
+    : `Full year ${reportYear}`
 
   function handleDownload() {
     setDownloading(true)
@@ -31,7 +39,10 @@ export default function Reports() {
     setOperationsDownload(type)
     setDownloadError('')
     try {
-      await downloadOperationsReport(type, type === 'global-book' ? { year: globalBookYear } : undefined)
+      await downloadOperationsReport(type, {
+        year: reportYear,
+        month: reportMonth || undefined,
+      })
     } catch {
       console.error('Failed to download operations report')
       setDownloadError('The report could not be generated. Please try again, or ask an admin to check the report service.')
@@ -133,19 +144,42 @@ export default function Reports() {
               </div>
             </div>
 
-            <div className="mb-4 max-w-xs">
-              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="global-book-year">
-                Global Book year
-              </label>
-              <input
-                id="global-book-year"
-                type="number"
-                min={2000}
-                max={2100}
-                value={globalBookYear}
-                onChange={(event) => setGlobalBookYear(Number(event.target.value) || new Date().getFullYear())}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+            <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="operations-report-month">
+                    Reporting month
+                  </label>
+                  <select
+                    id="operations-report-month"
+                    value={reportMonth}
+                    onChange={(event) => setReportMonth(Number(event.target.value))}
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value={0}>All months in selected year</option>
+                    {monthOptions.map((month) => (
+                      <option key={month.value} value={month.value}>{month.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="operations-report-year">
+                    Reporting year
+                  </label>
+                  <input
+                    id="operations-report-year"
+                    type="number"
+                    min={2000}
+                    max={2100}
+                    value={reportYear}
+                    onChange={(event) => setReportYear(Number(event.target.value) || new Date().getFullYear())}
+                    className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-sm text-gray-600">
+                Downloads will use: <span className="font-medium text-gray-900">{selectedPeriodLabel}</span>
+              </p>
             </div>
 
             {downloadError && (

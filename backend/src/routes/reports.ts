@@ -29,6 +29,12 @@ const integerFormat = '#,##0';
 type NumericLike = number | string | null;
 type DateLike = Date | string | null;
 
+interface ReportPeriod {
+  year: number;
+  month?: number;
+  label: string;
+}
+
 interface ExportStatusSummaryRow {
   productName: string;
   premiumAmount: NumericLike;
@@ -105,6 +111,27 @@ async function hasSyncSagepayTransactions(): Promise<boolean> {
 
 function dateStamp() {
   return new Date().toISOString().split("T")[0];
+}
+
+function parseReportPeriod(req: Request): ReportPeriod {
+  const now = new Date();
+  const year = Math.max(2000, Math.min(2100, parseInt(req.query.year as string) || now.getFullYear()));
+  const requestedMonth = parseInt(req.query.month as string);
+  const month = requestedMonth >= 1 && requestedMonth <= 12 ? requestedMonth : undefined;
+  const label = month
+    ? `${new Date(year, month - 1, 1).toLocaleString("en-ZA", { month: "long" })} ${year}`
+    : `Full year ${year}`;
+  return { year, month, label };
+}
+
+function syncPeriodWhere(dateExpression: string, period: ReportPeriod) {
+  const monthSql = period.month ? ` AND EXTRACT(MONTH FROM ${dateExpression}) = ${period.month}` : "";
+  return `EXTRACT(YEAR FROM ${dateExpression}) = ${period.year}${monthSql}`;
+}
+
+function dateInReportPeriod(date: Date, period: ReportPeriod) {
+  if (date.getFullYear() !== period.year) return false;
+  return period.month ? date.getMonth() + 1 === period.month : true;
 }
 
 function fullName(first?: string | null, last?: string | null) {
@@ -186,9 +213,11 @@ async function sendWorkbook(res: Response, workbook: ExcelJS.Workbook, filename:
   res.end();
 }
 
-async function getSyncExportStatusData(): Promise<{ summaryRows: ExportStatusSummaryRow[]; detailRows: ExportStatusDetailRow[] }> {
+async function getSyncExportStatusData(period: ReportPeriod): Promise<{ summaryRows: ExportStatusSummaryRow[]; detailRows: ExportStatusDetailRow[] }> {
   const groupSql = statusCaseSql("s");
   const premiumSql = productPremiumSql("s", await hasSyncSagepayTransactions());
+  const activityDateSql = `COALESCE(s."LastUpdated", s."DateLoaded", s._synced_at)`;
+  const periodWhere = syncPeriodWhere(activityDateSql, period);
   const [summaryRows, detailRows] = await Promise.all([
     runReportQuery<ExportStatusSummaryRow[]>(
       `SELECT COALESCE(s."ProductName", 'Unknown') as "productName",
@@ -197,6 +226,7 @@ async function getSyncExportStatusData(): Promise<{ summaryRows: ExportStatusSum
               COUNT(*)::integer as count,
               SUM(${premiumSql})::numeric as "estimatedPremium"
        FROM sync_sales_data s
+       WHERE ${periodWhere}
        GROUP BY COALESCE(s."ProductName", 'Unknown'), ${premiumSql}, ${groupSql}
        ORDER BY "productName", "statusGroup"`
     ),
@@ -216,13 +246,14 @@ async function getSyncExportStatusData(): Promise<{ summaryRows: ExportStatusSum
               s."DateLoaded" as "dateLoaded",
               s._synced_at as "syncedAt"
        FROM sync_sales_data s
+       WHERE ${periodWhere}
        ORDER BY s."LastUpdated" DESC NULLS LAST, s._synced_at DESC`
     ),
   ]);
   return { summaryRows, detailRows };
 }
 
-async function getNativeExportStatusData(): Promise<{ summaryRows: ExportStatusSummaryRow[]; detailRows: ExportStatusDetailRow[] }> {
+async function getNativeExportStatusData(period: ReportPeriod): Promise<{ summaryRows: ExportStatusSummaryRow[]; detailRows: ExportStatusDetailRow[] }> {
   const sales = await prisma.sale.findMany({
     orderBy: { createdAt: "desc" },
     include: {
@@ -232,7 +263,7 @@ async function getNativeExportStatusData(): Promise<{ summaryRows: ExportStatusS
     },
   });
   const summary = new Map<string, ExportStatusSummaryRow>();
-  const detailRows: ExportStatusDetailRow[] = sales.map((sale) => {
+  const detailRows: ExportStatusDetailRow[] = sales.filter((sale) => dateInReportPeriod(sale.updatedAt ?? sale.createdAt, period)).map((sale) => {
     const productName = sale.product?.name ?? "Unknown";
     const premiumAmount = productPremiumAmount(productName, String(sale.product?.premiumAmount ?? 0));
     const statusGroup = nativeSalesStatusToFoxProGroup[String(sale.status)] ?? "new";
@@ -261,9 +292,10 @@ async function getNativeExportStatusData(): Promise<{ summaryRows: ExportStatusS
   return { summaryRows: [...summary.values()], detailRows };
 }
 
-async function getSyncMonthlyPremiumRows(): Promise<MonthlyPremiumRow[]> {
+async function getSyncMonthlyPremiumRows(period: ReportPeriod): Promise<MonthlyPremiumRow[]> {
   const groupSql = statusCaseSql("s");
   const premiumSql = productPremiumSql("s", await hasSyncSagepayTransactions());
+  const activityDateSql = `COALESCE(s."LastUpdated", s."DateLoaded", s._synced_at)`;
   return runReportQuery<MonthlyPremiumRow[]>(
     `WITH sales AS (
        SELECT COALESCE(s."ProductName", 'Unknown') as "productName",
@@ -271,6 +303,7 @@ async function getSyncMonthlyPremiumRows(): Promise<MonthlyPremiumRow[]> {
               ${groupSql} as "statusGroup",
               ((COALESCE(s."Status", '') || ' ' || COALESCE(s."SubStatus", '') || ' ' || COALESCE(s."LastOutcome", '')) ILIKE '%persal%') as "isPersal"
        FROM sync_sales_data s
+       WHERE ${syncPeriodWhere(activityDateSql, period)}
      )
      SELECT "productName",
             "premiumAmount",
@@ -287,12 +320,13 @@ async function getSyncMonthlyPremiumRows(): Promise<MonthlyPremiumRow[]> {
   );
 }
 
-async function getNativeMonthlyPremiumRows(): Promise<MonthlyPremiumRow[]> {
+async function getNativeMonthlyPremiumRows(period: ReportPeriod): Promise<MonthlyPremiumRow[]> {
   const policies = await prisma.policy.findMany({
     include: { product: { select: { name: true, premiumAmount: true } } },
   });
   const rows = new Map<string, MonthlyPremiumRow>();
   for (const policy of policies) {
+    if (!dateInReportPeriod(policy.updatedAt ?? policy.createdAt, period)) continue;
     const productName = policy.product?.name ?? "Unknown";
     const premiumAmount = productPremiumAmount(productName, String(policy.premiumAmount ?? policy.product?.premiumAmount ?? 0));
     const key = `${productName}|${premiumAmount}`;
@@ -316,9 +350,11 @@ async function getNativeMonthlyPremiumRows(): Promise<MonthlyPremiumRow[]> {
   return [...rows.values()].sort((a, b) => a.productName.localeCompare(b.productName));
 }
 
-async function getSyncGlobalBookRows(year: number): Promise<{ rows: GlobalBookRow[]; productRows: ProductBookRow[] }> {
+async function getSyncGlobalBookRows(period: ReportPeriod): Promise<{ rows: GlobalBookRow[]; productRows: ProductBookRow[] }> {
   const groupSql = statusCaseSql("s");
   const premiumSql = productPremiumSql("s", await hasSyncSagepayTransactions());
+  const activityDateSql = `COALESCE(s."LastUpdated", s."DateLoaded", s._synced_at)`;
+  const periodWhere = syncPeriodWhere(activityDateSql, period);
   const rows = await runReportQuery<GlobalBookRow[]>(
     `WITH sales AS (
        SELECT COALESCE(s."ProductName", 'Unknown') as "productName",
@@ -326,7 +362,7 @@ async function getSyncGlobalBookRows(year: number): Promise<{ rows: GlobalBookRo
               ${groupSql} as "statusGroup",
               COALESCE(s."LastUpdated", s."DateLoaded", s._synced_at) as "activityDate"
        FROM sync_sales_data s
-       WHERE EXTRACT(YEAR FROM COALESCE(s."LastUpdated", s."DateLoaded", s._synced_at)) = ${year}
+       WHERE ${periodWhere}
      )
      SELECT code,
             description,
@@ -357,14 +393,14 @@ async function getSyncGlobalBookRows(year: number): Promise<{ rows: GlobalBookRo
             COUNT(*)::integer as count,
             SUM(${premiumSql})::numeric as amount
      FROM sync_sales_data s
-     WHERE EXTRACT(YEAR FROM COALESCE(s."LastUpdated", s."DateLoaded", s._synced_at)) = ${year}
+     WHERE ${periodWhere}
      GROUP BY COALESCE(s."ProductName", 'Unknown'), month
      ORDER BY "productName", month`
   );
   return { rows, productRows };
 }
 
-async function getNativeGlobalBookRows(year: number): Promise<{ rows: GlobalBookRow[]; productRows: ProductBookRow[] }> {
+async function getNativeGlobalBookRows(period: ReportPeriod): Promise<{ rows: GlobalBookRow[]; productRows: ProductBookRow[] }> {
   const policies = await prisma.policy.findMany({
     include: { product: { select: { name: true } } },
   });
@@ -372,7 +408,7 @@ async function getNativeGlobalBookRows(year: number): Promise<{ rows: GlobalBook
   const products = new Map<string, ProductBookRow>();
   for (const policy of policies) {
     const activityDate = policy.updatedAt ?? policy.createdAt;
-    if (activityDate.getFullYear() !== year) continue;
+    if (!dateInReportPeriod(activityDate, period)) continue;
     const month = activityDate.getMonth() + 1;
     const status = String(policy.status);
     const code = status === "ACTIVE" ? "QREC" : ["LAPSED", "CANCELLED"].includes(status) ? "QTOS" : "QNEW";
@@ -409,7 +445,7 @@ function addDictionarySheet(workbook: ExcelJS.Workbook) {
   prepareWorksheet(sheet, "FF334155");
 }
 
-function addMetadataSheet(workbook: ExcelJS.Workbook, reportName: string, dataSource: "Synced FoxPro tables" | "Native fallback tables") {
+function addMetadataSheet(workbook: ExcelJS.Workbook, reportName: string, dataSource: "Synced FoxPro tables" | "Native fallback tables", period?: ReportPeriod) {
   const sheet = workbook.addWorksheet("Report Metadata");
   sheet.columns = [
     { header: "Field", key: "field", width: 28 },
@@ -417,6 +453,7 @@ function addMetadataSheet(workbook: ExcelJS.Workbook, reportName: string, dataSo
   ];
   sheet.addRows([
     { field: "Report", value: reportName },
+    ...(period ? [{ field: "Reporting Period", value: period.label }] : []),
     { field: "Generated At", value: new Date().toISOString() },
     { field: "Data Source", value: dataSource },
     { field: "Fallback Note", value: dataSource === "Native fallback tables" ? "Synced FoxPro tables were unavailable, so this workbook uses native application records with reduced FoxPro granularity." : "Workbook uses synced FoxPro operational records." },
@@ -682,14 +719,15 @@ router.get("/operations/export-status", async (req: AuthRequest, res: Response) 
   if (!requireAdmin(req, res)) return;
 
   try {
+    const period = parseReportPeriod(req);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "AmbassadorC v5";
     workbook.created = new Date();
 
     const syncAvailable = await hasSyncTables();
     const { summaryRows, detailRows } = syncAvailable
-      ? await getSyncExportStatusData()
-      : await getNativeExportStatusData();
+      ? await getSyncExportStatusData(period)
+      : await getNativeExportStatusData(period);
 
     const summarySheet = workbook.addWorksheet("EXPORT STATUS PAGE");
     summarySheet.columns = [
@@ -742,8 +780,8 @@ router.get("/operations/export-status", async (req: AuthRequest, res: Response) 
     styleNumberColumns(detailSheet, ["premiumAmount"], moneyFormat);
 
     addDictionarySheet(workbook);
-    addMetadataSheet(workbook, "Export Status", syncAvailable ? "Synced FoxPro tables" : "Native fallback tables");
-    await sendWorkbook(res, workbook, "Export_Status_Report");
+    addMetadataSheet(workbook, "Export Status", syncAvailable ? "Synced FoxPro tables" : "Native fallback tables", period);
+    await sendWorkbook(res, workbook, period.month ? `Export_Status_Report_${period.year}_${String(period.month).padStart(2, "0")}` : `Export_Status_Report_${period.year}`);
   } catch (error) {
     console.error("Export status report error:", error);
     res.status(500).json({ success: false, error: "Failed to generate export status report." });
@@ -754,11 +792,12 @@ router.get("/operations/monthly-premium", async (req: AuthRequest, res: Response
   if (!requireAdmin(req, res)) return;
 
   try {
+    const period = parseReportPeriod(req);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "AmbassadorC v5";
     workbook.created = new Date();
     const syncAvailable = await hasSyncTables();
-    const rows = syncAvailable ? await getSyncMonthlyPremiumRows() : await getNativeMonthlyPremiumRows();
+    const rows = syncAvailable ? await getSyncMonthlyPremiumRows(period) : await getNativeMonthlyPremiumRows(period);
 
     const sheet = workbook.addWorksheet("MONTHLY PREMIUM");
     sheet.columns = [
@@ -825,8 +864,8 @@ router.get("/operations/monthly-premium", async (req: AuthRequest, res: Response
     styleNumberColumns(sheet, ["exportedSales", "debitOrder", "debitSuccessful", "debitFailed", "persal", "persalSuccessful", "persalFailed"]);
     styleNumberColumns(sheet, ["premiumAmount", "debitRevenue", "debitLostRevenue", "persalRevenue", "persalLostRevenue", "totalRevenue", "totalLostRevenue"], moneyFormat);
     addDictionarySheet(workbook);
-    addMetadataSheet(workbook, "Monthly Premium", syncAvailable ? "Synced FoxPro tables" : "Native fallback tables");
-    await sendWorkbook(res, workbook, "Monthly_Premium_Report");
+    addMetadataSheet(workbook, "Monthly Premium", syncAvailable ? "Synced FoxPro tables" : "Native fallback tables", period);
+    await sendWorkbook(res, workbook, period.month ? `Monthly_Premium_Report_${period.year}_${String(period.month).padStart(2, "0")}` : `Monthly_Premium_Report_${period.year}`);
   } catch (error) {
     console.error("Monthly premium report error:", error);
     res.status(500).json({ success: false, error: "Failed to generate monthly premium report." });
@@ -837,14 +876,14 @@ router.get("/operations/global-book", async (req: AuthRequest, res: Response) =>
   if (!requireAdmin(req, res)) return;
 
   try {
-    const year = Math.max(2000, Math.min(2100, parseInt(req.query.year as string) || new Date().getFullYear()));
+    const period = parseReportPeriod(req);
     const workbook = new ExcelJS.Workbook();
     workbook.creator = "AmbassadorC v5";
     workbook.created = new Date();
     const syncAvailable = await hasSyncTables();
-    const { rows, productRows } = syncAvailable ? await getSyncGlobalBookRows(year) : await getNativeGlobalBookRows(year);
+    const { rows, productRows } = syncAvailable ? await getSyncGlobalBookRows(period) : await getNativeGlobalBookRows(period);
     const months = Array.from({ length: 12 }, (_, index) => index + 1);
-    const monthNames = months.map((month) => new Date(year, month - 1, 1).toLocaleString("en-ZA", { month: "short" }));
+    const monthNames = months.map((month) => new Date(period.year, month - 1, 1).toLocaleString("en-ZA", { month: "short" }));
     const rowsByCodeMonth = new Map(rows.map((row) => [`${row.code}|${Number(row.month)}`, row]));
     const productRowsByNameMonth = new Map(productRows.map((row) => [`${String(row.productName ?? "Unknown")}|${Number(row.month)}`, row]));
 
@@ -907,8 +946,8 @@ router.get("/operations/global-book", async (req: AuthRequest, res: Response) =>
     styleNumberColumns(productSheet, [...months.map((month) => `m${month}`), "total"]);
     styleNumberColumns(productSheet, ["totalPremium"], moneyFormat);
     addDictionarySheet(workbook);
-    addMetadataSheet(workbook, `Global Book ${year}`, syncAvailable ? "Synced FoxPro tables" : "Native fallback tables");
-    await sendWorkbook(res, workbook, `Global_Book_Report_${year}`);
+    addMetadataSheet(workbook, `Global Book ${period.label}`, syncAvailable ? "Synced FoxPro tables" : "Native fallback tables", period);
+    await sendWorkbook(res, workbook, period.month ? `Global_Book_Report_${period.year}_${String(period.month).padStart(2, "0")}` : `Global_Book_Report_${period.year}`);
   } catch (error) {
     console.error("Global book report error:", error);
     res.status(500).json({ success: false, error: "Failed to generate global book report." });

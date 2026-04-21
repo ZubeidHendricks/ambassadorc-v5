@@ -32,7 +32,13 @@ export default function ExportStatus() {
   const [loading, setLoading] = useState(true)
   const [downloadingReport, setDownloadingReport] = useState(false)
   const [downloadError, setDownloadError] = useState('')
+  const [reportYear, setReportYear] = useState(new Date().getFullYear())
+  const [reportMonth, setReportMonth] = useState(0)
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
+  const monthOptions = Array.from({ length: 12 }, (_, index) => ({
+    value: index + 1,
+    label: new Date(2000, index, 1).toLocaleString('en-ZA', { month: 'long' }),
+  }))
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -67,7 +73,10 @@ export default function ExportStatus() {
     setDownloadingReport(true)
     setDownloadError('')
     try {
-      await downloadOperationsReport('export-status')
+      await downloadOperationsReport('export-status', {
+        year: reportYear,
+        month: reportMonth || undefined,
+      })
     } catch {
       console.error('Failed to download export status report')
       setDownloadError('The Export Status report could not be generated. Please try again, or ask an admin to check the report service.')
@@ -86,7 +95,37 @@ export default function ExportStatus() {
             Monitor the familiar export flow: QA passed, exported awaiting outcome, Q-Link uploaded, failed returns, and cancellations.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-end gap-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor="export-status-report-month">
+              Report month
+            </label>
+            <select
+              id="export-status-report-month"
+              value={reportMonth}
+              onChange={(event) => setReportMonth(Number(event.target.value))}
+              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value={0}>All months in selected year</option>
+              {monthOptions.map((month) => (
+                <option key={month.value} value={month.value}>{month.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600" htmlFor="export-status-report-year">
+              Report year
+            </label>
+            <input
+              id="export-status-report-year"
+              type="number"
+              min={2000}
+              max={2100}
+              value={reportYear}
+              onChange={(event) => setReportYear(Number(event.target.value) || new Date().getFullYear())}
+              className="h-10 w-24 rounded-md border border-gray-300 bg-white px-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
           <Button variant="outline" onClick={handleDownloadReport} disabled={downloadingReport}>
             <FileDown className="h-4 w-4" />
             {downloadingReport ? 'Generating...' : 'Export Status Excel'}
