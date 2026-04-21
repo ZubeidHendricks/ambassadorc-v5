@@ -1,3 +1,5 @@
+import ExcelJS from 'exceljs'
+
 const API_BASE = process.env.API_BASE ?? 'http://127.0.0.1:3001/api'
 const requiresExplicitCredentials = process.env.CI === 'true' || process.env.NODE_ENV === 'production'
 const ADMIN_MOBILE = process.env.SMOKE_ADMIN_MOBILE
@@ -14,8 +16,109 @@ const requiredGroups = [
   'unknown',
 ]
 
+const reportLayouts = {
+  exportStatus: {
+    sheets: [
+      {
+        name: 'EXPORT STATUS PAGE',
+        headers: ['Product', 'Premium', 'Status Group', 'FoxPro Group', 'Count', 'Estimated Premium', 'Next Action'],
+      },
+      {
+        name: 'Export Status Detail',
+        headers: [
+          'Record ID',
+          'Client',
+          'ID Number',
+          'Cellphone',
+          'Product',
+          'Premium',
+          'Agent',
+          'Status',
+          'Raw FoxPro Status',
+          'Sub Status',
+          'Last Outcome',
+          'Date Loaded',
+          'Last Updated',
+        ],
+      },
+      {
+        name: 'Status Dictionary',
+        headers: ['Group', 'Label', 'Stage', 'Action', 'Examples', 'Description'],
+      },
+      {
+        name: 'Report Metadata',
+        headers: ['Field', 'Value'],
+      },
+    ],
+  },
+  monthlyPremium: {
+    sheets: [
+      {
+        name: 'MONTHLY PREMIUM',
+        headers: [
+          'Product',
+          'Prem',
+          'Exported Sales',
+          'Debit Order',
+          'Successful',
+          'Banked Revenue',
+          'Failed',
+          'Lost Revenue',
+          'Persal',
+          'Successful',
+          'Banked Revenue',
+          'Failed',
+          'Lost Revenue',
+          'Total Banked Revenue',
+          'Total Lost Revenue',
+        ],
+      },
+      {
+        name: 'Status Dictionary',
+        headers: ['Group', 'Label', 'Stage', 'Action', 'Examples', 'Description'],
+      },
+      {
+        name: 'Report Metadata',
+        headers: ['Field', 'Value'],
+      },
+    ],
+  },
+  globalBook: {
+    sheets: (year) => {
+      const monthNames = Array.from({ length: 12 }, (_, index) =>
+        new Date(year, index, 1).toLocaleString('en-ZA', { month: 'short' })
+      )
+      return [
+        {
+          name: 'GLOBAL BOOK',
+          headers: ['Code', 'Description', ...monthNames, 'Total', 'Total Premium'],
+        },
+        {
+          name: 'Product Monthly Book',
+          headers: ['Product', ...monthNames, 'Total', 'Total Premium'],
+        },
+        {
+          name: 'Status Dictionary',
+          headers: ['Group', 'Label', 'Stage', 'Action', 'Examples', 'Description'],
+        },
+        {
+          name: 'Report Metadata',
+          headers: ['Field', 'Value'],
+        },
+      ]
+    },
+  },
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message)
+}
+
+function cellText(value) {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object' && 'text' in value) return String(value.text)
+  if (typeof value === 'object' && 'richText' in value) return value.richText.map((part) => part.text).join('')
+  return String(value)
 }
 
 async function request(path, options = {}) {
@@ -57,7 +160,33 @@ async function expectFailure(token, method, path, payload, expectedStatus, expec
   if (expectedText) assert(String(body.error ?? '').includes(expectedText), `${path} error did not include ${expectedText}`)
 }
 
-async function expectWorkbook(token, path) {
+function expectSheetNames(workbook, path, expectedSheets) {
+  const actualNames = workbook.worksheets.map((sheet) => sheet.name)
+  const expectedNames = expectedSheets.map((sheet) => sheet.name)
+  assert(actualNames.length === expectedNames.length, `${path} returned sheets [${actualNames.join(', ')}], expected [${expectedNames.join(', ')}]`)
+  for (const name of expectedNames) {
+    assert(actualNames.includes(name), `${path} missing sheet "${name}"`)
+  }
+}
+
+function expectSheetHeaders(workbook, path, sheetLayout) {
+  const sheet = workbook.getWorksheet(sheetLayout.name)
+  assert(sheet, `${path} missing sheet "${sheetLayout.name}"`)
+  assert(sheet.rowCount > 0, `${path} sheet "${sheetLayout.name}" is empty`)
+  const actualHeaders = sheet.getRow(1).values.slice(1).map(cellText)
+  assert(
+    actualHeaders.length >= sheetLayout.headers.length,
+    `${path} sheet "${sheetLayout.name}" has ${actualHeaders.length} headers, expected at least ${sheetLayout.headers.length}`
+  )
+  for (const [index, expectedHeader] of sheetLayout.headers.entries()) {
+    assert(
+      actualHeaders[index] === expectedHeader,
+      `${path} sheet "${sheetLayout.name}" header ${index + 1} was "${actualHeaders[index] ?? ''}", expected "${expectedHeader}"`
+    )
+  }
+}
+
+async function expectWorkbook(token, path, layout) {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
@@ -69,6 +198,11 @@ async function expectWorkbook(token, path) {
   )
   assert(buffer.length > 1024, `${path} returned an unexpectedly small workbook`)
   assert(buffer.subarray(0, 2).toString('utf8') === 'PK', `${path} did not return a zipped xlsx payload`)
+  const workbook = new ExcelJS.Workbook()
+  await workbook.xlsx.load(buffer)
+  assert(workbook.worksheets.length > 0, `${path} returned an empty workbook`)
+  expectSheetNames(workbook, path, layout.sheets)
+  for (const sheetLayout of layout.sheets) expectSheetHeaders(workbook, path, sheetLayout)
 }
 
 async function main() {
@@ -105,9 +239,12 @@ async function main() {
 
   await expectFailure(token, 'POST', '/qa/not-a-number/verdict', { verdict: 'passed' }, 400, 'Invalid QA check ID')
   await expectFailure(token, 'PUT', '/admin/agents/not-a-number/campaign', { campaignId: null }, 400, 'Invalid agent or campaign ID')
-  await expectWorkbook(token, '/reports/operations/export-status')
-  await expectWorkbook(token, '/reports/operations/monthly-premium')
-  await expectWorkbook(token, `/reports/operations/global-book?year=${new Date().getFullYear()}`)
+  await expectWorkbook(token, '/reports/operations/export-status', reportLayouts.exportStatus)
+  await expectWorkbook(token, '/reports/operations/monthly-premium', reportLayouts.monthlyPremium)
+  const reportYear = new Date().getFullYear()
+  await expectWorkbook(token, `/reports/operations/global-book?year=${reportYear}`, {
+    sheets: reportLayouts.globalBook.sheets(reportYear),
+  })
 
   console.log('FoxPro operations API smoke checks passed')
 }
