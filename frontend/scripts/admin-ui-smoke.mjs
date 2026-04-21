@@ -191,6 +191,22 @@ async function assertQaMailboxContent(vite, setRole) {
   ])
 }
 
+async function assertExportStatusContent(vite, setRole) {
+  const { default: ExportStatus } = await vite.ssrLoadModule('/src/pages/admin/ExportStatus.tsx')
+  setRole('QA_OFFICER')
+  const text = normalizeRenderedText(renderToString(React.createElement(ExportStatus)))
+  assertIncludesAll(text, '/admin/export-status worksheet coverage', [
+    'EXPORT STATUS PAGE',
+    'EXPORT RETURN STATUS',
+    'Lifesaver 24 Basic',
+    'Lifesaver 24 Plus',
+    'Lifesaver legal Basic',
+    'Lifesaver legal plus',
+    'Returned',
+    'Switch to Debit Order',
+  ])
+}
+
 async function assertRenderedSidebar(vite, setRole) {
   const { default: Sidebar } = await vite.ssrLoadModule('/src/components/layout/Sidebar.tsx')
   const renderSidebar = (role) => {
@@ -253,6 +269,7 @@ async function main() {
     await assertCallCentreControlContent(vite, setRole)
     await assertSalesAgentContent(vite, setRole)
     await assertQaMailboxContent(vite, setRole)
+    await assertExportStatusContent(vite, setRole)
     await assertRenderedSidebar(vite, setRole)
     console.log('Admin UI smoke checks passed')
   } finally {

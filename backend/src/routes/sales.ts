@@ -44,6 +44,32 @@ const foxProGroupToNativeSalesStatus: Record<string, string[]> = {
   cancelled: ["CANCELLED"],
 };
 
+function productPremiumAmount(productName?: string | null, fallback?: number | string | null) {
+  const name = (productName ?? "").toLowerCase();
+  if (name.includes("24") && name.includes("basic")) return 259;
+  if (name.includes("24") && name.includes("plus")) return 349;
+  if (name.includes("legal") && name.includes("basic")) return 179;
+  if (name.includes("legal") && name.includes("plus")) return 299;
+  if (name.includes("five-in-one") || name.includes("five in one")) return 199;
+  if (name.includes("life saver 24") || name.includes("lifesaver 24")) return 199;
+  if (name.includes("legal")) return 129;
+  const numeric = Number(fallback ?? 0);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function productPremiumSql(alias = "s") {
+  return `CASE
+    WHEN COALESCE(${alias}."ProductName", '') ILIKE '%24%basic%' THEN 259
+    WHEN COALESCE(${alias}."ProductName", '') ILIKE '%24%plus%' THEN 349
+    WHEN COALESCE(${alias}."ProductName", '') ILIKE '%legal%basic%' THEN 179
+    WHEN COALESCE(${alias}."ProductName", '') ILIKE '%legal%plus%' THEN 299
+    WHEN COALESCE(${alias}."ProductName", '') ILIKE '%five-in-one%' OR COALESCE(${alias}."ProductName", '') ILIKE '%five in one%' THEN 199
+    WHEN COALESCE(${alias}."ProductName", '') ILIKE '%life saver 24%' OR COALESCE(${alias}."ProductName", '') ILIKE '%lifesaver 24%' THEN 199
+    WHEN COALESCE(${alias}."ProductName", '') ILIKE '%legal%' THEN 129
+    ELSE 0
+  END`;
+}
+
 // All routes require authentication
 router.use(authenticate);
 
@@ -301,6 +327,7 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
 
     if (await hasSyncTables()) {
       const caseSQL = FOXPRO_STATUS_CASE_SQL.replaceAll('"Status"', 's."Status"');
+      const premiumSQL = productPremiumSql("s");
       const hasGroupFilter = group && isFoxProStatusGroup(group);
       const whereSQL = hasGroupFilter ? `WHERE (${caseSQL}) = $1` : "";
       const limitPlaceholder = hasGroupFilter ? "$2" : "$1";
@@ -308,12 +335,36 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
       const statusParams = hasGroupFilter ? [group, limit, skip] : [limit, skip];
       const countParams = hasGroupFilter ? [group] : [];
 
-      const [summaryRows, statusRows, countRow] = await Promise.all([
+      const [summaryRows, productRows, returnRows, statusRows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
           `SELECT export_group as "group", COUNT(*)::integer as count
            FROM (SELECT ${caseSQL} as export_group FROM sync_sales_data s) grouped
            GROUP BY export_group
            ORDER BY count DESC`
+        ),
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT COALESCE(s."ProductName", 'Unknown') as "productName",
+                  ${premiumSQL}::numeric as "premiumAmount",
+                  COUNT(*)::integer as count
+           FROM sync_sales_data s
+           GROUP BY COALESCE(s."ProductName", 'Unknown'), ${premiumSQL}
+           ORDER BY "productName"`
+        ),
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT return_group as "statusGroup",
+                  COALESCE(NULLIF("lastOutcome", ''), NULLIF("subStatus", ''), NULLIF("rawStatus", ''), 'Returned') as reason,
+                  COUNT(*)::integer as count
+           FROM (
+             SELECT ${caseSQL} as return_group,
+                    COALESCE(s."Status", '') as "rawStatus",
+                    COALESCE(s."SubStatus", '') as "subStatus",
+                    COALESCE(s."LastOutcome", '') as "lastOutcome"
+             FROM sync_sales_data s
+           ) returns
+           WHERE return_group IN ('repair', 'cancelled')
+           GROUP BY return_group, reason
+           ORDER BY count DESC
+           LIMIT 5`
         ),
         prisma.$queryRawUnsafe<any[]>(
           `SELECT s._sync_id::integer as id,
@@ -348,6 +399,17 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
         success: true,
         data: {
           summary,
+          productRows: productRows.map((row) => ({
+            productName: row.productName,
+            premiumAmount: Number(row.premiumAmount ?? 0),
+            count: Number(row.count ?? 0),
+          })),
+          returnRows: returnRows.map((row) => ({
+            statusGroup: row.statusGroup,
+            reason: row.reason,
+            count: Number(row.count ?? 0),
+            action: "Switch to Debit Order",
+          })),
           statuses: statusRows.map((row) => ({
             ...row,
             label: foxProStatusLabel(row.statusGroup),
@@ -371,16 +433,33 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
         orderBy: { createdAt: "desc" },
         include: {
           client: { select: { firstName: true, lastName: true } },
-          product: { select: { name: true } },
+          product: { select: { name: true, premiumAmount: true } },
           agent: { select: { firstName: true, lastName: true } },
         },
       }),
       prisma.sale.count({ where: nativeWhere }),
     ]);
     const summaryMap = new Map<string, number>();
+    const productMap = new Map<string, { productName: string; premiumAmount: number; count: number }>();
+    const returnMap = new Map<string, { statusGroup: string; reason: string; count: number; action: string }>();
     for (const row of nativeRows) {
       const grouped = nativeSalesStatusToFoxProGroup[String(row.status)] ?? "new";
       summaryMap.set(grouped, (summaryMap.get(grouped) ?? 0) + row._count.status);
+    }
+    for (const sale of nativeStatusRows) {
+      const productName = sale.product?.name ?? "Unknown";
+      const premiumAmount = productPremiumAmount(productName, sale.product?.premiumAmount ?? 0);
+      const productKey = `${productName}|${premiumAmount}`;
+      const productRow = productMap.get(productKey) ?? { productName, premiumAmount, count: 0 };
+      productRow.count += 1;
+      productMap.set(productKey, productRow);
+      const statusGroup = nativeSalesStatusToFoxProGroup[String(sale.status)] ?? "new";
+      if (statusGroup === "repair" || statusGroup === "cancelled") {
+        const reason = statusGroup === "repair" ? "Returned QA repair required" : "Returned client cancelled";
+        const returnRow = returnMap.get(reason) ?? { statusGroup, reason, count: 0, action: "Switch to Debit Order" };
+        returnRow.count += 1;
+        returnMap.set(reason, returnRow);
+      }
     }
     const summary = [...summaryMap.entries()].map(([statusGroup, count]) => ({
       group: statusGroup,
@@ -391,6 +470,8 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
       success: true,
       data: {
         summary,
+        productRows: [...productMap.values()].sort((a, b) => a.productName.localeCompare(b.productName)),
+        returnRows: [...returnMap.values()].sort((a, b) => b.count - a.count),
         statuses: nativeStatusRows.map((sale) => {
           const statusGroup = nativeSalesStatusToFoxProGroup[String(sale.status)] ?? "new";
           return {

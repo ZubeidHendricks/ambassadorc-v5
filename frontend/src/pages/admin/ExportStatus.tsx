@@ -1,40 +1,57 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, FileCheck2, FileDown, RefreshCw } from 'lucide-react'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { FileDown, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   getExportStatuses,
-  getFoxProStatusDictionary,
   downloadOperationsReport,
-  type ExportStatusRecord,
-  type ExportStatusSummary,
-  type FoxProStatusDefinition,
-  type PaginationInfo,
+  type ExportStatusProductRow,
+  type ExportStatusReturnRow,
 } from '@/lib/api'
 
-const PAGE_SIZE = 20
+const worksheetProducts = [
+  { productName: 'Lifesaver 24 Basic', premiumAmount: 259 },
+  { productName: 'Lifesaver 24 Plus', premiumAmount: 349 },
+  { productName: 'Lifesaver legal Basic', premiumAmount: 179 },
+  { productName: 'Lifesaver legal plus', premiumAmount: 299 },
+]
 
-const iconForGroup: Record<string, typeof Clock> = {
-  qa_pending: Clock,
-  qa_passed: CheckCircle2,
-  exported_awaiting_outcome: FileCheck2,
-  qlink_uploaded: CheckCircle2,
-  repair: AlertTriangle,
-  cancelled: AlertTriangle,
+function normalizedName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '')
+}
+
+function productRowKey(productName: string, premiumAmount: number) {
+  return `${normalizedName(productName)}|${Number(premiumAmount)}`
+}
+
+function mergeWorksheetRows(rows: ExportStatusProductRow[]) {
+  const byKey = new Map(rows.map((row) => [productRowKey(row.productName, row.premiumAmount), row]))
+  const baseRows = worksheetProducts.map((product) => {
+    const match = byKey.get(productRowKey(product.productName, product.premiumAmount))
+    return {
+      productName: product.productName,
+      premiumAmount: product.premiumAmount,
+      count: match?.count ?? 0,
+    }
+  })
+  const baseKeys = new Set(baseRows.map((row) => productRowKey(row.productName, row.premiumAmount)))
+  const extraRows = rows.filter((row) => !baseKeys.has(productRowKey(row.productName, row.premiumAmount)))
+  return [...baseRows, ...extraRows]
+}
+
+function returnStatusText(row?: ExportStatusReturnRow) {
+  if (!row) return 'Returned Exceeded allowable insurance'
+  const reason = row.reason?.replace(/^returned\s*/i, '').trim() || 'Returned'
+  return `Returned ${reason}`
 }
 
 export default function ExportStatus() {
-  const [summary, setSummary] = useState<ExportStatusSummary[]>([])
-  const [records, setRecords] = useState<ExportStatusRecord[]>([])
-  const [dictionary, setDictionary] = useState<FoxProStatusDefinition[]>([])
-  const [group, setGroup] = useState('')
-  const [page, setPage] = useState(1)
+  const [productRows, setProductRows] = useState<ExportStatusProductRow[]>([])
+  const [returnRows, setReturnRows] = useState<ExportStatusReturnRow[]>([])
   const [loading, setLoading] = useState(true)
   const [downloadingReport, setDownloadingReport] = useState(false)
   const [downloadError, setDownloadError] = useState('')
   const [reportYear, setReportYear] = useState(new Date().getFullYear())
   const [reportMonth, setReportMonth] = useState(0)
-  const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({
     value: index + 1,
     label: new Date(2000, index, 1).toLocaleString('en-ZA', { month: 'long' }),
@@ -43,31 +60,20 @@ export default function ExportStatus() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [statusData, dictionaryData] = await Promise.all([
-        getExportStatuses(group || undefined, page, PAGE_SIZE),
-        getFoxProStatusDictionary(),
-      ])
-      setSummary(statusData.summary)
-      setRecords(statusData.statuses)
-      setPagination(statusData.pagination)
-      setDictionary(dictionaryData)
+      const statusData = await getExportStatuses(undefined, 1, 20)
+      setProductRows(statusData.productRows)
+      setReturnRows(statusData.returnRows)
     } catch {
-      setSummary([])
-      setRecords([])
+      setProductRows([])
+      setReturnRows([])
     } finally {
       setLoading(false)
     }
-  }, [group, page])
+  }, [])
 
   useEffect(() => {
     loadData()
   }, [loadData])
-
-  useEffect(() => {
-    setPage(1)
-  }, [group])
-
-  const selectedDefinition = dictionary.find((item) => item.group === group)
 
   async function handleDownloadReport() {
     setDownloadingReport(true)
@@ -85,15 +91,16 @@ export default function ExportStatus() {
     }
   }
 
+  const worksheetRows = mergeWorksheetRows(productRows)
+  const primaryReturn = returnRows[0]
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">FoxPro operations</p>
-          <h1 className="mt-1 text-2xl font-bold text-gray-900">Export & Q-Link Status</h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-500">
-            Monitor the familiar export flow: QA passed, exported awaiting outcome, Q-Link uploaded, failed returns, and cancellations.
-          </p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">EXPORT STATUS PAGE</p>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900">Export Return Status</h1>
+          <p className="mt-1 max-w-3xl text-sm text-gray-500">Worksheet view for product export counts, returned reasons, and debit-order repair actions.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <div>
@@ -137,42 +144,6 @@ export default function ExportStatus() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {summary.map((item) => {
-          const Icon = iconForGroup[item.group] ?? Clock
-          const active = group === item.group
-          return (
-            <button
-              key={item.group}
-              onClick={() => setGroup(active ? '' : item.group)}
-              className={`rounded-xl border bg-white p-4 text-left shadow-sm transition-all hover:shadow-md ${active ? 'border-primary ring-2 ring-primary/10' : 'border-gray-200'}`}
-            >
-              <div className="flex items-center justify-between gap-3">
-                <Icon className="h-5 w-5 text-primary" />
-                <span className="text-xl font-bold text-gray-900">{item.count.toLocaleString('en-ZA')}</span>
-              </div>
-              <p className="mt-3 text-sm font-semibold text-gray-900">{item.label}</p>
-              <p className="mt-1 text-xs text-gray-500">{dictionary.find((d) => d.group === item.group)?.stage ?? 'Operations'}</p>
-            </button>
-          )
-        })}
-      </div>
-
-      {selectedDefinition && (
-        <div className="rounded-xl border border-primary/20 bg-primary-50 p-4">
-          <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-primary">{selectedDefinition.label}</h2>
-              <p className="mt-1 text-sm text-gray-700">{selectedDefinition.description}</p>
-            </div>
-            <div className="text-sm text-gray-600 md:text-right">
-              <p><span className="font-medium">Next action:</span> {selectedDefinition.action}</p>
-              <p className="mt-1 text-xs text-gray-500">Examples: {selectedDefinition.examples.join(', ')}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {downloadError && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {downloadError}
@@ -180,58 +151,34 @@ export default function ExportStatus() {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-100 px-5 py-4">
-          <h2 className="text-base font-semibold text-gray-900">Return outcome records</h2>
-          <p className="text-sm text-gray-500">{group ? 'Filtered by selected operations status.' : 'Showing latest synced export and Q-Link status records.'}</p>
-        </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100 text-sm">
-            <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <table className="min-w-full border-collapse text-sm">
+            <thead className="text-left text-xs font-semibold uppercase tracking-[0.2em] text-gray-900">
               <tr>
-                <th className="px-5 py-3">Client</th>
-                <th className="px-5 py-3">Product</th>
-                <th className="px-5 py-3">Agent</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Raw FoxPro status</th>
-                <th className="px-5 py-3">Last update</th>
+                <th className="w-28 border-b border-r border-gray-200 px-3 py-4">Date</th>
+                <th className="border-b border-r border-gray-200 px-3 py-4" colSpan={3}>EXPORT STATUS PAGE</th>
+                <th className="border-b border-r border-gray-200 px-3 py-4" colSpan={2}>EXPORT RETURN STATUS</th>
+                <th className="border-b border-gray-200 px-3 py-4">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {records.map((record) => (
-                <tr key={record.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-3 font-medium text-gray-900">{record.clientName || 'Unknown'}</td>
-                  <td className="px-5 py-3 text-gray-600">{record.productName}</td>
-                  <td className="px-5 py-3 text-gray-600">{record.agentName || '-'}</td>
-                  <td className="px-5 py-3">
-                    <div className="flex flex-col gap-1">
-                      <StatusBadge status={record.statusGroup} />
-                      <span className="text-xs text-gray-500">{record.label}</span>
-                    </div>
+            <tbody>
+              {worksheetRows.map((row, index) => (
+                <tr key={`${row.productName}-${row.premiumAmount}`} className="border-b border-gray-100">
+                  <td className="border-r border-gray-200 px-3 py-2 text-right text-blue-700 underline">{row.count.toLocaleString('en-ZA')}</td>
+                  <td className="border-r border-gray-200 px-3 py-2 text-blue-700 underline">{row.productName}</td>
+                  <td className="border-r border-gray-200 px-3 py-2 text-right text-gray-900">{row.premiumAmount.toLocaleString('en-ZA')}</td>
+                  <td className="border-r border-gray-200 px-3 py-2 text-right text-gray-900">{row.count.toLocaleString('en-ZA')}</td>
+                  <td className="border-r border-gray-200 px-3 py-2 text-red-700">
+                    {index === 0 ? (
+                      <span><span className="mr-2 font-medium">{primaryReturn?.count.toLocaleString('en-ZA') ?? 0}</span>{returnStatusText(primaryReturn)}</span>
+                    ) : null}
                   </td>
-                  <td className="max-w-sm px-5 py-3 text-gray-600">{record.rawStatus}</td>
-                  <td className="px-5 py-3 text-gray-500">
-                    {record.lastUpdated ? new Date(record.lastUpdated).toLocaleDateString('en-ZA') : '-'}
-                  </td>
+                  <td className="px-3 py-2 font-medium text-gray-900">{index === 0 ? primaryReturn?.action ?? 'Switch to Debit Order' : ''}</td>
                 </tr>
               ))}
-              {!loading && records.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-gray-400">No export status records found.</td>
-                </tr>
-              )}
             </tbody>
           </table>
         </div>
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3 text-sm">
-            <p className="text-gray-500">Showing {(pagination.page - 1) * PAGE_SIZE + 1}–{Math.min(pagination.page * PAGE_SIZE, pagination.total)} of {pagination.total.toLocaleString('en-ZA')}</p>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" disabled={pagination.page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</Button>
-              <span className="text-gray-500">Page {pagination.page} of {pagination.totalPages}</span>
-              <Button variant="outline" size="sm" disabled={pagination.page === pagination.totalPages} onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}>Next</Button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

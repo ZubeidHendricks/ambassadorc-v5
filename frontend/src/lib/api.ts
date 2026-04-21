@@ -554,6 +554,19 @@ export interface ExportStatusSummary {
   count: number
 }
 
+export interface ExportStatusProductRow {
+  productName: string
+  premiumAmount: number
+  count: number
+}
+
+export interface ExportStatusReturnRow {
+  statusGroup: string
+  reason: string
+  count: number
+  action: string
+}
+
 export interface ExportStatusRecord {
   id: number
   clientName: string
@@ -992,6 +1005,8 @@ export async function getFoxProStatusDictionary(): Promise<FoxProStatusDefinitio
 
 export async function getExportStatuses(group?: string, page = 1, limit = 20): Promise<{
   summary: ExportStatusSummary[]
+  productRows: ExportStatusProductRow[]
+  returnRows: ExportStatusReturnRow[]
   statuses: ExportStatusRecord[]
   pagination: PaginationInfo
 }> {
@@ -1002,6 +1017,8 @@ export async function getExportStatuses(group?: string, page = 1, limit = 20): P
   const res = await request<any>(`/sales/export-status?${params.toString()}`)
   return {
     summary: res.data!.summary ?? [],
+    productRows: res.data!.productRows ?? [],
+    returnRows: res.data!.returnRows ?? [],
     statuses: res.data!.statuses ?? [],
     pagination: res.data!.pagination ?? { page, limit, total: 0, totalPages: 1 },
   }
