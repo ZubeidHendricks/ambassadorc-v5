@@ -1,10 +1,15 @@
 const FRONTEND_BASE = process.env.FRONTEND_BASE ?? 'http://127.0.0.1:5000'
 
 const adminPaths = [
+  '/admin',
   '/admin/sales',
   '/admin/qa',
   '/admin/agents',
   '/admin/export-status',
+  '/admin/reports',
+  '/admin/ambassador-backend',
+  '/admin/documents',
+  '/admin/sms',
 ]
 
 function assert(condition, message) {
