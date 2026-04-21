@@ -35,10 +35,11 @@ export default function QualityAssurance() {
   const handleVerdict = async (id: number, verdict: string) => {
     setProcessing(id)
     try {
-      await submitQAVerdict(id, { verdict, notes: notes[id] || '' })
+      const updated = await submitQAVerdict(id, { verdict, notes: notes[id] || '' })
+      const updatedStatus = updated.status?.toLowerCase() || (verdict === 'repair' ? 'escalated' : verdict === 'cancel' ? 'failed' : verdict)
       setItems((prev) =>
         prev.map((item) =>
-          item.id === id ? { ...item, status: verdict, verdict } : item
+          item.id === id ? { ...item, ...updated, status: updatedStatus } : item
         )
       )
     } catch {

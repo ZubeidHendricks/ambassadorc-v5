@@ -135,7 +135,12 @@ export default function ExportStatus() {
                   <td className="px-5 py-3 font-medium text-gray-900">{record.clientName || 'Unknown'}</td>
                   <td className="px-5 py-3 text-gray-600">{record.productName}</td>
                   <td className="px-5 py-3 text-gray-600">{record.agentName || '-'}</td>
-                  <td className="px-5 py-3"><StatusBadge status={record.label} /></td>
+                  <td className="px-5 py-3">
+                    <div className="flex flex-col gap-1">
+                      <StatusBadge status={record.statusGroup} />
+                      <span className="text-xs text-gray-500">{record.label}</span>
+                    </div>
+                  </td>
                   <td className="max-w-sm px-5 py-3 text-gray-600">{record.rawStatus}</td>
                   <td className="px-5 py-3 text-gray-500">
                     {record.lastUpdated ? new Date(record.lastUpdated).toLocaleDateString('en-ZA') : '-'}
