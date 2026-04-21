@@ -24,12 +24,12 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
     if (syncAvailable) {
       const qaStatusFilter = `(${foxProStatusWhere("qa_pending", "s")} OR ${foxProStatusWhere("qa_passed", "s")})`;
-      let verdictFilter = "";
-      if (statusFilter === "passed") verdictFilter = ` AND (s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%')`;
-      else if (statusFilter === "failed") verdictFilter = ` AND s."Status" ILIKE '%fail%'`;
-      else if (statusFilter === "escalated") verdictFilter = ` AND s."Status" ILIKE '%escalat%'`;
-      else if (statusFilter === "pending") verdictFilter = ` AND (s."Status" ILIKE '%pending%' OR s."Status" ILIKE '%awaiting%' OR s."Status" ILIKE '%capture%')`;
-      const whereSQL = `WHERE ${qaStatusFilter}${verdictFilter}`;
+      let selectedStatusFilter = qaStatusFilter;
+      if (statusFilter === "passed") selectedStatusFilter = foxProStatusWhere("qa_passed", "s");
+      else if (statusFilter === "failed") selectedStatusFilter = foxProStatusWhere("repair", "s");
+      else if (statusFilter === "escalated") selectedStatusFilter = `s."Status" ILIKE '%escalat%'`;
+      else if (statusFilter === "pending") selectedStatusFilter = foxProStatusWhere("qa_pending", "s");
+      const whereSQL = `WHERE ${selectedStatusFilter}`;
 
       const [rows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(

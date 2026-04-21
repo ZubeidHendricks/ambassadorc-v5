@@ -11,6 +11,7 @@ import { hasSyncTables } from "../lib/syncCheck";
 import {
   FOXPRO_STATUS_CASE_SQL,
   FOXPRO_STATUS_DEFINITIONS,
+  FoxProStatusGroup,
   foxProStatusLabel,
   foxProStatusWhere,
 } from "../lib/foxproStatus";
@@ -251,10 +252,11 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
     const group = (req.query.group as string | undefined) || "";
-    const allowedGroups = new Set(FOXPRO_STATUS_DEFINITIONS.map((item) => item.group));
+    const isFoxProStatusGroup = (value: string): value is FoxProStatusGroup =>
+      FOXPRO_STATUS_DEFINITIONS.some((item) => item.group === value);
 
     if (await hasSyncTables()) {
-      const whereSQL = group && allowedGroups.has(group as any) ? `WHERE ${foxProStatusWhere(group, "s")}` : "";
+      const whereSQL = group && isFoxProStatusGroup(group) ? `WHERE ${foxProStatusWhere(group, "s")}` : "";
       const caseSQL = FOXPRO_STATUS_CASE_SQL.replaceAll('"Status"', 's."Status"');
 
       const [summaryRows, statusRows, countRow] = await Promise.all([
