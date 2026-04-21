@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { sections } from '../src/components/layout/navConfig.mjs'
 
 const FRONTEND_BASE = process.env.FRONTEND_BASE ?? 'http://127.0.0.1:5000'
 
@@ -19,11 +19,12 @@ function assert(condition, message) {
 }
 
 async function assertAmbassadorMarketingNav() {
-  const sidebarSource = await readFile(new URL('../src/components/layout/Sidebar.tsx', import.meta.url), 'utf8')
-  const marketingSection = /title: 'Marketing & Agents'[\s\S]*?title: 'Engagement & Collections'/.exec(sidebarSource)?.[0] ?? ''
-  assert(marketingSection.includes("'AMBASSADOR'"), 'Marketing navigation is not visible to ambassadors')
-  assert(marketingSection.includes("to: '/referrals'"), 'Ambassadors cannot see referral submission navigation')
-  assert(marketingSection.includes("to: '/leads'"), 'Ambassadors cannot see lead submission navigation')
+  const marketingSection = sections.find((section) => section.title === 'Marketing & Agents')
+  assert(marketingSection, 'Marketing navigation section is missing')
+  assert(marketingSection.roles?.includes('AMBASSADOR'), 'Marketing navigation is not visible to ambassadors')
+  const visibleToAmbassador = marketingSection.items.filter((item) => !item.roles || item.roles.includes('AMBASSADOR'))
+  assert(visibleToAmbassador.some((item) => item.to === '/referrals'), 'Ambassadors cannot see referral submission navigation')
+  assert(visibleToAmbassador.some((item) => item.to === '/leads'), 'Ambassadors cannot see lead submission navigation')
 }
 
 async function main() {
