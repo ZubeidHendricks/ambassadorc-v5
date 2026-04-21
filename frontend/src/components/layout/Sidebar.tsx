@@ -67,7 +67,7 @@ const sections: NavSection[] = [
   },
   {
     title: 'Marketing & Agents',
-    roles: ['ADMIN', 'QA_OFFICER', 'AGENT'],
+    roles: ['ADMIN', 'QA_OFFICER', 'AGENT', 'AMBASSADOR'],
     items: [
       { to: '/admin/agents', label: 'Agent Management', icon: UserCheck, roles: ['ADMIN'] },
       { to: '/referrals', label: 'Submit Referrals', icon: Send },

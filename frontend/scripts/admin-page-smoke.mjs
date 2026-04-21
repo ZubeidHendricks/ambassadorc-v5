@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+
 const FRONTEND_BASE = process.env.FRONTEND_BASE ?? 'http://127.0.0.1:5000'
 
 const adminPaths = [
@@ -16,7 +18,17 @@ function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
+async function assertAmbassadorMarketingNav() {
+  const sidebarSource = await readFile(new URL('../src/components/layout/Sidebar.tsx', import.meta.url), 'utf8')
+  const marketingSection = /title: 'Marketing & Agents'[\s\S]*?title: 'Engagement & Collections'/.exec(sidebarSource)?.[0] ?? ''
+  assert(marketingSection.includes("'AMBASSADOR'"), 'Marketing navigation is not visible to ambassadors')
+  assert(marketingSection.includes("to: '/referrals'"), 'Ambassadors cannot see referral submission navigation')
+  assert(marketingSection.includes("to: '/leads'"), 'Ambassadors cannot see lead submission navigation')
+}
+
 async function main() {
+  await assertAmbassadorMarketingNav()
+
   for (const path of adminPaths) {
     const response = await fetch(`${FRONTEND_BASE}${path}`)
     const body = await response.text()
