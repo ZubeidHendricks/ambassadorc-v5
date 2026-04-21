@@ -235,6 +235,28 @@ async function assertPremiumIncreaseContent(vite, setRole) {
   ])
 }
 
+async function assertReportsContent(vite, setRole) {
+  const { default: Reports } = await vite.ssrLoadModule('/src/pages/admin/Reports.tsx')
+  setRole('ADMIN')
+  const text = normalizeRenderedText(renderToString(React.createElement(Reports)))
+  assertIncludesAll(text, '/admin/reports monthly premium coverage', [
+    'Monthly Premium Page',
+    'MONTHLY PREMIUM',
+    'Debit Order',
+    'Banked Revenue',
+    'Lost Revenue',
+    'Persal',
+    'Total Banked Revenue',
+    'Total Lost Revenue',
+    'Actual Revenue',
+    'Lifesaver 24 Basic',
+    'Lifesaver legal Basic',
+    '105,129',
+    '12,150',
+    'Download Monthly Premium',
+  ])
+}
+
 async function assertRenderedSidebar(vite, setRole) {
   const { default: Sidebar } = await vite.ssrLoadModule('/src/components/layout/Sidebar.tsx')
   const renderSidebar = (role) => {
@@ -299,6 +321,7 @@ async function main() {
     await assertQaMailboxContent(vite, setRole)
     await assertExportStatusContent(vite, setRole)
     await assertPremiumIncreaseContent(vite, setRole)
+    await assertReportsContent(vite, setRole)
     await assertRenderedSidebar(vite, setRole)
     console.log('Admin UI smoke checks passed')
   } finally {

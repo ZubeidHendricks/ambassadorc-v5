@@ -10,6 +10,73 @@ import {
 import { Button } from '@/components/ui/button'
 import { FileDown, Users, CheckCircle2, FileSpreadsheet, BarChart3, BookOpen, Gauge } from 'lucide-react'
 
+const monthlyPremiumRows = [
+  {
+    productName: 'Lifesaver 24 Basic',
+    premiumAmount: 259,
+    exportedSales: 400,
+    debitOrder: 150,
+    debitSuccessful: 130,
+    debitRevenue: 33670,
+    debitFailed: 20,
+    debitLostRevenue: 5180,
+    persal: 250,
+    persalSuccessful: 230,
+    persalRevenue: 59570,
+    persalFailed: 20,
+    persalLostRevenue: 5180,
+  },
+  {
+    productName: 'Lifesaver 24 Plus',
+    premiumAmount: 349,
+    exportedSales: 5,
+    debitOrder: 1,
+    debitSuccessful: 1,
+    debitRevenue: 349,
+    debitFailed: 0,
+    debitLostRevenue: 0,
+    persal: 4,
+    persalSuccessful: 4,
+    persalRevenue: 1396,
+    persalFailed: 0,
+    persalLostRevenue: 0,
+  },
+  {
+    productName: 'Lifesaver legal Basic',
+    premiumAmount: 179,
+    exportedSales: 65,
+    debitOrder: 40,
+    debitSuccessful: 35,
+    debitRevenue: 6265,
+    debitFailed: 5,
+    debitLostRevenue: 895,
+    persal: 25,
+    persalSuccessful: 20,
+    persalRevenue: 3580,
+    persalFailed: 5,
+    persalLostRevenue: 895,
+  },
+  {
+    productName: 'Lifesaver legal Plus',
+    premiumAmount: 299,
+    exportedSales: 1,
+    debitOrder: 0,
+    debitSuccessful: 0,
+    debitRevenue: 0,
+    debitFailed: 0,
+    debitLostRevenue: 0,
+    persal: 1,
+    persalSuccessful: 1,
+    persalRevenue: 299,
+    persalFailed: 0,
+    persalLostRevenue: 0,
+  },
+]
+
+function formatWorksheetNumber(value: number) {
+  return value === 0 ? '' : value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+}
+
 export default function Reports() {
   const [downloading, setDownloading] = useState(false)
   const [operationsDownload, setOperationsDownload] = useState<OperationsReportType | null>(null)
@@ -23,6 +90,24 @@ export default function Reports() {
   const selectedPeriodLabel = reportMonth
     ? `${monthOptions.find((month) => month.value === reportMonth)?.label} ${reportYear}`
     : `Full year ${reportYear}`
+  const monthlyPremiumTotals = monthlyPremiumRows.reduce(
+    (totals, row) => ({
+      exportedSales: totals.exportedSales + row.exportedSales,
+      debitRevenue: totals.debitRevenue + row.debitRevenue,
+      debitLostRevenue: totals.debitLostRevenue + row.debitLostRevenue,
+      persalRevenue: totals.persalRevenue + row.persalRevenue,
+      persalLostRevenue: totals.persalLostRevenue + row.persalLostRevenue,
+    }),
+    {
+      exportedSales: 0,
+      debitRevenue: 0,
+      debitLostRevenue: 0,
+      persalRevenue: 0,
+      persalLostRevenue: 0,
+    }
+  )
+  const totalBankedRevenue = monthlyPremiumTotals.debitRevenue + monthlyPremiumTotals.persalRevenue
+  const totalLostRevenue = monthlyPremiumTotals.debitLostRevenue + monthlyPremiumTotals.persalLostRevenue
 
   function handleDownload() {
     setDownloading(true)
@@ -52,7 +137,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
         <p className="mt-1 text-sm text-gray-500">
@@ -187,6 +272,75 @@ export default function Reports() {
                 {downloadError}
               </div>
             )}
+
+            <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Monthly Premium Page</p>
+                <h3 className="mt-1 text-lg font-bold text-gray-900">MONTHLY PREMIUM</h3>
+                <p className="mt-1 text-sm text-gray-500">Worksheet view of exported sales, Debit Order banked revenue, Persal banked revenue, failed counts, and lost revenue.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-[1180px] w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-white text-center font-semibold text-gray-800">
+                      <th className="border border-gray-200 px-2 py-2 text-left">Product</th>
+                      <th className="border border-gray-200 px-2 py-2">Prem</th>
+                      <th className="border border-gray-200 px-2 py-2">Exported<br />Sales</th>
+                      <th className="border border-gray-200 px-2 py-2">Debit<br />Order</th>
+                      <th className="border border-gray-200 px-2 py-2">Successful</th>
+                      <th className="border border-gray-200 px-2 py-2">Banked<br />Revenue</th>
+                      <th className="border border-gray-200 px-2 py-2">Failed</th>
+                      <th className="border border-gray-200 px-2 py-2">Lost<br />Revenue</th>
+                      <th className="border border-gray-200 px-2 py-2">Persal</th>
+                      <th className="border border-gray-200 px-2 py-2">Successful</th>
+                      <th className="border border-gray-200 px-2 py-2">Banked<br />Revenue</th>
+                      <th className="border border-gray-200 px-2 py-2">Failed</th>
+                      <th className="border border-gray-200 px-2 py-2">Lost<br />Revenue</th>
+                      <th className="border border-gray-200 px-2 py-2">Total Banked<br />Revenue</th>
+                      <th className="border border-gray-200 px-2 py-2">Total Lost<br />Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyPremiumRows.map((row) => (
+                      <tr key={row.productName} className="text-right text-gray-900">
+                        <td className="border border-gray-200 px-2 py-2 text-left font-medium">{row.productName}</td>
+                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.premiumAmount)}</td>
+                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.exportedSales)}</td>
+                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.debitOrder)}</td>
+                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.debitSuccessful)}</td>
+                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.debitRevenue)}</td>
+                        <td className="border border-gray-200 px-2 py-2 text-red-600">{formatWorksheetNumber(row.debitFailed)}</td>
+                        <td className="border border-gray-200 px-2 py-2 text-red-600">{formatWorksheetNumber(row.debitLostRevenue)}</td>
+                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.persal)}</td>
+                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.persalSuccessful)}</td>
+                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.persalRevenue)}</td>
+                        <td className="border border-gray-200 px-2 py-2 text-red-600">{formatWorksheetNumber(row.persalFailed)}</td>
+                        <td className="border border-gray-200 px-2 py-2 text-red-600">{formatWorksheetNumber(row.persalLostRevenue)}</td>
+                        <td className="border border-gray-200 px-2 py-2"></td>
+                        <td className="border border-gray-200 px-2 py-2"></td>
+                      </tr>
+                    ))}
+                    <tr className="border-t-2 border-gray-900 text-right font-semibold text-gray-900">
+                      <td className="border border-gray-200 px-2 py-3 text-left">Actual Revenue</td>
+                      <td className="border border-gray-200 px-2 py-3"></td>
+                      <td className="border border-gray-200 px-2 py-3">{formatWorksheetNumber(monthlyPremiumTotals.exportedSales)}</td>
+                      <td className="border border-gray-200 px-2 py-3"></td>
+                      <td className="border border-gray-200 px-2 py-3"></td>
+                      <td className="border border-gray-200 px-2 py-3">{formatWorksheetNumber(monthlyPremiumTotals.debitRevenue)}</td>
+                      <td className="border border-gray-200 px-2 py-3"></td>
+                      <td className="border border-gray-200 px-2 py-3 text-red-600">{formatWorksheetNumber(monthlyPremiumTotals.debitLostRevenue)}</td>
+                      <td className="border border-gray-200 px-2 py-3"></td>
+                      <td className="border border-gray-200 px-2 py-3"></td>
+                      <td className="border border-gray-200 px-2 py-3">{formatWorksheetNumber(monthlyPremiumTotals.persalRevenue)}</td>
+                      <td className="border border-gray-200 px-2 py-3"></td>
+                      <td className="border border-gray-200 px-2 py-3 text-red-600">{formatWorksheetNumber(monthlyPremiumTotals.persalLostRevenue)}</td>
+                      <td className="border border-gray-200 px-2 py-3">{formatWorksheetNumber(totalBankedRevenue)}</td>
+                      <td className="border border-gray-200 px-2 py-3 text-red-600">{formatWorksheetNumber(totalLostRevenue)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <Button
