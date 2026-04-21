@@ -93,7 +93,7 @@ const sections: NavSection[] = [
     roles: ['QA_OFFICER', 'ADMIN'],
     items: [
       { to: '/admin/documents', label: 'Document Delivery', icon: FileText },
-      { to: '/admin/sms', label: 'SMS Center', icon: MessageSquare },
+      { to: '/admin/sms', label: 'SMS Center', icon: MessageSquare, roles: ['ADMIN'] },
     ],
   },
   {
@@ -138,7 +138,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   ).map(section => {
     const allowedItems = section.items.filter(item => {
       if (item.roles && !item.roles.includes(user.role)) return false
-      if (item.to === '/admin/sms' && user.role !== 'ADMIN') return false
       return true
     })
     
