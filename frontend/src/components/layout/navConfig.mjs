@@ -21,7 +21,7 @@ export const sections = [
   {
     id: 'marketing-agents',
     title: 'Marketing & Agents',
-    roles: ['ADMIN', 'QA_OFFICER', 'AGENT', 'AMBASSADOR'],
+    roles: ['ADMIN', 'AGENT', 'AMBASSADOR'],
     items: [
       { to: '/admin/agents', label: 'Agent Management', icon: 'UserCheck', roles: ['ADMIN'] },
       { to: '/referrals', label: 'Submit Referrals', icon: 'Send', roles: ['AMBASSADOR', 'AGENT'] },

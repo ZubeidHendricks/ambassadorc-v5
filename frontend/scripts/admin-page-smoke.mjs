@@ -94,47 +94,44 @@ async function assertDashboardContent() {
     logLevel: 'silent',
     server: { middlewareMode: true },
     resolve: {
-      alias: {
-        'react-router-dom': new URL('./smoke-router-dom.mjs', import.meta.url).pathname,
-      },
+      alias: [
+        {
+          find: 'react-router-dom',
+          replacement: new URL('./smoke-router-dom.mjs', import.meta.url).pathname,
+        },
+        {
+          find: '@/context/AuthContext',
+          replacement: new URL('./smoke-auth-context.mjs', import.meta.url).pathname,
+        },
+      ],
     },
   })
   const originalWarn = console.warn
   try {
-    const [{ default: AdminDashboard }, { default: Sidebar }, { AuthContext }] = await Promise.all([
+    const [{ default: AdminDashboard }, { default: Sidebar }, authModule] = await Promise.all([
       vite.ssrLoadModule('/src/pages/admin/AdminDashboard.tsx'),
       vite.ssrLoadModule('/src/components/layout/Sidebar.tsx'),
-      vite.ssrLoadModule('/src/context/AuthContext.tsx'),
+      vite.ssrLoadModule('/scripts/smoke-auth-context.mjs'),
     ])
-    const authValueForRole = (role) => ({
-      user: { ...smokeUserBase, role },
-      loading: false,
-      logout: () => {},
-      login: () => Promise.reject(new Error('smoke')),
-      register: () => Promise.reject(new Error('smoke')),
-      refreshUser: () => Promise.resolve(),
-    })
-    const renderWithRole = (role, child) =>
-      React.createElement(AuthContext.Provider, { value: authValueForRole(role) }, child)
+    const setRole = (role) => authModule.setSmokeUser({ ...smokeUserBase, role })
 
     console.warn = () => {}
-    const html = renderToString(renderWithRole('QA_OFFICER', React.createElement(AdminDashboard)))
+    setRole('QA_OFFICER')
+    const html = renderToString(React.createElement(AdminDashboard))
     console.warn = originalWarn
     for (const requiredText of dashboardRequiredText) {
       assert(html.includes(requiredText), `/admin workspace is missing required rendered text: ${requiredText}`)
     }
 
     const renderSidebar = (role) => {
+      setRole(role)
       return renderToString(
-        renderWithRole(
-          role,
-          React.createElement(Sidebar, {
-            collapsed: false,
-            onToggle: () => {},
-            mobileOpen: false,
-            onMobileClose: () => {},
-          }),
-        ),
+        React.createElement(Sidebar, {
+          collapsed: false,
+          onToggle: () => {},
+          mobileOpen: false,
+          onMobileClose: () => {},
+        }),
       )
     }
 
