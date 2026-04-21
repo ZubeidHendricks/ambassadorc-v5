@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
+import type { AppRole } from '@/components/layout/navConfig'
 import {
   getAdminDashboardStats,
   type AdminDashboardStats,
@@ -343,7 +344,7 @@ interface ProcessCardConfig {
   description: string
   tags: string[]
   icon?: LucideIcon
-  roles?: string[]
+  roles?: AppRole[]
 }
 
 interface ProcessColumn {

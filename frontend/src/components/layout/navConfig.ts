@@ -1,4 +1,6 @@
-export type AppRole = 'AMBASSADOR' | 'AGENT' | 'QA_OFFICER' | 'ADMIN'
+import type { UserRole } from '@/lib/api'
+
+export type AppRole = UserRole
 
 export interface NavItemConfig {
   to: string
@@ -18,6 +20,7 @@ export const sections: NavSectionConfig[] = [
   {
     id: 'personal',
     title: 'Personal',
+    roles: ['AMBASSADOR', 'AGENT'],
     items: [
       { to: '/dashboard', label: 'My Dashboard', icon: 'LayoutDashboard' },
       { to: '/referrals/history', label: 'Referral History', icon: 'History' },
