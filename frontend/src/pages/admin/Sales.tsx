@@ -19,6 +19,16 @@ const pipelineLabels: Record<string, string> = {
   cancelled: 'Client Cancelled',
 }
 
+const saleStatusUpdateMap: Record<string, string> = {
+  new: 'NEW',
+  qa_pending: 'QA_PENDING',
+  qa_passed: 'QA_APPROVED',
+  exported_awaiting_outcome: 'QA_APPROVED',
+  qlink_uploaded: 'ACTIVE',
+  repair: 'QA_REJECTED',
+  cancelled: 'CANCELLED',
+}
+
 const tableColumns: Column<Sale>[] = [
   { key: 'clientName', header: 'Client', render: (r) => <span className="font-medium text-gray-900">{r.clientName}</span> },
   { key: 'productName', header: 'Product' },
@@ -61,11 +71,10 @@ export default function Sales() {
 
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
-      await updateSaleStatus(id, newStatus)
+      await updateSaleStatus(id, saleStatusUpdateMap[newStatus] ?? newStatus)
+      setSales((prev) => prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s)))
     } catch {
-      // revert
     }
-    setSales((prev) => prev.map((s) => (s.id === id ? { ...s, status: newStatus } : s)))
   }
 
   const agents = [...new Map(sales.map((s) => [s.agentId, { id: s.agentId, name: s.agentName }])).values()]
