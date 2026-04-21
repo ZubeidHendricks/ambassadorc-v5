@@ -90,7 +90,7 @@ async function assertDashboardContent() {
           if (!id.endsWith('/src/pages/admin/AdminDashboard.tsx')) return null
           return code.replace(
             "import { Link } from 'react-router-dom'",
-            "const Link = ({ to, children, ...props }: any) => <a href={typeof to === 'string' ? to : '#'} {...props}>{children}</a>",
+            "const Link = ({ to, children, ...props }) => <a href={typeof to === 'string' ? to : '#'} {...props}>{children}</a>",
           )
         },
       },
