@@ -25,35 +25,59 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     if (syncAvailable) {
       const repairStatusFilter = foxProStatusWhere("repair", "s");
       const qaStatusFilter = `(${foxProStatusWhere("qa_pending", "s")} OR ${foxProStatusWhere("qa_passed", "s")} OR ${repairStatusFilter})`;
-      const syncStatusCase = `CASE
+      const sourceStatusCase = `CASE
                        WHEN ${foxProStatusWhere("qa_passed", "s")} THEN 'passed'
                        WHEN s."Status" ILIKE '%escalat%' THEN 'escalated'
                        WHEN ${repairStatusFilter} THEN 'failed'
                        ELSE 'pending' END`;
-      let selectedStatusFilter = qaStatusFilter;
-      if (statusFilter === "passed") selectedStatusFilter = foxProStatusWhere("qa_passed", "s");
-      else if (statusFilter === "failed") selectedStatusFilter = repairStatusFilter;
-      else if (statusFilter === "escalated") selectedStatusFilter = `s."Status" ILIKE '%escalat%'`;
-      else if (statusFilter === "pending") selectedStatusFilter = foxProStatusWhere("qa_pending", "s");
-      const whereSQL = `WHERE ${selectedStatusFilter}`;
+      const effectiveStatusCase = `CASE
+                       WHEN d.result = 'PASSED' THEN 'passed'
+                       WHEN d.result = 'FAILED' THEN 'failed'
+                       WHEN d.result = 'ESCALATED' THEN 'escalated'
+                       ELSE ${sourceStatusCase} END`;
+      const effectiveWhere = ["passed", "failed", "escalated", "pending"].includes(statusFilter ?? "")
+        ? `WHERE status = '${statusFilter}'`
+        : "";
+      const cteSQL = `WITH latest_decisions AS (
+             SELECT DISTINCT ON ("entityId")
+                    "entityId"::integer as sync_id,
+                    details->>'result' as result,
+                    details->>'notes' as notes,
+                    "userId" as reviewed_by,
+                    "createdAt" as reviewed_at
+             FROM audit_logs
+             WHERE action = 'SYNC_QA_REVIEW' AND entity = 'sync_sales_data'
+             ORDER BY "entityId", "createdAt" DESC
+           ),
+           qa_items AS (
+             SELECT s._sync_id::integer as id, s._sync_id::integer as "saleId",
+                    CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
+                    COALESCE(s."ProductName", 'Unknown') as "productName",
+                    COALESCE(s."SalesAgentUserName", '') as "agentName",
+                    COALESCE(NULLIF((SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
+                     FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1), 0),
+                     CASE COALESCE(s."ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
+                    ) as "premiumAmount",
+                    ${effectiveStatusCase} as status,
+                    COALESCE(d.result, s."Status") as verdict,
+                    d.notes, d.reviewed_by as "reviewedBy", d.reviewed_at as "reviewedAt",
+                    s._synced_at as "createdAt"
+             FROM sync_sales_data s
+             LEFT JOIN latest_decisions d ON d.sync_id = s._sync_id
+             WHERE (${qaStatusFilter} OR d.result IS NOT NULL)
+           )`;
 
       const [rows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
-          `SELECT s._sync_id::integer as id, s._sync_id::integer as "saleId",
-                  CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
-                  COALESCE(s."ProductName", 'Unknown') as "productName",
-                  COALESCE(s."SalesAgentUserName", '') as "agentName",
-                  COALESCE(NULLIF((SELECT CASE WHEN sp."Amount" ~ '^[0-9]+(\\.[0-9]+)?$' THEN sp."Amount"::numeric ELSE 0 END
-                   FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1), 0),
-                   CASE COALESCE(s."ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
-                  ) as "premiumAmount",
-                  ${syncStatusCase} as status,
-                  s."Status" as verdict, NULL::text as notes, NULL::text as "reviewedBy", NULL::text as "reviewedAt",
-                  s._synced_at as "createdAt"
-           FROM sync_sales_data s ${whereSQL} ORDER BY s._synced_at DESC LIMIT $1 OFFSET $2`,
+          `${cteSQL}
+           SELECT * FROM qa_items ${effectiveWhere}
+           ORDER BY "createdAt" DESC LIMIT $1 OFFSET $2`,
           limit, skip
         ),
-        prisma.$queryRawUnsafe<[{ n: bigint }]>(`SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(
+          `${cteSQL}
+           SELECT COUNT(*) as n FROM qa_items ${effectiveWhere}`
+        ),
       ]);
       const total = Number(countRow[0].n);
       return res.json({ success: true, data: { qualityChecks: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } } });

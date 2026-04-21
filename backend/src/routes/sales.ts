@@ -18,6 +18,14 @@ import {
 
 const router = Router();
 
+async function canViewOperations(userId: number): Promise<boolean> {
+  const ambassador = await prisma.ambassador.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  return ambassador?.role === "ADMIN" || ambassador?.role === "QA_OFFICER";
+}
+
 const nativeSalesStatusToFoxProGroup: Record<string, string> = {
   NEW: "new",
   QA_PENDING: "qa_pending",
@@ -268,7 +276,11 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
 // ─── GET /api/sales/status-dictionary ───────────────────────────────────────
 
-router.get("/status-dictionary", async (_req: AuthRequest, res: Response) => {
+router.get("/status-dictionary", async (req: AuthRequest, res: Response) => {
+  if (!(await canViewOperations(req.ambassador!.id))) {
+    res.status(403).json({ success: false, error: "Only operations users can access the status dictionary." });
+    return;
+  }
   res.json({ success: true, data: { statuses: FOXPRO_STATUS_DEFINITIONS } });
 });
 
@@ -276,6 +288,11 @@ router.get("/status-dictionary", async (_req: AuthRequest, res: Response) => {
 
 router.get("/export-status", async (req: AuthRequest, res: Response) => {
   try {
+    if (!(await canViewOperations(req.ambassador!.id))) {
+      res.status(403).json({ success: false, error: "Only operations users can access export status." });
+      return;
+    }
+
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
