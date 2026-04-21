@@ -134,6 +134,21 @@ async function assertDashboardContent(vite, setRole) {
   }
 }
 
+async function assertCallCentreControlContent(vite, setRole) {
+  const { default: Agents } = await vite.ssrLoadModule('/src/pages/admin/Agents.tsx')
+  setRole('ADMIN')
+  const text = normalizeRenderedText(renderToString(React.createElement(Agents)))
+  assertIncludesAll(text, '/admin/agents call centre control coverage', [
+    'Call centre control page',
+    'Add New Agents',
+    'Active agents drop down list',
+    'Assign Agents',
+    'Select Campaigns',
+    'Leads/Day',
+    'Date Stamped',
+  ])
+}
+
 async function assertRenderedSidebar(vite, setRole) {
   const { default: Sidebar } = await vite.ssrLoadModule('/src/components/layout/Sidebar.tsx')
   const renderSidebar = (role) => {
@@ -193,6 +208,7 @@ async function main() {
     const setRole = (role) => authModule.setSmokeUser({ ...smokeUserBase, role })
     await assertRoleNavigation(sections)
     await assertDashboardContent(vite, setRole)
+    await assertCallCentreControlContent(vite, setRole)
     await assertRenderedSidebar(vite, setRole)
     console.log('Admin UI smoke checks passed')
   } finally {

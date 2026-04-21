@@ -598,6 +598,17 @@ export interface Agent {
   createdAt: string
 }
 
+export interface CreateAgentPayload {
+  firstName: string
+  lastName: string
+  mobileNo: string
+  password: string
+  role?: 'AGENT' | 'QA_OFFICER' | 'ADMIN'
+  province?: string
+  department?: string
+  campaignId?: number | null
+}
+
 export interface WelcomePack {
   id: number
   clientId: number
@@ -1064,10 +1075,8 @@ export async function markCommissionPaid(id: number) {
 
 // ─── Agents ────────────────────────────────────────────────────────
 
-export async function getAgents() {
-  const res = await request<{ agents: any[]; pagination: any }>('/admin/agents')
-  const agents = res.data!.agents ?? []
-  return agents.map((a: any) => ({
+function mapAgent(a: any): Agent {
+  return {
     id: a.id,
     firstName: a.firstName,
     lastName: a.lastName,
@@ -1082,7 +1091,21 @@ export async function getAgents() {
     assignedCampaignId: a.assignedCampaignId ?? null,
     assignedCampaignName: a.assignedCampaignName ?? a.assignedCampaign?.name ?? null,
     createdAt: a.createdAt,
-  })) as Agent[]
+  }
+}
+
+export async function getAgents() {
+  const res = await request<{ agents: any[]; pagination: any }>('/admin/agents')
+  const agents = res.data!.agents ?? []
+  return agents.map(mapAgent)
+}
+
+export async function createAgent(payload: CreateAgentPayload) {
+  const res = await request<any>('/admin/agents', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return mapAgent(res.data!)
 }
 
 export async function getAgent(id: number) {

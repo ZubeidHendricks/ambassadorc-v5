@@ -1,4 +1,6 @@
 import { Router, Response } from "express";
+import bcrypt from "bcryptjs";
+import { z } from "zod";
 import prisma from "../lib/prisma";
 import { updateAgentTierSchema, updateAgentRoleSchema } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
@@ -18,6 +20,27 @@ async function isAdmin(userId: number): Promise<boolean> {
   });
   return ambassador?.role === "ADMIN";
 }
+
+const createCallCentreAgentSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(100),
+  lastName: z.string().min(1, "Last name is required").max(100),
+  mobileNo: z.string().regex(/^0\d{9}$/, "Mobile number must be 10 digits starting with 0"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["AGENT", "QA_OFFICER", "ADMIN"]).default("AGENT"),
+  province: z.enum([
+    "EASTERN_CAPE",
+    "FREE_STATE",
+    "GAUTENG",
+    "KWAZULU_NATAL",
+    "LIMPOPO",
+    "MPUMALANGA",
+    "NORTH_WEST",
+    "NORTHERN_CAPE",
+    "WESTERN_CAPE",
+  ]).default("GAUTENG"),
+  department: z.string().min(1).max(100).default("Call Centre"),
+  campaignId: z.number().int().positive().nullable().optional(),
+});
 
 // ─── GET /api/admin/stats ──────────────────────────────────────────────────
 
@@ -312,6 +335,94 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
       success: false,
       error: "An unexpected error occurred.",
     });
+  }
+});
+
+router.post("/agents", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!(await isAdmin(req.ambassador!.id))) {
+      res.status(403).json({ success: false, error: "Only administrators can add agents." });
+      return;
+    }
+
+    const validation = createCallCentreAgentSchema.safeParse(req.body);
+    if (!validation.success) {
+      res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        details: validation.error.flatten().fieldErrors,
+      });
+      return;
+    }
+
+    const data = validation.data;
+    const existing = await prisma.ambassador.findUnique({ where: { mobileNo: data.mobileNo } });
+    if (existing) {
+      res.status(409).json({ success: false, error: "An agent with this mobile number already exists." });
+      return;
+    }
+
+    if (data.campaignId) {
+      const campaign = await prisma.salesCampaign.findUnique({ where: { id: data.campaignId } });
+      if (!campaign || !campaign.isActive) {
+        res.status(400).json({ success: false, error: "Select an active campaign for this agent." });
+        return;
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 12);
+    const agent = await prisma.ambassador.create({
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        mobileNo: data.mobileNo,
+        passwordHash,
+        province: data.province,
+        department: data.department,
+        acceptTerms: true,
+        isActive: true,
+        role: data.role,
+        tier: "Bronze",
+        assignedCampaignId: data.campaignId ?? null,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        mobileNo: true,
+        role: true,
+        tier: true,
+        isActive: true,
+        assignedCampaignId: true,
+        assignedCampaign: { select: { id: true, name: true } },
+        createdAt: true,
+        _count: { select: { sales: true, leads: true, referralBatches: true } },
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: String(req.ambassador!.id),
+        action: "CREATE_CALL_CENTRE_AGENT",
+        entity: "Ambassador",
+        entityId: String(agent.id),
+        details: { role: agent.role, assignedCampaignId: agent.assignedCampaignId },
+        ipAddress: req.ip ?? null,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...agent,
+        assignedCampaignName: agent.assignedCampaign?.name ?? null,
+        status: agent.isActive ? "active" : "inactive",
+        metrics: { totalCommission: 0, approvedSales: 0 },
+      },
+    });
+  } catch (error) {
+    console.error("Create agent error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 
