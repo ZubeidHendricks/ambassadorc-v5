@@ -90,6 +90,9 @@ export default function Sales() {
           <p className="mt-1 text-sm text-gray-500">
             Follow the FoxPro operations flow from sales capture through QA, export, Q-Link upload, repair, and cancellation.
           </p>
+          <p className="mt-1 text-xs text-gray-400">
+            Native records use best-effort stages; exact export outcome granularity is available when FoxPro sync status is present.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <select
