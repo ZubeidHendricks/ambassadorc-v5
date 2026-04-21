@@ -35,6 +35,7 @@ import SqlQuery from '@/pages/admin/SqlQuery'
 import SyncDashboard from '@/pages/admin/SyncDashboard'
 import Reports from '@/pages/admin/Reports'
 import ExportStatus from '@/pages/admin/ExportStatus'
+import AmbassadorBackend from '@/pages/admin/AmbassadorBackend'
 
 export default function App() {
   return (
@@ -281,6 +282,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['ADMIN', 'QA_OFFICER']}>
               <ExportStatus />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/ambassador-backend"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <AmbassadorBackend />
             </ProtectedRoute>
           }
         />

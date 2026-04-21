@@ -32,6 +32,7 @@ import {
   Wallet,
   FileBarChart,
   FileCheck2,
+  Landmark,
 } from 'lucide-react'
 
 interface NavItem {
@@ -85,6 +86,7 @@ const sections: NavSection[] = [
     items: [
       { to: '/admin/products', label: 'Products', icon: Package },
       { to: '/admin/premium-changes', label: 'Premium Changes', icon: DollarSign },
+      { to: '/admin/ambassador-backend', label: 'Ambassador Backend', icon: Landmark },
       { to: '/admin/agents', label: 'Agents', icon: UserCheck },
       { to: '/admin/ai-agents', label: 'AI Agents', icon: Bot },
       { to: '/admin/workflows', label: 'Workflows', icon: GitBranch },

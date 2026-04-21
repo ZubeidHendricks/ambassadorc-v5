@@ -95,20 +95,19 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
       );
 
     // Earnings breakdown
-    const [paidReferralLeads, paidMemberSignups, convertedReferrals, referralBatchCount] = await Promise.all([
+    const [paidReferralLeads, paidMemberSignups, convertedReferrals, referralBatchCount, referralLeadSubmissions] = await Promise.all([
       prisma.lead.count({ where: { ambassadorId, status: "PAID", type: "REFERRAL_LEAD" } }),
       prisma.lead.count({ where: { ambassadorId, status: "PAID", type: "MEMBER_SIGNUP" } }),
       prisma.referral.count({ where: { ambassadorId, status: "CONVERTED" } }),
       prisma.referral.count({ where: { ambassadorId } }),
+      prisma.lead.count({ where: { ambassadorId, type: "REFERRAL_LEAD" } }),
     ]);
 
-    // R100 per batch of 10 referrals (regardless of outcome)
-    const referralBatchEarnings = Math.floor(referralBatchCount / 10) * 100;
-    // R100 per paid referral lead
-    const referralLeadEarnings = paidReferralLeads * 100;
-    // R100 per confirmed member signup conversion
+    const totalReferralLeadSubmissions = referralBatchCount + referralLeadSubmissions;
+    const referralBatchEarnings = Math.floor(totalReferralLeadSubmissions / 10) * 100;
+    const referralLeadEarnings = referralBatchEarnings;
     const memberSignupEarnings = paidMemberSignups * 100;
-    const totalEarnings = referralBatchEarnings + referralLeadEarnings + memberSignupEarnings;
+    const totalEarnings = referralBatchEarnings + memberSignupEarnings;
 
     // Ambassador payment records (FNB Cash Send history)
     const ambassadorPayments = await prisma.ambassadorPayment.findMany({
@@ -126,6 +125,42 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
       },
     });
 
+    const yearStart = new Date(currentYear, 0, 1);
+    const [yearReferrals, yearLeads] = await Promise.all([
+      prisma.referral.findMany({
+        where: { ambassadorId, createdAt: { gte: yearStart } },
+        select: { createdAt: true },
+      }),
+      prisma.lead.findMany({
+        where: { ambassadorId, createdAt: { gte: yearStart } },
+        select: { type: true, status: true, createdAt: true },
+      }),
+    ]);
+
+    const activityEarnings = Array.from({ length: 12 }, (_, index) => {
+      const month = index + 1;
+      const referralCount =
+        yearReferrals.filter((referral) => referral.createdAt.getMonth() === index).length +
+        yearLeads.filter((lead) => lead.type === "REFERRAL_LEAD" && lead.createdAt.getMonth() === index).length;
+      const successfulMemberSignups = yearLeads.filter(
+        (lead) => lead.type === "MEMBER_SIGNUP" && lead.status === "PAID" && lead.createdAt.getMonth() === index
+      ).length;
+      const referralPaymentMade = Math.floor(referralCount / 10) * 100;
+      const memberSignupPayment = successfulMemberSignups * 100;
+      const memberSignupBonusPaid = successfulMemberSignups >= 10 ? 1000 : 0;
+
+      return {
+        month,
+        year: currentYear,
+        referralLeadsSubmitted: referralCount,
+        referralPaymentMade,
+        successfulMemberSignups,
+        memberSignupPayment,
+        memberSignupBonusPaid,
+        totalPayment: referralPaymentMade + memberSignupPayment + memberSignupBonusPaid,
+      };
+    });
+
     res.json({
       success: true,
       data: {
@@ -141,13 +176,14 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
           referralLeadEarnings,
           memberSignupEarnings,
           totalEarnings,
-          referralBatchCount,
-          completedBatches: Math.floor(referralBatchCount / 10),
-          referralsToNextBatch: 10 - (referralBatchCount % 10),
+          referralBatchCount: totalReferralLeadSubmissions,
+          completedBatches: Math.floor(totalReferralLeadSubmissions / 10),
+          referralsToNextBatch: totalReferralLeadSubmissions % 10 === 0 ? 0 : 10 - (totalReferralLeadSubmissions % 10),
           paidReferralLeads,
           paidMemberSignups,
           convertedReferrals,
         },
+        activityEarnings,
         recentPayments: ambassadorPayments.map((p) => ({
           ...p,
           amount: Number(p.amount),

@@ -201,12 +201,87 @@ export interface AmbassadorPayment {
   createdAt: string
 }
 
+export interface AmbassadorOperationsRow {
+  ambassadorId: number
+  name: string
+  surname: string
+  mobileNo: string
+  referrals: number
+  confirmedNumbers: number
+  memberSignup: number
+  sales: number
+  valueRands: number
+  bonus: number
+  totalForPayment: number
+  alreadyPaid: number
+  pendingPayment: number
+  amountDue: number
+  paymentStatus: string
+  latestPayment?: AmbassadorPayment
+}
+
+export interface AmbassadorOperationsSummary {
+  referrals: number
+  memberSignups: number
+  sales: number
+  totalEarned: number
+  pendingPayment: number
+  amountDue: number
+}
+
 export async function getAmbassadorPayments(): Promise<{
   payments: AmbassadorPayment[]
   summary: { totalPaid: number; totalPending: number }
 }> {
   const res = await request<any>('/ambassador-payments')
   return res.data!
+}
+
+export async function getAmbassadorOperations(): Promise<{
+  rows: AmbassadorOperationsRow[]
+  summary: AmbassadorOperationsSummary
+}> {
+  const res = await request<any>('/ambassador-payments/operations')
+  return res.data!
+}
+
+export async function generateAmbassadorPayments() {
+  const res = await request<{ batchRef: string; payments: AmbassadorPayment[] }>('/ambassador-payments/generate-due', {
+    method: 'POST',
+  })
+  return res.data!
+}
+
+export async function authoriseAmbassadorPayment(id: number) {
+  const res = await request<AmbassadorPayment>(`/ambassador-payments/${id}/authorise`, {
+    method: 'PUT',
+  })
+  return res.data!
+}
+
+export async function importAmbassadorPaidFile(id: number) {
+  const res = await request<AmbassadorPayment>(`/ambassador-payments/${id}/import-paid`, {
+    method: 'PUT',
+  })
+  return res.data!
+}
+
+export function downloadAmbassadorFnbCsv() {
+  const token = getToken()
+  const url = `/api/ambassador-payments/export-fnb.csv`
+  fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    .then((r) => r.blob())
+    .then((blob) => {
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      const date = new Date().toISOString().split('T')[0]
+      a.href = blobUrl
+      a.download = `Ambassador_FNB_Payments_${date}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(blobUrl)
+    })
 }
 
 export function downloadEarningsReport() {
@@ -237,12 +312,33 @@ export interface DashboardStats {
   totalEarnings: number
   thisMonthReferrals: number
   thisMonthLeads: number
+  earnings?: {
+    referralBatchEarnings: number
+    memberSignupEarnings: number
+    totalEarnings: number
+    completedBatches: number
+    referralsToNextBatch: number
+    paidMemberSignups: number
+  }
+  activityEarnings?: AmbassadorActivityEarning[]
+  recentPayments?: AmbassadorPayment[]
 }
 
 export interface MonthlyStats {
   month: string
   referrals: number
   leads: number
+}
+
+export interface AmbassadorActivityEarning {
+  month: number
+  year: number
+  referralLeadsSubmitted: number
+  referralPaymentMade: number
+  successfulMemberSignups: number
+  memberSignupPayment: number
+  memberSignupBonusPaid: number
+  totalPayment: number
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
@@ -254,6 +350,9 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     totalEarnings: d.earnings?.totalEarnings ?? 0,
     thisMonthReferrals: d.monthlyStats?.[0]?.referralCount ?? 0,
     thisMonthLeads: d.monthlyStats?.[0]?.leadCount ?? 0,
+    earnings: d.earnings,
+    activityEarnings: d.activityEarnings ?? [],
+    recentPayments: d.recentPayments ?? [],
   }
 }
 

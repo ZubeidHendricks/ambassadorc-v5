@@ -30,6 +30,8 @@ import {
   Star,
   Target,
   ArrowRight,
+  CalendarDays,
+  CreditCard,
 } from 'lucide-react'
 
 export default function Dashboard() {
@@ -54,6 +56,8 @@ export default function Dashboard() {
           totalEarnings: 0,
           thisMonthReferrals: 0,
           thisMonthLeads: 0,
+          activityEarnings: [],
+          recentPayments: [],
         })
       } finally {
         setLoading(false)
@@ -161,6 +165,55 @@ export default function Dashboard() {
         />
       </div>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="win11-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-blue-50 p-3 text-primary">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Referral lead rule</p>
+              <p className="text-lg font-bold text-gray-900">
+                R{(stats?.earnings?.referralBatchEarnings ?? 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-gray-500">
+            R10 per lead, paid in batches of 10. {stats?.earnings?.referralsToNextBatch ?? 0} to next batch.
+          </p>
+        </div>
+        <div className="win11-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-purple-50 p-3 text-purple-600">
+              <UserPlus className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Member signup rule</p>
+              <p className="text-lg font-bold text-gray-900">
+                R{(stats?.earnings?.memberSignupEarnings ?? 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-gray-500">
+            R100 per successful member signup. {stats?.earnings?.paidMemberSignups ?? 0} successful signups counted.
+          </p>
+        </div>
+        <div className="win11-card p-5">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-green-50 p-3 text-success">
+              <CreditCard className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Payment cycle</p>
+              <p className="text-lg font-bold text-gray-900">{stats?.recentPayments?.[0]?.status ?? 'No payments yet'}</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-gray-500">
+            Processed payments appear after the backend exports, authorises, and imports the FNB paid file.
+          </p>
+        </div>
+      </div>
+
       {/* Chart & Quick Actions */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Chart */}
@@ -244,6 +297,48 @@ export default function Dashboard() {
               </Link>
             </Button>
           </div>
+        </div>
+      </div>
+
+      <div className="win11-card overflow-hidden">
+        <div className="border-b border-gray-100 p-6">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            <h2 className="text-[15px] font-semibold text-gray-900">Ambassador Activity & Earnings Dashboard</h2>
+          </div>
+          <p className="mt-1 text-sm text-gray-500">
+            Monthly view from the workbook: submitted referral leads, successful member signups, bonuses and total payment.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100 text-sm">
+            <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <tr>
+                <th className="px-4 py-3">Month</th>
+                <th className="px-4 py-3">Referral Leads Submitted</th>
+                <th className="px-4 py-3">Payment Made</th>
+                <th className="px-4 py-3">Successful Member Signups</th>
+                <th className="px-4 py-3">Payment Made</th>
+                <th className="px-4 py-3">Signup Bonus Paid</th>
+                <th className="px-4 py-3">Total Payment</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 bg-white">
+              {(stats?.activityEarnings ?? []).map((row) => (
+                <tr key={`${row.year}-${row.month}`}>
+                  <td className="px-4 py-3 font-medium text-gray-900">
+                    {new Date(row.year, row.month - 1, 1).toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' })}
+                  </td>
+                  <td className="px-4 py-3">{row.referralLeadsSubmitted}</td>
+                  <td className="px-4 py-3">R{row.referralPaymentMade.toLocaleString()}</td>
+                  <td className="px-4 py-3">{row.successfulMemberSignups}</td>
+                  <td className="px-4 py-3">R{row.memberSignupPayment.toLocaleString()}</td>
+                  <td className="px-4 py-3">R{row.memberSignupBonusPaid.toLocaleString()}</td>
+                  <td className="px-4 py-3 font-semibold text-gray-900">R{row.totalPayment.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
