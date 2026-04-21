@@ -1,169 +1,188 @@
-import { useState, useEffect } from 'react'
-import { CheckCircle, XCircle } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { DataTable, type Column } from '@/components/ui/data-table'
-import { Modal } from '@/components/ui/modal'
 import {
-  getPremiumChanges,
-  approvePremiumChange,
-  rejectPremiumChange,
-  type PremiumChange,
+  getProducts,
+  updateProduct,
+  type Product,
 } from '@/lib/api'
 
+type WorksheetProduct = {
+  productName: string
+  currentPremium: number
+}
+
+type PremiumDraft = {
+  premium: string
+  effectiveDate: string
+  status: string
+  error: string
+}
+
+const worksheetProducts: WorksheetProduct[] = [
+  { productName: 'Lifesaver 24 Basic', currentPremium: 259 },
+  { productName: 'Lifesaver 24 Plus', currentPremium: 349 },
+  { productName: 'Lifesaver legal Basic', currentPremium: 179 },
+  { productName: 'Lifesaver legal Plus', currentPremium: 299 },
+]
+
+function normalizeProductName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '')
+}
+
+function createInitialDrafts() {
+  return Object.fromEntries(
+    worksheetProducts.map((product) => [
+      product.productName,
+      { premium: '', effectiveDate: '', status: '', error: '' },
+    ])
+  ) as Record<string, PremiumDraft>
+}
+
+function productMatches(product: Product, worksheetProduct: WorksheetProduct) {
+  return normalizeProductName(product.name) === normalizeProductName(worksheetProduct.productName)
+}
+
 export default function PremiumChanges() {
-  const [changes, setChanges] = useState<PremiumChange[]>([])
-  const [filter, setFilter] = useState<string>('')
-  const [rejectModal, setRejectModal] = useState(false)
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [reason, setReason] = useState('')
-  const [processing, setProcessing] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const [drafts, setDrafts] = useState<Record<string, PremiumDraft>>(createInitialDrafts)
+  const [loading, setLoading] = useState(true)
+  const [savingProduct, setSavingProduct] = useState('')
 
   useEffect(() => {
-    getPremiumChanges(filter || undefined).then(setChanges).catch(() => {})
-  }, [filter])
+    getProducts(1, 100)
+      .then((result) => setProducts(result.data))
+      .catch(() => setProducts([]))
+      .finally(() => setLoading(false))
+  }, [])
 
-  const handleApprove = async (id: number) => {
-    setProcessing(true)
-    try {
-      await approvePremiumChange(id)
-      setChanges((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, status: 'approved' } : c))
-      )
-    } catch {
-      // handle
-    } finally {
-      setProcessing(false)
-    }
-  }
+  const rows = useMemo(() => {
+    return worksheetProducts.map((worksheetProduct) => {
+      const matchedProduct = products.find((product) => productMatches(product, worksheetProduct))
+      return {
+        ...worksheetProduct,
+        product: matchedProduct,
+        currentPremium: matchedProduct?.premiumAmount ?? worksheetProduct.currentPremium,
+      }
+    })
+  }, [products])
 
-  const handleReject = async () => {
-    if (!selectedId) return
-    setProcessing(true)
-    try {
-      await rejectPremiumChange(selectedId, reason)
-      setChanges((prev) =>
-        prev.map((c) => (c.id === selectedId ? { ...c, status: 'rejected' } : c))
-      )
-      setRejectModal(false)
-      setReason('')
-    } catch {
-      // handle
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const columns: Column<PremiumChange>[] = [
-    { key: 'productName', header: 'Product', render: (r) => <span className="font-medium text-gray-900">{r.productName}</span> },
-    { key: 'tierName', header: 'Tier' },
-    { key: 'currentAmount', header: 'Current', render: (r) => `R${r.currentAmount}` },
-    { key: 'newAmount', header: 'New', render: (r) => <span className="font-semibold">{`R${r.newAmount}`}</span> },
-    {
-      key: 'changeType',
-      header: 'Change',
-      render: (r) => {
-        const diff = r.newAmount - r.currentAmount
-        const pct = r.currentAmount > 0 ? ((diff / r.currentAmount) * 100).toFixed(1) : null
-        return (
-          <span className={diff > 0 ? 'text-red-600 font-medium' : diff < 0 ? 'text-emerald-600 font-medium' : 'text-gray-600'}>
-            {diff !== 0 ? `${diff > 0 ? '+' : ''}R${Math.abs(diff).toFixed(2)}` : r.changeType}
-            {pct !== null ? ` (${diff > 0 ? '+' : ''}${pct}%)` : ''}
-          </span>
-        )
+  function updateDraft(productName: string, updates: Partial<PremiumDraft>) {
+    setDrafts((current) => ({
+      ...current,
+      [productName]: {
+        ...current[productName],
+        ...updates,
+        status: updates.status ?? current[productName].status,
+        error: updates.error ?? current[productName].error,
       },
-    },
-    { key: 'effectiveDate', header: 'Effective', render: (r) => new Date(r.effectiveDate).toLocaleDateString('en-ZA') },
-    { key: 'affectedPolicies', header: 'Affected', render: (r) => <span className="text-gray-600">{r.affectedPolicies || '-'} policies</span> },
-    { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
-    {
-      key: 'actions',
-      header: '',
-      sortable: false,
-      render: (r) =>
-        r.status === 'pending' ? (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                handleApprove(r.id)
-              }}
-              disabled={processing}
-              className="rounded-lg p-1.5 text-emerald-600 hover:bg-emerald-50"
-              title="Approve"
-            >
-              <CheckCircle className="h-5 w-5" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setSelectedId(r.id)
-                setRejectModal(true)
-              }}
-              disabled={processing}
-              className="rounded-lg p-1.5 text-red-600 hover:bg-red-50"
-              title="Reject"
-            >
-              <XCircle className="h-5 w-5" />
-            </button>
-          </div>
-        ) : null,
-    },
-  ]
+    }))
+  }
 
-  const filters = ['', 'pending', 'approved', 'rejected']
+  async function handleUpdate(row: WorksheetProduct & { product?: Product }) {
+    const draft = drafts[row.productName]
+    const nextPremium = Number(draft.premium)
+    if (!draft.premium || !Number.isFinite(nextPremium) || nextPremium <= 0) {
+      updateDraft(row.productName, { error: 'Enter a valid Change Premium amount.', status: '' })
+      return
+    }
+    if (!draft.effectiveDate) {
+      updateDraft(row.productName, { error: 'Select an Effective Date.', status: '' })
+      return
+    }
+    if (!row.product) {
+      updateDraft(row.productName, { error: 'This Foxbill product is not linked to the product table yet.', status: '' })
+      return
+    }
+
+    setSavingProduct(row.productName)
+    updateDraft(row.productName, { error: '', status: '' })
+    try {
+      const updated = await updateProduct(row.product.id, { premiumAmount: nextPremium })
+      setProducts((current) => current.map((product) => (product.id === updated.id ? updated : product)))
+      updateDraft(row.productName, { premium: '', status: `Updated effective ${new Date(draft.effectiveDate).toLocaleDateString('en-ZA')}` })
+    } catch {
+      updateDraft(row.productName, { error: 'Could not update this premium. Please try again.', status: '' })
+    } finally {
+      setSavingProduct('')
+    }
+  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Premium Changes</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Review and manage premium adjustment requests.
-        </p>
-      </div>
-
-      <div className="flex gap-2">
-        {filters.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              filter === f
-                ? 'bg-primary text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {f || 'All'}
-          </button>
-        ))}
-      </div>
-
-      <DataTable data={changes} columns={columns} pageSize={10} />
-
-      <Modal
-        open={rejectModal}
-        onOpenChange={setRejectModal}
-        title="Reject Premium Change"
-        description="Please provide a reason for rejecting this change."
-      >
-        <div className="space-y-4">
-          <textarea
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Enter rejection reason..."
-            rows={3}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setRejectModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={processing || !reason.trim()}>
-              {processing ? 'Rejecting...' : 'Reject'}
-            </Button>
-          </div>
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-200 px-4 py-3">
+          <p className="text-sm font-medium uppercase tracking-wide text-gray-900">
+            NICOLE CAN MANAGE "FOXBILL" PREMIUM INCREASES FROM HERE
+          </p>
         </div>
-      </Modal>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th className="border-b border-r border-gray-200 px-3 py-8 text-left text-sm font-bold uppercase tracking-wide text-gray-900" colSpan={6}>
+                  UPDATE PRODUCT PREMIUM
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => {
+                const draft = drafts[row.productName]
+                const saving = savingProduct === row.productName
+                return (
+                  <tr key={row.productName} className={index === 2 ? 'border-t border-gray-200' : ''}>
+                    <td className="w-[34%] border-r border-gray-200 px-3 py-2 text-gray-900">{row.productName}</td>
+                    <td className="w-20 border-r border-gray-200 px-3 py-2 text-right text-gray-900">{row.currentPremium.toLocaleString('en-ZA')}</td>
+                    <td className="w-36 border-r border-gray-200 px-3 py-2 text-gray-900">Change Premium</td>
+                    <td className="w-32 border-r border-gray-200 px-0 py-0">
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={draft.premium}
+                        onChange={(event) => updateDraft(row.productName, { premium: event.target.value, error: '', status: '' })}
+                        className="h-11 w-full border-2 border-gray-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                        aria-label={`${row.productName} Change Premium`}
+                      />
+                    </td>
+                    <td className="w-44 border-r border-gray-200 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="whitespace-nowrap text-gray-900">Effective Date</span>
+                        <input
+                          type="date"
+                          value={draft.effectiveDate}
+                          onChange={(event) => updateDraft(row.productName, { effectiveDate: event.target.value, error: '', status: '' })}
+                          className="h-9 min-w-36 rounded border border-gray-300 px-2 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                          aria-label={`${row.productName} Effective Date`}
+                        />
+                      </div>
+                    </td>
+                    <td className="w-28 px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdate(row)}
+                        disabled={loading || saving}
+                        className="font-semibold uppercase tracking-wide text-yellow-600 hover:text-yellow-700 disabled:cursor-not-allowed disabled:text-gray-400"
+                      >
+                        {saving ? 'UPDATING' : 'UPDATE'}
+                      </button>
+                      {(draft.error || draft.status) && (
+                        <p className={`mt-1 text-xs ${draft.error ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {draft.error || draft.status}
+                        </p>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+        <span className="font-semibold">Foxbill premium workflow:</span> enter the new premium, choose the effective date, then select UPDATE for the product row Nicole is changing.
+      </div>
     </div>
   )
 }

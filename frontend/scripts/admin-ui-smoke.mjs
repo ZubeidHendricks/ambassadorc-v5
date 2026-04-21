@@ -16,6 +16,7 @@ function assert(condition, message) {
 function normalizeRenderedText(html) {
   return html
     .replaceAll('&amp;', '&')
+    .replaceAll('&quot;', '"')
     .replaceAll('&#x27;', "'")
     .replace(/<[^>]*>/g, ' ')
     .replace(/\s+/g, ' ')
@@ -207,6 +208,23 @@ async function assertExportStatusContent(vite, setRole) {
   ])
 }
 
+async function assertPremiumIncreaseContent(vite, setRole) {
+  const { default: PremiumChanges } = await vite.ssrLoadModule('/src/pages/admin/PremiumChanges.tsx')
+  setRole('ADMIN')
+  const text = normalizeRenderedText(renderToString(React.createElement(PremiumChanges)))
+  assertIncludesAll(text, '/admin/premium-changes worksheet coverage', [
+    'NICOLE CAN MANAGE "FOXBILL" PREMIUM INCREASES FROM HERE',
+    'UPDATE PRODUCT PREMIUM',
+    'Lifesaver 24 Basic',
+    'Lifesaver 24 Plus',
+    'Lifesaver legal Basic',
+    'Lifesaver legal Plus',
+    'Change Premium',
+    'Effective Date',
+    'UPDATE',
+  ])
+}
+
 async function assertRenderedSidebar(vite, setRole) {
   const { default: Sidebar } = await vite.ssrLoadModule('/src/components/layout/Sidebar.tsx')
   const renderSidebar = (role) => {
@@ -270,6 +288,7 @@ async function main() {
     await assertSalesAgentContent(vite, setRole)
     await assertQaMailboxContent(vite, setRole)
     await assertExportStatusContent(vite, setRole)
+    await assertPremiumIncreaseContent(vite, setRole)
     await assertRenderedSidebar(vite, setRole)
     console.log('Admin UI smoke checks passed')
   } finally {

@@ -12,6 +12,7 @@ const adminPaths = [
   '/admin/qa',
   '/admin/agents',
   '/admin/export-status',
+  '/admin/premium-changes',
   '/admin/reports',
   '/admin/ambassador-backend',
   '/admin/documents',
