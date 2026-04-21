@@ -23,8 +23,8 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const syncAvailable = await hasSyncTables();
 
     if (syncAvailable) {
-      const qaStatusFilter = `(${foxProStatusWhere("qa_pending", "s")} OR ${foxProStatusWhere("qa_passed", "s")})`;
       const repairStatusFilter = foxProStatusWhere("repair", "s");
+      const qaStatusFilter = `(${foxProStatusWhere("qa_pending", "s")} OR ${foxProStatusWhere("qa_passed", "s")} OR ${repairStatusFilter})`;
       const syncStatusCase = `CASE
                        WHEN ${foxProStatusWhere("qa_passed", "s")} THEN 'passed'
                        WHEN s."Status" ILIKE '%escalat%' THEN 'escalated'
@@ -231,6 +231,15 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
       res.status(400).json({ success: false, error: "Invalid QA check ID." });
+      return;
+    }
+
+    const reviewer = await prisma.ambassador.findUnique({
+      where: { id: req.ambassador!.id },
+      select: { role: true },
+    });
+    if (!reviewer || (reviewer.role !== "ADMIN" && reviewer.role !== "QA_OFFICER")) {
+      res.status(403).json({ success: false, error: "Only QA officers and administrators can submit QA verdicts." });
       return;
     }
 

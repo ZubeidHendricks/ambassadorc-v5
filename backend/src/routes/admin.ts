@@ -188,7 +188,10 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
         prisma.ambassador.findMany({
           skip, take: limit,
           orderBy: { createdAt: "desc" },
-          include: { _count: { select: { sales: true, leads: true, referralBatches: true } } },
+          include: {
+            _count: { select: { sales: true, leads: true, referralBatches: true } },
+            assignedCampaign: { select: { id: true, name: true } },
+          },
         }),
         prisma.ambassador.count(),
       ]);
@@ -252,7 +255,7 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
           totalEarnings: earnings,
           status: a.isActive ? "active" : "inactive",
           assignedCampaignId: a.assignedCampaignId,
-          assignedCampaignName: null,
+          assignedCampaignName: a.assignedCampaign?.name ?? null,
           createdAt: a.createdAt,
           _count: { sales: saleCount, leads: a._count?.leads ?? 0, referralBatches: a._count?.referralBatches ?? 0 },
           metrics: { totalCommission: earnings, approvedSales: fox?.active_sales ?? convertedMap.get(a.id) ?? 0 },
