@@ -1,6 +1,7 @@
 const API_BASE = process.env.API_BASE ?? 'http://127.0.0.1:3001/api'
-const ADMIN_MOBILE = process.env.SMOKE_ADMIN_MOBILE ?? '0800000000'
-const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD ?? 'Admin@2024'
+const requiresExplicitCredentials = process.env.CI === 'true' || process.env.NODE_ENV === 'production'
+const ADMIN_MOBILE = process.env.SMOKE_ADMIN_MOBILE
+const ADMIN_PASSWORD = process.env.SMOKE_ADMIN_PASSWORD
 
 const requiredGroups = [
   'new',
@@ -57,9 +58,16 @@ async function expectFailure(token, method, path, payload, expectedStatus, expec
 }
 
 async function main() {
+  if (requiresExplicitCredentials && (!ADMIN_MOBILE || !ADMIN_PASSWORD)) {
+    throw new Error('Set SMOKE_ADMIN_MOBILE and SMOKE_ADMIN_PASSWORD before running smoke checks in CI or production')
+  }
+
   const login = await request('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ mobileNo: ADMIN_MOBILE, password: ADMIN_PASSWORD }),
+    body: JSON.stringify({
+      mobileNo: ADMIN_MOBILE ?? '0800000000',
+      password: ADMIN_PASSWORD ?? 'Admin@2024',
+    }),
   })
   assert(login.response.ok && login.body?.data?.token, 'Admin login failed for smoke checks')
   const token = login.body.data.token
