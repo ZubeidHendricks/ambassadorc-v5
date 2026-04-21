@@ -46,7 +46,12 @@ function assertRouteHidden(routes, route, role) {
 async function assertRoleNavigation(sections) {
   const marketingSection = sections.find((section) => section.id === 'marketing-agents')
   assert(marketingSection, 'Marketing navigation section is missing')
+  assert(marketingSection.title === 'Marketing & Ambassador App', 'Marketing navigation title does not match process-map language')
   assert(marketingSection.roles?.includes('AMBASSADOR'), 'Marketing navigation is not visible to ambassadors')
+  assert(marketingSection.roles?.includes('QA_OFFICER'), 'Marketing navigation context is not visible to QA officers')
+
+  const engagementSection = sections.find((section) => section.id === 'engagement-collections')
+  assert(engagementSection?.title === 'Engagement / Onboarding / Premium Collections', 'Engagement navigation title does not match process-map language')
 
   const ambassadorRoutes = visibleRoutesForRole(sections, 'AMBASSADOR')
   assertRouteVisible(ambassadorRoutes, '/referrals', 'AMBASSADOR')

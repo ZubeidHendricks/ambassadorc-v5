@@ -66,9 +66,10 @@ export const sections: NavSectionConfig[] = [
   },
   {
     id: 'marketing-agents',
-    title: 'Marketing & Agents',
-    roles: ['ADMIN', 'AGENT', 'AMBASSADOR'],
+    title: 'Marketing & Ambassador App',
+    roles: ['ADMIN', 'QA_OFFICER', 'AGENT', 'AMBASSADOR'],
     items: [
+      { to: '/admin', label: 'Marketing Overview', icon: LayoutDashboard, roles: ['QA_OFFICER'] },
       { to: '/admin/agents', label: 'Agent Management', icon: UserCheck, roles: ['ADMIN'] },
       { to: '/referrals', label: 'Submit Referrals', icon: Send, roles: ['AMBASSADOR', 'AGENT'] },
       { to: '/leads', label: 'Submit Lead', icon: UserPlus, roles: ['AMBASSADOR', 'AGENT'] },
@@ -77,7 +78,7 @@ export const sections: NavSectionConfig[] = [
   },
   {
     id: 'engagement-collections',
-    title: 'Engagement & Collections',
+    title: 'Engagement / Onboarding / Premium Collections',
     roles: ['AGENT', 'QA_OFFICER', 'ADMIN'],
     items: [
       { to: '/admin/clients', label: 'Client Records', icon: Users },
