@@ -102,33 +102,35 @@ export function foxProStatusLabel(group: string): string {
 
 export const FOXPRO_STATUS_CASE_SQL = `CASE
   WHEN COALESCE("Status", '') = '' OR COALESCE("Status", '') ILIKE 'Unknown' THEN 'unknown'
-  WHEN "Status" = 'RC/C' OR "Status" ILIKE '%client cancelled%' OR "Status" ILIKE '%internal cancellation%' OR "Status" ILIKE '%cancellation qdel%' OR "Status" ILIKE '%cancel%' THEN 'cancelled'
-  WHEN "Status" ILIKE '%deduction not found%' OR "Status" ILIKE '%employee number not listed%' OR "Status" ILIKE '%incomplete%' OR "Status" ILIKE '%repair%' OR "Status" ILIKE '%fail%' OR "Status" ILIKE '%exceeded allowable%' THEN 'repair'
-  WHEN "Status" ILIKE '%qa validation passed%' THEN 'qa_passed'
-  WHEN "Status" ILIKE '%in validation%' OR "Status" ILIKE '%awaiting qa%' OR "Status" ILIKE '%completed sales capture%' THEN 'qa_pending'
-  WHEN "Status" ILIKE '%exported awaiting outcome%' OR "Status" = 'T1' THEN 'exported_awaiting_outcome'
-  WHEN "Status" ILIKE '%uploaded debit process%' OR ("Status" ILIKE '%qlink%' AND "Status" ILIKE '%uploaded%') OR "Status" ILIKE '%result: 0 - ok%' THEN 'qlink_uploaded'
+  WHEN "Status" = 'RC/C' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%client cancelled%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%internal cancellation%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%cancellation qdel%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%cancel%' THEN 'cancelled'
+  WHEN (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%deduction not found%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%employee number not listed%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%incomplete%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%repair%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%fail%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%exceeded allowable%' THEN 'repair'
+  WHEN (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%qa validation passed%' THEN 'qa_passed'
+  WHEN (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%in validation%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%awaiting qa%' OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%completed sales capture%' THEN 'qa_pending'
+  WHEN (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%exported awaiting outcome%' OR "Status" = 'T1' THEN 'exported_awaiting_outcome'
+  WHEN (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%uploaded debit process%' OR ((COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%qlink%' AND (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%uploaded%') OR (COALESCE("Status", '') || ' ' || COALESCE("SubStatus", '')) ILIKE '%result: 0 - ok%' THEN 'qlink_uploaded'
   ELSE 'new'
 END`;
 
 export function foxProStatusWhere(group: string, alias = ""): string {
   const prefix = alias ? `${alias}.` : "";
   const status = `${prefix}"Status"`;
+  const subStatus = `${prefix}"SubStatus"`;
+  const statusText = `(COALESCE(${status}, '') || ' ' || COALESCE(${subStatus}, ''))`;
   switch (group) {
     case "unknown":
       return `(COALESCE(${status}, '') = '' OR ${status} ILIKE 'Unknown')`;
     case "cancelled":
-      return `(${status} = 'RC/C' OR ${status} ILIKE '%client cancelled%' OR ${status} ILIKE '%internal cancellation%' OR ${status} ILIKE '%cancellation qdel%' OR ${status} ILIKE '%cancel%')`;
+      return `(${status} = 'RC/C' OR ${statusText} ILIKE '%client cancelled%' OR ${statusText} ILIKE '%internal cancellation%' OR ${statusText} ILIKE '%cancellation qdel%' OR ${statusText} ILIKE '%cancel%')`;
     case "repair":
-      return `(${status} ILIKE '%deduction not found%' OR ${status} ILIKE '%employee number not listed%' OR ${status} ILIKE '%incomplete%' OR ${status} ILIKE '%repair%' OR ${status} ILIKE '%fail%' OR ${status} ILIKE '%exceeded allowable%')`;
+      return `(${statusText} ILIKE '%deduction not found%' OR ${statusText} ILIKE '%employee number not listed%' OR ${statusText} ILIKE '%incomplete%' OR ${statusText} ILIKE '%repair%' OR ${statusText} ILIKE '%fail%' OR ${statusText} ILIKE '%exceeded allowable%')`;
     case "qa_passed":
-      return `(${status} ILIKE '%qa validation passed%')`;
+      return `(${statusText} ILIKE '%qa validation passed%')`;
     case "qa_pending":
-      return `(${status} ILIKE '%in validation%' OR ${status} ILIKE '%awaiting qa%' OR ${status} ILIKE '%completed sales capture%')`;
+      return `(${statusText} ILIKE '%in validation%' OR ${statusText} ILIKE '%awaiting qa%' OR ${statusText} ILIKE '%completed sales capture%')`;
     case "exported_awaiting_outcome":
-      return `(${status} ILIKE '%exported awaiting outcome%' OR ${status} = 'T1')`;
+      return `(${statusText} ILIKE '%exported awaiting outcome%' OR ${status} = 'T1')`;
     case "qlink_uploaded":
-      return `(${status} ILIKE '%uploaded debit process%' OR (${status} ILIKE '%qlink%' AND ${status} ILIKE '%uploaded%') OR ${status} ILIKE '%result: 0 - ok%')`;
+      return `(${statusText} ILIKE '%uploaded debit process%' OR (${statusText} ILIKE '%qlink%' AND ${statusText} ILIKE '%uploaded%') OR ${statusText} ILIKE '%result: 0 - ok%')`;
     case "new":
       return `NOT (${foxProStatusWhere("unknown", alias)} OR ${foxProStatusWhere("cancelled", alias)} OR ${foxProStatusWhere("repair", alias)} OR ${foxProStatusWhere("qa_passed", alias)} OR ${foxProStatusWhere("qa_pending", alias)} OR ${foxProStatusWhere("exported_awaiting_outcome", alias)} OR ${foxProStatusWhere("qlink_uploaded", alias)})`;
     default:

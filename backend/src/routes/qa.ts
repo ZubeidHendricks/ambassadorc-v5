@@ -19,6 +19,11 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
     const skip = (page - 1) * limit;
     const statusFilter = (req.query.status as string | undefined)?.toLowerCase();
+    const allowedStatusFilters = ["passed", "failed", "pending", "repair"];
+    if (statusFilter && !allowedStatusFilters.includes(statusFilter)) {
+      res.status(400).json({ success: false, error: "Invalid QA status filter." });
+      return;
+    }
 
     const syncAvailable = await hasSyncTables();
 
@@ -35,7 +40,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
                        WHEN d.result = 'FAILED' THEN 'failed'
                        WHEN d.result = 'ESCALATED' THEN 'repair'
                        ELSE ${sourceStatusCase} END`;
-      const effectiveFilter = ["passed", "failed", "escalated", "pending", "repair"].includes(statusFilter ?? "")
+      const effectiveFilter = allowedStatusFilters.includes(statusFilter ?? "")
         ? statusFilter
         : null;
       const rowEffectiveWhere = effectiveFilter ? "WHERE status = $3" : "";
@@ -87,8 +92,9 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     }
 
     // Native Prisma path
-    const where: any = statusFilter
-      ? { status: statusFilter === "passed" ? "PASSED" : statusFilter === "failed" ? "FAILED" : (statusFilter === "escalated" || statusFilter === "repair") ? "ESCALATED" : "PENDING" }
+    const nativeStatusFilter = allowedStatusFilters.includes(statusFilter ?? "") ? statusFilter : null;
+    const where: any = nativeStatusFilter
+      ? { status: nativeStatusFilter === "passed" ? "PASSED" : nativeStatusFilter === "failed" ? "FAILED" : nativeStatusFilter === "repair" ? "ESCALATED" : "PENDING" }
       : {};
     const [checks, total] = await Promise.all([
       prisma.qualityCheck.findMany({
