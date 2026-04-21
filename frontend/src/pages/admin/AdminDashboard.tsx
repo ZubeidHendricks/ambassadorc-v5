@@ -213,6 +213,45 @@ export default function AdminDashboard() {
           )
         })}
       </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Analytics Snapshot</p>
+          <h2 className="mt-1 text-sm font-bold text-gray-900">Book & Revenue Position</h2>
+          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-lg bg-gray-50 p-3">
+              <p className="text-lg font-black text-gray-900">{stats.totalClients.toLocaleString()}</p>
+              <p className="text-[10px] uppercase tracking-wide text-gray-500">Clients</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-3">
+              <p className="text-lg font-black text-gray-900">{stats.activePolicies.toLocaleString()}</p>
+              <p className="text-[10px] uppercase tracking-wide text-gray-500">Policies</p>
+            </div>
+            <div className="rounded-lg bg-gray-50 p-3">
+              <p className="text-lg font-black text-gray-900">{formatCurrency(stats.monthlyRevenue)}</p>
+              <p className="text-[10px] uppercase tracking-wide text-gray-500">Revenue</p>
+            </div>
+          </div>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Team Activity</p>
+          <h2 className="mt-1 text-sm font-bold text-gray-900">QA, Agents & Commissions</h2>
+          <div className="mt-4 grid grid-cols-3 gap-3 text-center">
+            <div className="rounded-lg bg-amber-50 p-3">
+              <p className="text-lg font-black text-amber-700">{stats.pendingQA}</p>
+              <p className="text-[10px] uppercase tracking-wide text-amber-700/70">Pending QA</p>
+            </div>
+            <div className="rounded-lg bg-violet-50 p-3">
+              <p className="text-lg font-black text-violet-700">{stats.activeAgents}</p>
+              <p className="text-[10px] uppercase tracking-wide text-violet-700/70">Agents</p>
+            </div>
+            <div className="rounded-lg bg-orange-50 p-3">
+              <p className="text-lg font-black text-orange-700">{formatCurrency(stats.commissionsPaid)}</p>
+              <p className="text-[10px] uppercase tracking-wide text-orange-700/70">Commissions</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

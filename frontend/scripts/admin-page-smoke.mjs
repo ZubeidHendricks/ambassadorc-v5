@@ -30,6 +30,13 @@ const dashboardRequiredText = [
   'u',
 ]
 
+const smokeUserBase = {
+  firstName: 'Smoke',
+  lastName: 'User',
+  mobileNo: '0000000000',
+  email: 'smoke@example.com',
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
@@ -78,6 +85,9 @@ async function assertRoleNavigation() {
 }
 
 async function assertDashboardContent() {
+  const mockAuthImport = "const useAuth = () => ({ user: globalThis.__SMOKE_USER__, loading: false, logout: () => {}, login: () => Promise.reject(new Error('smoke')), register: () => Promise.reject(new Error('smoke')), refreshUser: () => Promise.resolve() })"
+  const mockLinkOnlyImport = "const Link = ({ to, children, ...props }) => <a href={typeof to === 'string' ? to : '#'} {...props}>{children}</a>"
+  const mockRouterImport = `${mockLinkOnlyImport}\nconst useLocation = () => ({ pathname: '/admin' })\nconst useNavigate = () => () => {}`
   const vite = await createServer({
     appType: 'custom',
     logLevel: 'silent',
@@ -87,17 +97,23 @@ async function assertDashboardContent() {
         name: 'smoke-router-mock',
         enforce: 'pre',
         transform(code, id) {
-          if (!id.endsWith('/src/pages/admin/AdminDashboard.tsx')) return null
-          return code.replace(
-            "import { Link } from 'react-router-dom'",
-            "const Link = ({ to, children, ...props }) => <a href={typeof to === 'string' ? to : '#'} {...props}>{children}</a>",
-          )
+          if (
+            !id.endsWith('/src/pages/admin/AdminDashboard.tsx') &&
+            !id.endsWith('/src/components/layout/Sidebar.tsx')
+          ) {
+            return null
+          }
+          return code
+            .replace("import { Link } from 'react-router-dom'", mockLinkOnlyImport)
+            .replace("import { Link, useLocation, useNavigate } from 'react-router-dom'", mockRouterImport)
+            .replace("import { useAuth } from '@/context/AuthContext'", mockAuthImport)
         },
       },
     ],
   })
   const originalWarn = console.warn
   try {
+    globalThis.__SMOKE_USER__ = { ...smokeUserBase, role: 'QA_OFFICER' }
     const module = await vite.ssrLoadModule('/src/pages/admin/AdminDashboard.tsx')
     console.warn = () => {}
     const html = renderToString(React.createElement(module.default))
@@ -105,8 +121,42 @@ async function assertDashboardContent() {
     for (const requiredText of dashboardRequiredText) {
       assert(html.includes(requiredText), `/admin workspace is missing required rendered text: ${requiredText}`)
     }
+
+    const sidebarModule = await vite.ssrLoadModule('/src/components/layout/Sidebar.tsx')
+    const renderSidebar = (role) => {
+      globalThis.__SMOKE_USER__ = { ...smokeUserBase, role }
+      return renderToString(
+        React.createElement(sidebarModule.default, {
+          collapsed: false,
+          onToggle: () => {},
+          mobileOpen: false,
+          onMobileClose: () => {},
+        }),
+      )
+    }
+
+    const ambassadorSidebar = renderSidebar('AMBASSADOR')
+    assert(ambassadorSidebar.includes('Submit Referrals'), 'AMBASSADOR sidebar is missing Submit Referrals')
+    assert(ambassadorSidebar.includes('Submit Lead'), 'AMBASSADOR sidebar is missing Submit Lead')
+    assert(!ambassadorSidebar.includes('Agent Management'), 'AMBASSADOR sidebar should not render Agent Management')
+    assert(!ambassadorSidebar.includes('Ambassador Backend'), 'AMBASSADOR sidebar should not render Ambassador Backend')
+
+    const qaSidebar = renderSidebar('QA_OFFICER')
+    assert(qaSidebar.includes('Operations Center'), 'QA_OFFICER sidebar is missing Operations Center')
+    assert(qaSidebar.includes('QA Validation'), 'QA_OFFICER sidebar is missing QA Validation')
+    assert(qaSidebar.includes('Export &amp; Q-Link'), 'QA_OFFICER sidebar is missing Export & Q-Link')
+    assert(qaSidebar.includes('Document Delivery'), 'QA_OFFICER sidebar is missing Document Delivery')
+    assert(!qaSidebar.includes('Operations Exports'), 'QA_OFFICER sidebar should not render Operations Exports')
+    assert(!qaSidebar.includes('SMS Center'), 'QA_OFFICER sidebar should not render SMS Center')
+
+    const adminSidebar = renderSidebar('ADMIN')
+    assert(adminSidebar.includes('Agent Management'), 'ADMIN sidebar is missing Agent Management')
+    assert(adminSidebar.includes('Ambassador Backend'), 'ADMIN sidebar is missing Ambassador Backend')
+    assert(adminSidebar.includes('Operations Exports'), 'ADMIN sidebar is missing Operations Exports')
+    assert(adminSidebar.includes('SMS Center'), 'ADMIN sidebar is missing SMS Center')
   } finally {
     console.warn = originalWarn
+    delete globalThis.__SMOKE_USER__
     await vite.close()
   }
 }
