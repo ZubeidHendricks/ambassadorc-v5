@@ -305,6 +305,38 @@ export function downloadEarningsReport() {
     })
 }
 
+export type OperationsReportType = 'export-status' | 'monthly-premium' | 'global-book'
+
+const operationsReportFileNames: Record<OperationsReportType, string> = {
+  'export-status': 'Export_Status_Report',
+  'monthly-premium': 'Monthly_Premium_Report',
+  'global-book': 'Global_Book_Report',
+}
+
+export async function downloadOperationsReport(type: OperationsReportType, options?: { year?: number }) {
+  const token = getToken()
+  const params = new URLSearchParams()
+  if (options?.year) params.set('year', String(options.year))
+  const url = `/api/reports/operations/${type}${params.toString() ? `?${params.toString()}` : ''}`
+  const a = document.createElement('a')
+  a.href = url
+  a.setAttribute('download', '')
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+  if (!response.ok) throw new Error('Failed to download report')
+  const blob = await response.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  const date = new Date().toISOString().split('T')[0]
+  const filenameBase = type === 'global-book' && options?.year
+    ? `${operationsReportFileNames[type]}_${options.year}`
+    : operationsReportFileNames[type]
+  a.href = blobUrl
+  a.download = `${filenameBase}_${date}.xlsx`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(blobUrl)
+}
+
 // Dashboard
 export interface DashboardStats {
   totalReferrals: number

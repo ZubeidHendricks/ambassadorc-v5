@@ -57,6 +57,20 @@ async function expectFailure(token, method, path, payload, expectedStatus, expec
   if (expectedText) assert(String(body.error ?? '').includes(expectedText), `${path} error did not include ${expectedText}`)
 }
 
+async function expectWorkbook(token, path) {
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const buffer = Buffer.from(await response.arrayBuffer())
+  assert(response.ok, `${path} returned ${response.status}`)
+  assert(
+    response.headers.get('content-type')?.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
+    `${path} did not return an xlsx content type`
+  )
+  assert(buffer.length > 1024, `${path} returned an unexpectedly small workbook`)
+  assert(buffer.subarray(0, 2).toString('utf8') === 'PK', `${path} did not return a zipped xlsx payload`)
+}
+
 async function main() {
   if (requiresExplicitCredentials && (!ADMIN_MOBILE || !ADMIN_PASSWORD)) {
     throw new Error('Set SMOKE_ADMIN_MOBILE and SMOKE_ADMIN_PASSWORD before running smoke checks in CI or production')
@@ -91,6 +105,9 @@ async function main() {
 
   await expectFailure(token, 'POST', '/qa/not-a-number/verdict', { verdict: 'passed' }, 400, 'Invalid QA check ID')
   await expectFailure(token, 'PUT', '/admin/agents/not-a-number/campaign', { campaignId: null }, 400, 'Invalid agent or campaign ID')
+  await expectWorkbook(token, '/reports/operations/export-status')
+  await expectWorkbook(token, '/reports/operations/monthly-premium')
+  await expectWorkbook(token, `/reports/operations/global-book?year=${new Date().getFullYear()}`)
 
   console.log('FoxPro operations API smoke checks passed')
 }

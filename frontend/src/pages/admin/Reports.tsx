@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { downloadEarningsReport } from '@/lib/api'
+import { downloadEarningsReport, downloadOperationsReport, type OperationsReportType } from '@/lib/api'
 import {
   Card,
   CardContent,
@@ -8,10 +8,13 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { FileDown, Users, CheckCircle2, FileSpreadsheet } from 'lucide-react'
+import { FileDown, Users, CheckCircle2, FileSpreadsheet, BarChart3, BookOpen, Gauge } from 'lucide-react'
 
 export default function Reports() {
   const [downloading, setDownloading] = useState(false)
+  const [operationsDownload, setOperationsDownload] = useState<OperationsReportType | null>(null)
+  const [globalBookYear, setGlobalBookYear] = useState(new Date().getFullYear())
+  const [downloadError, setDownloadError] = useState('')
 
   function handleDownload() {
     setDownloading(true)
@@ -21,6 +24,19 @@ export default function Reports() {
       setTimeout(() => setDownloading(false), 2000)
     } catch {
       setDownloading(false)
+    }
+  }
+
+  async function handleOperationsDownload(type: OperationsReportType) {
+    setOperationsDownload(type)
+    setDownloadError('')
+    try {
+      await downloadOperationsReport(type, type === 'global-book' ? { year: globalBookYear } : undefined)
+    } catch {
+      console.error('Failed to download operations report')
+      setDownloadError('The report could not be generated. Please try again, or ask an admin to check the report service.')
+    } finally {
+      setOperationsDownload(null)
     }
   }
 
@@ -34,7 +50,6 @@ export default function Reports() {
       </div>
 
       <div className="grid gap-6">
-        {/* Ambassador Earnings Report */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -86,6 +101,85 @@ export default function Reports() {
               <FileDown className="mr-2 h-5 w-5" />
               {downloading ? 'Generating...' : 'Download Ambassador Earnings (.xlsx)'}
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+              Operations Workbook Reports
+            </CardTitle>
+            <CardDescription>
+              Excel downloads matching the Export Status, Monthly Premium, and Global Book workbook views using live operations data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border bg-emerald-50 p-4 text-center">
+                <Gauge className="mx-auto mb-1 h-5 w-5 text-emerald-600" />
+                <p className="text-sm font-semibold text-emerald-700">Export Status</p>
+                <p className="text-xs text-gray-500 mt-1">FoxPro groups, raw statuses, and status dictionary</p>
+              </div>
+              <div className="rounded-lg border bg-indigo-50 p-4 text-center">
+                <BarChart3 className="mx-auto mb-1 h-5 w-5 text-indigo-600" />
+                <p className="text-sm font-semibold text-indigo-700">Monthly Premium</p>
+                <p className="text-xs text-gray-500 mt-1">Exported sales, successful collections, and lost revenue</p>
+              </div>
+              <div className="rounded-lg border bg-orange-50 p-4 text-center">
+                <BookOpen className="mx-auto mb-1 h-5 w-5 text-orange-600" />
+                <p className="text-sm font-semibold text-orange-700">Global Book</p>
+                <p className="text-xs text-gray-500 mt-1">QREC/QNEW/QTOS monthly summaries by year</p>
+              </div>
+            </div>
+
+            <div className="mb-4 max-w-xs">
+              <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="global-book-year">
+                Global Book year
+              </label>
+              <input
+                id="global-book-year"
+                type="number"
+                min={2000}
+                max={2100}
+                value={globalBookYear}
+                onChange={(event) => setGlobalBookYear(Number(event.target.value) || new Date().getFullYear())}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+
+            {downloadError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {downloadError}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Button
+                variant="outline"
+                onClick={() => handleOperationsDownload('export-status')}
+                disabled={operationsDownload !== null}
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                {operationsDownload === 'export-status' ? 'Generating...' : 'Download Export Status'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleOperationsDownload('monthly-premium')}
+                disabled={operationsDownload !== null}
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                {operationsDownload === 'monthly-premium' ? 'Generating...' : 'Download Monthly Premium'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handleOperationsDownload('global-book')}
+                disabled={operationsDownload !== null}
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                {operationsDownload === 'global-book' ? 'Generating...' : 'Download Global Book'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

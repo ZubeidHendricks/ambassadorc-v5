@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, FileCheck2, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, FileCheck2, FileDown, RefreshCw } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import {
   getExportStatuses,
   getFoxProStatusDictionary,
+  downloadOperationsReport,
   type ExportStatusRecord,
   type ExportStatusSummary,
   type FoxProStatusDefinition,
@@ -29,6 +30,8 @@ export default function ExportStatus() {
   const [group, setGroup] = useState('')
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [downloadingReport, setDownloadingReport] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
 
   const loadData = useCallback(async () => {
@@ -60,6 +63,19 @@ export default function ExportStatus() {
 
   const selectedDefinition = dictionary.find((item) => item.group === group)
 
+  async function handleDownloadReport() {
+    setDownloadingReport(true)
+    setDownloadError('')
+    try {
+      await downloadOperationsReport('export-status')
+    } catch {
+      console.error('Failed to download export status report')
+      setDownloadError('The Export Status report could not be generated. Please try again, or ask an admin to check the report service.')
+    } finally {
+      setDownloadingReport(false)
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -70,10 +86,16 @@ export default function ExportStatus() {
             Monitor the familiar export flow: QA passed, exported awaiting outcome, Q-Link uploaded, failed returns, and cancellations.
           </p>
         </div>
-        <Button variant="outline" onClick={loadData} disabled={loading}>
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleDownloadReport} disabled={downloadingReport}>
+            <FileDown className="h-4 w-4" />
+            {downloadingReport ? 'Generating...' : 'Export Status Excel'}
+          </Button>
+          <Button variant="outline" onClick={loadData} disabled={loading}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -109,6 +131,12 @@ export default function ExportStatus() {
               <p className="mt-1 text-xs text-gray-500">Examples: {selectedDefinition.examples.join(', ')}</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {downloadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {downloadError}
         </div>
       )}
 
