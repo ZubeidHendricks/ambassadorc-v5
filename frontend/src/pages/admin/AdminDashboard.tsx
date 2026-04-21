@@ -53,6 +53,7 @@ export default function AdminDashboard() {
       icon: Building,
       cards: [
         {
+          id: 'first-app-marketing',
           to: '/admin/ambassador-backend',
           title: 'First App: Ambassador Marketing',
           description: 'WhatsApp invite, ambassador registration, referrals, member sign-up, and earnings rules for R100 / R100 / R1000 incentives.',
@@ -61,12 +62,14 @@ export default function AdminDashboard() {
           roles: ['ADMIN'],
         },
         {
+          id: 'lead-intake',
           to: '/admin/sales',
           title: 'Lead Intake',
           description: 'Capture member leads from the ambassador journey and marketing campaigns into the operational queue.',
           tags: ['Lead Capture', 'Campaigns'],
         },
         {
+          id: 'agent-management',
           to: '/admin/agents',
           title: 'Agent Management',
           description: 'Master access, loading sales agents, assigning campaigns, and operational user setup.',
@@ -74,6 +77,7 @@ export default function AdminDashboard() {
           roles: ['ADMIN'],
         },
         {
+          id: 'ambassador-backend',
           to: '/admin/ambassador-backend',
           title: 'Ambassador Backend & FNB Cycle',
           description: 'Backend earnings table, payment status tracking, FNB exports, paid rows, and dashboard activity updates.',
@@ -88,24 +92,28 @@ export default function AdminDashboard() {
       icon: Briefcase,
       cards: [
         {
+          id: 'sales-capture',
           to: '/admin/sales',
           title: 'Sales Capture',
           description: 'New policy capture, sales pipeline movement, and FoxPro sales status visibility.',
           tags: ['Sales Capture', 'Pipeline'],
         },
         {
+          id: 'qa-validation',
           to: '/admin/qa',
           title: 'QA Validation',
           description: 'QA mailbox for QC, repair, client cancelled, and QA validation passed outcomes.',
           tags: ['QA', 'QC', 'Client Cancelled'],
         },
         {
+          id: 'export-q-link',
           to: '/admin/export-status',
           title: 'Export & Q-Link Outcomes',
           description: 'Exported awaiting outcome, Q-Link uploaded, RC/C, t1, and u status monitoring.',
           tags: ['Q-Link Uploaded', 'RC/C', 't1', 'u'],
         },
         {
+          id: 'operations-exports',
           to: '/admin/reports',
           title: 'Operations Exports',
           description: 'Workbook-style reporting for export status, monthly premium collections, and the global book.',
@@ -113,6 +121,7 @@ export default function AdminDashboard() {
           roles: ['ADMIN'],
         },
         {
+          id: 'premium-updates',
           to: '/admin/premium-changes',
           title: 'Premium Updates',
           description: 'Bulk premium updates, policy changes, and collections adjustment workflow.',
@@ -126,12 +135,14 @@ export default function AdminDashboard() {
       icon: MessageSquare,
       cards: [
         {
+          id: 'document-delivery',
           to: '/admin/documents',
           title: 'Document Delivery',
           description: 'Welcome packs, policy documents, and client onboarding delivery tracking.',
           tags: ['Welcome Packs', 'Documents'],
         },
         {
+          id: 'sms-client-communication',
           to: '/admin/sms',
           title: 'SMS & Client Communication',
           description: 'Client communication messaging, payment notifications, and bulk SMS operations.',
@@ -208,7 +219,7 @@ export default function AdminDashboard() {
               </div>
               <div className="grid gap-3">
                 {cards.map((card) => (
-                  <ProcessCard key={card.to} {...card} />
+                  <ProcessCard key={card.id} {...card} />
                 ))}
               </div>
             </div>
@@ -259,6 +270,7 @@ export default function AdminDashboard() {
 }
 
 interface ProcessCardConfig {
+  id: string
   to: string
   title: string
   description: string
