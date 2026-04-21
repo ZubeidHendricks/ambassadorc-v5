@@ -45,6 +45,7 @@ export default function AdminDashboard() {
 
   const formatCurrency = (val: number) =>
     `R${val.toLocaleString('en-ZA', { minimumFractionDigits: 0 })}`
+  const statValue = (value: string | number) => loading ? '—' : value
 
   const processColumns: ProcessColumn[] = [
     {
@@ -52,14 +53,15 @@ export default function AdminDashboard() {
       icon: Building,
       cards: [
         {
-          to: '/referrals',
+          to: '/admin/ambassador-backend',
           title: 'First App: Ambassador Marketing',
           description: 'WhatsApp invite, ambassador registration, referrals, member sign-up, and earnings rules for R100 / R100 / R1000 incentives.',
           tags: ['WhatsApp Invite', 'Referrals', 'Member Sign-Up'],
           icon: Send,
+          roles: ['ADMIN'],
         },
         {
-          to: '/leads',
+          to: '/admin/sales',
           title: 'Lead Intake',
           description: 'Capture member leads from the ambassador journey and marketing campaigns into the operational queue.',
           tags: ['Lead Capture', 'Campaigns'],
@@ -158,37 +160,37 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           label="Total Clients"
-          value={stats.totalClients.toLocaleString()}
+          value={statValue(stats.totalClients.toLocaleString())}
           icon={<Users className="h-5 w-5" />}
           iconColor="bg-blue-50 text-blue-600"
         />
         <StatCard
           label="Active Policies"
-          value={stats.activePolicies.toLocaleString()}
+          value={statValue(stats.activePolicies.toLocaleString())}
           icon={<Shield className="h-5 w-5" />}
           iconColor="bg-emerald-50 text-emerald-600"
         />
         <StatCard
           label="Monthly Revenue"
-          value={formatCurrency(stats.monthlyRevenue)}
+          value={statValue(formatCurrency(stats.monthlyRevenue))}
           icon={<DollarSign className="h-5 w-5" />}
           iconColor="bg-indigo-50 text-indigo-600"
         />
         <StatCard
           label="Pending QA"
-          value={stats.pendingQA}
+          value={statValue(stats.pendingQA)}
           icon={<AlertCircle className="h-5 w-5" />}
           iconColor="bg-amber-50 text-amber-600"
         />
         <StatCard
           label="Active Agents"
-          value={stats.activeAgents}
+          value={statValue(stats.activeAgents)}
           icon={<UserCheck className="h-5 w-5" />}
           iconColor="bg-violet-50 text-violet-600"
         />
         <StatCard
           label="Commissions"
-          value={formatCurrency(stats.commissionsPaid)}
+          value={statValue(formatCurrency(stats.commissionsPaid))}
           icon={<Coins className="h-5 w-5" />}
           iconColor="bg-orange-50 text-orange-600"
         />
@@ -220,15 +222,15 @@ export default function AdminDashboard() {
           <h2 className="mt-1 text-sm font-bold text-gray-900">Book & Revenue Position</h2>
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-lg bg-gray-50 p-3">
-              <p className="text-lg font-black text-gray-900">{stats.totalClients.toLocaleString()}</p>
+              <p className="text-lg font-black text-gray-900">{statValue(stats.totalClients.toLocaleString())}</p>
               <p className="text-[10px] uppercase tracking-wide text-gray-500">Clients</p>
             </div>
             <div className="rounded-lg bg-gray-50 p-3">
-              <p className="text-lg font-black text-gray-900">{stats.activePolicies.toLocaleString()}</p>
+              <p className="text-lg font-black text-gray-900">{statValue(stats.activePolicies.toLocaleString())}</p>
               <p className="text-[10px] uppercase tracking-wide text-gray-500">Policies</p>
             </div>
             <div className="rounded-lg bg-gray-50 p-3">
-              <p className="text-lg font-black text-gray-900">{formatCurrency(stats.monthlyRevenue)}</p>
+              <p className="text-lg font-black text-gray-900">{statValue(formatCurrency(stats.monthlyRevenue))}</p>
               <p className="text-[10px] uppercase tracking-wide text-gray-500">Revenue</p>
             </div>
           </div>
@@ -238,15 +240,15 @@ export default function AdminDashboard() {
           <h2 className="mt-1 text-sm font-bold text-gray-900">QA, Agents & Commissions</h2>
           <div className="mt-4 grid grid-cols-3 gap-3 text-center">
             <div className="rounded-lg bg-amber-50 p-3">
-              <p className="text-lg font-black text-amber-700">{stats.pendingQA}</p>
+              <p className="text-lg font-black text-amber-700">{statValue(stats.pendingQA)}</p>
               <p className="text-[10px] uppercase tracking-wide text-amber-700/70">Pending QA</p>
             </div>
             <div className="rounded-lg bg-violet-50 p-3">
-              <p className="text-lg font-black text-violet-700">{stats.activeAgents}</p>
+              <p className="text-lg font-black text-violet-700">{statValue(stats.activeAgents)}</p>
               <p className="text-[10px] uppercase tracking-wide text-violet-700/70">Agents</p>
             </div>
             <div className="rounded-lg bg-orange-50 p-3">
-              <p className="text-lg font-black text-orange-700">{formatCurrency(stats.commissionsPaid)}</p>
+              <p className="text-lg font-black text-orange-700">{statValue(formatCurrency(stats.commissionsPaid))}</p>
               <p className="text-[10px] uppercase tracking-wide text-orange-700/70">Commissions</p>
             </div>
           </div>
