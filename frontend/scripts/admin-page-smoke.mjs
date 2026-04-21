@@ -73,6 +73,8 @@ async function assertRoleNavigation() {
   assertRouteVisible(qaRoutes, '/admin/qa', 'QA_OFFICER')
   assertRouteVisible(qaRoutes, '/admin/export-status', 'QA_OFFICER')
   assertRouteVisible(qaRoutes, '/admin/documents', 'QA_OFFICER')
+  assertRouteHidden(qaRoutes, '/referrals', 'QA_OFFICER')
+  assertRouteHidden(qaRoutes, '/leads', 'QA_OFFICER')
   assertRouteHidden(qaRoutes, '/admin/reports', 'QA_OFFICER')
   assertRouteHidden(qaRoutes, '/admin/sms', 'QA_OFFICER')
 
@@ -82,56 +84,57 @@ async function assertRoleNavigation() {
   assertRouteVisible(adminRoutes, '/admin/ambassador-backend', 'ADMIN')
   assertRouteVisible(adminRoutes, '/admin/reports', 'ADMIN')
   assertRouteVisible(adminRoutes, '/admin/sms', 'ADMIN')
+  assertRouteHidden(adminRoutes, '/referrals', 'ADMIN')
+  assertRouteHidden(adminRoutes, '/leads', 'ADMIN')
 }
 
 async function assertDashboardContent() {
-  const mockAuthImport = "const useAuth = () => ({ user: globalThis.__SMOKE_USER__, loading: false, logout: () => {}, login: () => Promise.reject(new Error('smoke')), register: () => Promise.reject(new Error('smoke')), refreshUser: () => Promise.resolve() })"
-  const mockLinkOnlyImport = "const Link = ({ to, children, ...props }) => <a href={typeof to === 'string' ? to : '#'} {...props}>{children}</a>"
-  const mockRouterImport = `${mockLinkOnlyImport}\nconst useLocation = () => ({ pathname: '/admin' })\nconst useNavigate = () => () => {}`
   const vite = await createServer({
     appType: 'custom',
     logLevel: 'silent',
     server: { middlewareMode: true },
-    plugins: [
-      {
-        name: 'smoke-router-mock',
-        enforce: 'pre',
-        transform(code, id) {
-          if (
-            !id.endsWith('/src/pages/admin/AdminDashboard.tsx') &&
-            !id.endsWith('/src/components/layout/Sidebar.tsx')
-          ) {
-            return null
-          }
-          return code
-            .replace("import { Link } from 'react-router-dom'", mockLinkOnlyImport)
-            .replace("import { Link, useLocation, useNavigate } from 'react-router-dom'", mockRouterImport)
-            .replace("import { useAuth } from '@/context/AuthContext'", mockAuthImport)
-        },
+    resolve: {
+      alias: {
+        'react-router-dom': new URL('./smoke-router-dom.mjs', import.meta.url).pathname,
       },
-    ],
+    },
   })
   const originalWarn = console.warn
   try {
-    globalThis.__SMOKE_USER__ = { ...smokeUserBase, role: 'QA_OFFICER' }
-    const module = await vite.ssrLoadModule('/src/pages/admin/AdminDashboard.tsx')
+    const [{ default: AdminDashboard }, { default: Sidebar }, { AuthContext }] = await Promise.all([
+      vite.ssrLoadModule('/src/pages/admin/AdminDashboard.tsx'),
+      vite.ssrLoadModule('/src/components/layout/Sidebar.tsx'),
+      vite.ssrLoadModule('/src/context/AuthContext.tsx'),
+    ])
+    const authValueForRole = (role) => ({
+      user: { ...smokeUserBase, role },
+      loading: false,
+      logout: () => {},
+      login: () => Promise.reject(new Error('smoke')),
+      register: () => Promise.reject(new Error('smoke')),
+      refreshUser: () => Promise.resolve(),
+    })
+    const renderWithRole = (role, child) =>
+      React.createElement(AuthContext.Provider, { value: authValueForRole(role) }, child)
+
     console.warn = () => {}
-    const html = renderToString(React.createElement(module.default))
+    const html = renderToString(renderWithRole('QA_OFFICER', React.createElement(AdminDashboard)))
     console.warn = originalWarn
     for (const requiredText of dashboardRequiredText) {
       assert(html.includes(requiredText), `/admin workspace is missing required rendered text: ${requiredText}`)
     }
 
-    const sidebarModule = await vite.ssrLoadModule('/src/components/layout/Sidebar.tsx')
     const renderSidebar = (role) => {
-      globalThis.__SMOKE_USER__ = { ...smokeUserBase, role }
       return renderToString(
-        React.createElement(sidebarModule.default, {
-          collapsed: false,
-          onToggle: () => {},
-          mobileOpen: false,
-          onMobileClose: () => {},
-        }),
+        renderWithRole(
+          role,
+          React.createElement(Sidebar, {
+            collapsed: false,
+            onToggle: () => {},
+            mobileOpen: false,
+            onMobileClose: () => {},
+          }),
+        ),
       )
     }
 
@@ -146,6 +149,8 @@ async function assertDashboardContent() {
     assert(qaSidebar.includes('QA Validation'), 'QA_OFFICER sidebar is missing QA Validation')
     assert(qaSidebar.includes('Export &amp; Q-Link'), 'QA_OFFICER sidebar is missing Export & Q-Link')
     assert(qaSidebar.includes('Document Delivery'), 'QA_OFFICER sidebar is missing Document Delivery')
+    assert(!qaSidebar.includes('Submit Referrals'), 'QA_OFFICER sidebar should not render Submit Referrals')
+    assert(!qaSidebar.includes('Submit Lead'), 'QA_OFFICER sidebar should not render Submit Lead')
     assert(!qaSidebar.includes('Operations Exports'), 'QA_OFFICER sidebar should not render Operations Exports')
     assert(!qaSidebar.includes('SMS Center'), 'QA_OFFICER sidebar should not render SMS Center')
 
@@ -154,9 +159,10 @@ async function assertDashboardContent() {
     assert(adminSidebar.includes('Ambassador Backend'), 'ADMIN sidebar is missing Ambassador Backend')
     assert(adminSidebar.includes('Operations Exports'), 'ADMIN sidebar is missing Operations Exports')
     assert(adminSidebar.includes('SMS Center'), 'ADMIN sidebar is missing SMS Center')
+    assert(!adminSidebar.includes('Submit Referrals'), 'ADMIN sidebar should not render Submit Referrals')
+    assert(!adminSidebar.includes('Submit Lead'), 'ADMIN sidebar should not render Submit Lead')
   } finally {
     console.warn = originalWarn
-    delete globalThis.__SMOKE_USER__
     await vite.close()
   }
 }

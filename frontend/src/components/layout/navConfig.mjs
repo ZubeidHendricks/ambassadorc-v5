@@ -24,8 +24,8 @@ export const sections = [
     roles: ['ADMIN', 'QA_OFFICER', 'AGENT', 'AMBASSADOR'],
     items: [
       { to: '/admin/agents', label: 'Agent Management', icon: 'UserCheck', roles: ['ADMIN'] },
-      { to: '/referrals', label: 'Submit Referrals', icon: 'Send' },
-      { to: '/leads', label: 'Submit Lead', icon: 'UserPlus' },
+      { to: '/referrals', label: 'Submit Referrals', icon: 'Send', roles: ['AMBASSADOR', 'AGENT'] },
+      { to: '/leads', label: 'Submit Lead', icon: 'UserPlus', roles: ['AMBASSADOR', 'AGENT'] },
       { to: '/admin/ambassador-backend', label: 'Ambassador Backend', icon: 'Landmark', roles: ['ADMIN'] },
     ],
   },
