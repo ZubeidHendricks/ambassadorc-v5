@@ -31,6 +31,9 @@ const dashboardRequiredText = [
   'Commission Ratio',
   'Operations Activity',
   'Current workflow focus',
+  'First App: Ambassador Marketing',
+  'Ambassador Backend &amp; FNB Cycle',
+  'Admin required',
 ]
 
 const smokeUserBase = {

@@ -14,6 +14,7 @@ import {
   Briefcase,
   Send,
   Landmark,
+  Lock,
   type LucideIcon,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
@@ -163,6 +164,8 @@ export default function AdminDashboard() {
 
   const canSeeCard = (card: ProcessCardConfig) =>
     !card.roles || (!!user && card.roles.includes(user.role))
+  const canOrientToCard = (card: ProcessCardConfig) =>
+    canSeeCard(card) || (!!user && user.role === 'QA_OFFICER' && card.roles?.includes('ADMIN'))
 
   return (
     <div className="space-y-6 p-6 lg:p-8 animate-fade-in bg-gray-50/50 min-h-full">
@@ -218,7 +221,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {processColumns.map((column) => {
           const Icon = column.icon
-          const cards = column.cards.filter(canSeeCard)
+          const cards = column.cards.filter(canOrientToCard)
           return (
             <div key={column.title} className="flex flex-col gap-4">
               <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
@@ -226,8 +229,10 @@ export default function AdminDashboard() {
                 <h2 className="text-sm font-bold uppercase tracking-wider text-gray-700">{column.title}</h2>
               </div>
               <div className="grid gap-3">
-                {cards.map((card) => (
+                {cards.map((card) => canSeeCard(card) ? (
                   <ProcessCard key={card.id} {...card} />
+                ) : (
+                  <LockedProcessCard key={card.id} {...card} />
                 ))}
               </div>
             </div>
@@ -383,6 +388,37 @@ function ProcessCard({ to, title, description, tags, icon: CardIcon }: ProcessCa
         ))}
       </div>
     </Link>
+  )
+}
+
+function LockedProcessCard({ title, description, tags, icon: CardIcon }: ProcessCardConfig) {
+  return (
+    <div className="block rounded-xl border border-dashed border-gray-200 bg-white/70 p-4 shadow-sm">
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            {CardIcon && (
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-400">
+                <CardIcon className="h-4 w-4" />
+              </span>
+            )}
+            <h3 className="text-sm font-bold text-gray-700">{title}</h3>
+          </div>
+          <p className="mt-1 text-xs text-gray-500 leading-relaxed">{description}</p>
+        </div>
+        <div className="flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+          <Lock className="h-3 w-3" />
+          Admin required
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {tags.map(tag => (
+          <span key={tag} className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+            {tag}
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }
 
