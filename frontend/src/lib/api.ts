@@ -1325,9 +1325,19 @@ export interface Campaign {
 }
 
 export async function getCampaigns() {
-  const res = await request<any>('/sales/campaigns')
-  const d = res.data!
-  return (Array.isArray(d) ? d : d.campaigns ?? []) as Campaign[]
+  const campaigns: Campaign[] = []
+  let page = 1
+  let totalPages = 1
+
+  do {
+    const res = await request<any>(`/sales/campaigns?page=${page}&limit=100`)
+    const d = res.data!
+    campaigns.push(...((Array.isArray(d) ? d : d.campaigns ?? []) as Campaign[]))
+    totalPages = Array.isArray(d) ? 1 : d.pagination?.totalPages ?? 1
+    page += 1
+  } while (page <= totalPages)
+
+  return campaigns
 }
 
 // ─── Debit Orders ─────────────────────────────────────────────────
