@@ -251,6 +251,8 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
           saleCount,
           totalEarnings: earnings,
           status: a.isActive ? "active" : "inactive",
+          assignedCampaignId: a.assignedCampaignId,
+          assignedCampaignName: null,
           createdAt: a.createdAt,
           _count: { sales: saleCount, leads: a._count?.leads ?? 0, referralBatches: a._count?.referralBatches ?? 0 },
           metrics: { totalCommission: earnings, approvedSales: fox?.active_sales ?? convertedMap.get(a.id) ?? 0 },
@@ -261,7 +263,10 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
         prisma.ambassador.findMany({
           skip, take: limit,
           orderBy: { createdAt: "desc" },
-          include: { _count: { select: { sales: true, leads: true, referralBatches: true } } },
+          include: {
+            _count: { select: { sales: true, leads: true, referralBatches: true } },
+            assignedCampaign: { select: { id: true, name: true } },
+          },
         }),
         prisma.ambassador.count(),
       ]);
@@ -278,6 +283,8 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
         saleCount: a._count?.sales ?? 0,
         totalEarnings: (a._count?.sales ?? 0) * 109,
         status: a.isActive ? "active" : "inactive",
+        assignedCampaignId: a.assignedCampaignId,
+        assignedCampaignName: a.assignedCampaign?.name ?? null,
         createdAt: a.createdAt,
         _count: { sales: a._count?.sales ?? 0, leads: a._count?.leads ?? 0, referralBatches: a._count?.referralBatches ?? 0 },
         metrics: { totalCommission: (a._count?.sales ?? 0) * 109, approvedSales: 0 },
@@ -302,6 +309,60 @@ router.get("/agents", async (req: AuthRequest, res: Response) => {
       success: false,
       error: "An unexpected error occurred.",
     });
+  }
+});
+
+// ─── PUT /api/admin/agents/:id/campaign ─────────────────────────────────────
+
+router.put("/agents/:id/campaign", async (req: AuthRequest, res: Response) => {
+  try {
+    if (!(await isAdmin(req.ambassador!.id))) {
+      res.status(403).json({ success: false, error: "Only administrators can assign campaigns." });
+      return;
+    }
+
+    const id = parseInt(req.params.id);
+    const campaignId = req.body?.campaignId === null || req.body?.campaignId === "" ? null : parseInt(String(req.body?.campaignId));
+    if (isNaN(id) || (campaignId !== null && isNaN(campaignId))) {
+      res.status(400).json({ success: false, error: "Invalid agent or campaign ID." });
+      return;
+    }
+
+    const existing = await prisma.ambassador.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ success: false, error: "Agent not found." });
+      return;
+    }
+
+    if (campaignId !== null) {
+      const campaign = await prisma.salesCampaign.findUnique({ where: { id: campaignId } });
+      if (!campaign) {
+        res.status(404).json({ success: false, error: "Campaign not found." });
+        return;
+      }
+    }
+
+    const agent = await prisma.ambassador.update({
+      where: { id },
+      data: { assignedCampaignId: campaignId },
+      include: { assignedCampaign: { select: { id: true, name: true } } },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: String(req.ambassador!.id),
+        action: "ASSIGN_CAMPAIGN",
+        entity: "Ambassador",
+        entityId: String(id),
+        details: { oldCampaignId: existing.assignedCampaignId, newCampaignId: campaignId },
+        ipAddress: req.ip ?? null,
+      },
+    });
+
+    res.json({ success: true, data: { ...agent, assignedCampaignName: agent.assignedCampaign?.name ?? null } });
+  } catch (error) {
+    console.error("Assign campaign error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 

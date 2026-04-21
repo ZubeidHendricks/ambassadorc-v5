@@ -55,11 +55,15 @@ export default function QualityAssurance() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Quality Assurance</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Review and verify sales before activation.
+          Mailbox-style queue for sales waiting on Quality Assurance before export.
         </p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+        <span className="font-semibold">FoxPro QA flow:</span> Submit/Pass sends a sale to export, Repair keeps it in operations for correction, and Cancel/Fail stops the sale before collection.
+      </div>
+
+      <div className="flex flex-wrap gap-2">
         {filters.map((f) => (
           <button
             key={f}
@@ -134,7 +138,7 @@ export default function QualityAssurance() {
                     onChange={(e) =>
                       setNotes((prev) => ({ ...prev, [item.id]: e.target.value }))
                     }
-                    placeholder="Add notes..."
+                      placeholder="QA notes / repair reason..."
                     rows={2}
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
@@ -146,7 +150,7 @@ export default function QualityAssurance() {
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                     >
                       <CheckCircle className="h-4 w-4" />
-                      Pass
+                      Submit
                     </Button>
                     <Button
                       size="sm"
@@ -156,15 +160,16 @@ export default function QualityAssurance() {
                       className="flex-1"
                     >
                       <XCircle className="h-4 w-4" />
-                      Fail
+                      Cancel
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleVerdict(item.id, 'escalated')}
+                      onClick={() => handleVerdict(item.id, 'repair')}
                       disabled={processing === item.id}
                     >
                       <AlertTriangle className="h-4 w-4" />
+                      Repair
                     </Button>
                   </div>
                 </div>

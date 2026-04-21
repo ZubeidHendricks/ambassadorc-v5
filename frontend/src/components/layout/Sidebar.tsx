@@ -31,6 +31,7 @@ import {
   ArrowLeftRight,
   Wallet,
   FileBarChart,
+  FileCheck2,
 } from 'lucide-react'
 
 interface NavItem {
@@ -73,6 +74,7 @@ const sections: NavSection[] = [
     items: [
       { to: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
       { to: '/admin/qa', label: 'Quality Assurance', icon: CheckSquare },
+      { to: '/admin/export-status', label: 'Export / Q-Link', icon: FileCheck2 },
       { to: '/admin/policies', label: 'Policies', icon: Shield },
       { to: '/admin/documents', label: 'Documents', icon: FileText },
     ],

@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import { createQaCheckSchema, updateQaCheckSchema } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { hasSyncTables } from "../lib/syncCheck";
+import { foxProStatusWhere } from "../lib/foxproStatus";
 
 const router = Router();
 
@@ -21,7 +22,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     const syncAvailable = await hasSyncTables();
 
     if (syncAvailable) {
-      const qaStatusFilter = `(s."Status" ILIKE '%qa%' OR s."Status" ILIKE '%quality%' OR s."Status" ILIKE '%validation%' OR s."Status" ILIKE '%awaiting%')`;
+      const qaStatusFilter = `(${foxProStatusWhere("qa_pending", "s")} OR ${foxProStatusWhere("qa_passed", "s")})`;
       let verdictFilter = "";
       if (statusFilter === "passed") verdictFilter = ` AND (s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%')`;
       else if (statusFilter === "failed") verdictFilter = ` AND s."Status" ILIKE '%fail%'`;
@@ -39,7 +40,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
                    FROM sync_sagepay_transactions sp WHERE sp."IdNumber" = s."IDNumber" AND sp."Amount" IS NOT NULL AND sp."Amount" != '' LIMIT 1), 0),
                    CASE COALESCE(s."ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
                   ) as "premiumAmount",
-                  CASE WHEN s."Status" ILIKE '%passed%' OR s."Status" ILIKE '%ok%' THEN 'passed'
+                  CASE WHEN s."Status" ILIKE '%qa validation passed%' THEN 'passed'
                        WHEN s."Status" ILIKE '%fail%' THEN 'failed'
                        WHEN s."Status" ILIKE '%escalat%' THEN 'escalated' ELSE 'pending' END as status,
                   s."Status" as verdict, NULL::text as notes, NULL::text as "reviewedBy", NULL::text as "reviewedAt",
@@ -215,6 +216,113 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       success: false,
       error: "An unexpected error occurred.",
     });
+  }
+});
+
+// ─── POST /api/qa/:id/verdict ───────────────────────────────────────────────
+
+router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ success: false, error: "Invalid QA check ID." });
+      return;
+    }
+
+    const verdict = String(req.body?.verdict ?? "").toLowerCase();
+    const notes = req.body?.notes ? String(req.body.notes) : "";
+    const statusMap: Record<string, "PASSED" | "FAILED" | "ESCALATED"> = {
+      passed: "PASSED",
+      submit: "PASSED",
+      failed: "FAILED",
+      cancel: "FAILED",
+      cancelled: "FAILED",
+      repair: "ESCALATED",
+      escalated: "ESCALATED",
+    };
+    const status = statusMap[verdict];
+    if (!status) {
+      res.status(400).json({ success: false, error: "Unknown QA verdict." });
+      return;
+    }
+
+    if (await hasSyncTables()) {
+      const rows = await prisma.$queryRawUnsafe<any[]>(
+        `SELECT s._sync_id::integer as id, s._sync_id::integer as "saleId",
+                CONCAT(COALESCE(s."FirstName", ''), ' ', COALESCE(s."LastName", '')) as "clientName",
+                COALESCE(s."ProductName", 'Unknown') as "productName",
+                COALESCE(s."SalesAgentUserName", '') as "agentName",
+                s."Status" as verdict,
+                s._synced_at as "createdAt"
+         FROM sync_sales_data s
+         WHERE s._sync_id = $1
+         LIMIT 1`,
+        id
+      );
+      if (!rows[0]) {
+        res.status(404).json({ success: false, error: "QA item not found." });
+        return;
+      }
+      await prisma.auditLog.create({
+        data: {
+          userId: String(req.ambassador!.id),
+          action: "SYNC_QA_REVIEW",
+          entity: "sync_sales_data",
+          entityId: String(id),
+          details: { result: status, notes, message: "FoxPro write-back is not enabled; local audit captured only." },
+          ipAddress: req.ip ?? null,
+        },
+      });
+      res.json({
+        success: true,
+        data: {
+          ...rows[0],
+          status: verdict === "repair" ? "escalated" : verdict === "cancel" ? "failed" : verdict,
+          notes,
+          reviewedBy: `${req.ambassador!.id}`,
+          reviewedAt: new Date().toISOString(),
+        },
+      });
+      return;
+    }
+
+    req.body.status = status;
+    const existing = await prisma.qualityCheck.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ success: false, error: "QA check not found." });
+      return;
+    }
+
+    if (existing.status !== "PENDING") {
+      res.status(400).json({ success: false, error: "This QA check has already been processed." });
+      return;
+    }
+
+    const check = await prisma.qualityCheck.update({
+      where: { id },
+      data: { status, notes: notes || null, checkedAt: new Date() },
+    });
+
+    await prisma.sale.update({
+      where: { id: existing.saleId },
+      data: { status: (status === "PASSED" ? "QA_APPROVED" : status === "FAILED" ? "QA_REJECTED" : "QA_PENDING") as any },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: String(req.ambassador!.id),
+        action: "QA_REVIEW",
+        entity: "QualityCheck",
+        entityId: String(id),
+        details: { saleId: existing.saleId, result: status, notes },
+        ipAddress: req.ip ?? null,
+      },
+    });
+
+    res.json({ success: true, data: check });
+  } catch (error) {
+    console.error("Submit QA verdict error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 

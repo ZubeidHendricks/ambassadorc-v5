@@ -4,9 +4,12 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { DataTable, type Column } from '@/components/ui/data-table'
 import {
   getAgents,
+  getCampaigns,
+  assignAgentCampaign,
   updateAgentRole,
   updateAgentTier,
   type Agent,
+  type Campaign,
 } from '@/lib/api'
 import {
   LineChart,
@@ -32,11 +35,18 @@ const formatCurrency = (val: number) =>
 
 export default function Agents() {
   const [agents, setAgents] = useState<Agent[]>([])
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [processing, setProcessing] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getAgents().then(setAgents).catch(() => {}).finally(() => setLoading(false))
+    Promise.all([getAgents(), getCampaigns()])
+      .then(([agentData, campaignData]) => {
+        setAgents(agentData)
+        setCampaigns(campaignData)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   const handleTierChange = async (id: number, tier: string) => {
@@ -56,6 +66,24 @@ export default function Agents() {
     try {
       await updateAgentRole(id, role)
       setAgents((prev) => prev.map((a) => (a.id === id ? { ...a, role } : a)))
+    } catch {
+      // handle
+    } finally {
+      setProcessing(null)
+    }
+  }
+
+  const handleCampaignChange = async (id: number, campaignId: string) => {
+    setProcessing(`campaign-${id}`)
+    const nextCampaignId = campaignId ? Number(campaignId) : null
+    try {
+      await assignAgentCampaign(id, nextCampaignId)
+      const campaign = campaigns.find((c) => c.id === nextCampaignId)
+      setAgents((prev) => prev.map((a) => (
+        a.id === id
+          ? { ...a, assignedCampaignId: nextCampaignId, assignedCampaignName: campaign?.name ?? null }
+          : a
+      )))
     } catch {
       // handle
     } finally {
@@ -125,6 +153,24 @@ export default function Agents() {
     { key: 'leadCount', header: 'Leads' },
     { key: 'saleCount', header: 'Sales' },
     {
+      key: 'assignedCampaignName',
+      header: 'Campaign',
+      render: (r) => (
+        <select
+          value={r.assignedCampaignId ?? ''}
+          onChange={(e) => handleCampaignChange(r.id, e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          disabled={processing === `campaign-${r.id}`}
+          className="max-w-44 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
+        >
+          <option value="">Unassigned</option>
+          {campaigns.map((campaign) => (
+            <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+          ))}
+        </select>
+      ),
+    },
+    {
       key: 'totalEarnings',
       header: 'Earnings',
       render: (r) => <span className="font-semibold">{formatCurrency(r.totalEarnings)}</span>,
@@ -164,8 +210,26 @@ export default function Agents() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Agents & Ambassadors</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Manage your team, track performance, and celebrate wins.
+          Manage master access, call-centre users, sales agents, role assignments, and campaign allocation.
         </p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Master/Admin Access</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{agents.filter((a) => a.role === 'ADMIN').length}</p>
+          <p className="mt-1 text-sm text-gray-500">Users with full operational control</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Call Centre / QA</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{agents.filter((a) => a.role === 'QA_OFFICER' || a.role === 'AGENT').length}</p>
+          <p className="mt-1 text-sm text-gray-500">Users who can process sales and QA work</p>
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Active Campaigns</p>
+          <p className="mt-2 text-2xl font-bold text-gray-900">{campaigns.filter((c) => c.isActive !== false).length}</p>
+          <p className="mt-1 text-sm text-gray-500">Assignable sales campaigns</p>
+        </div>
       </div>
 
       {/* Wins Section */}
@@ -246,7 +310,7 @@ export default function Agents() {
 
       {/* Agents Table */}
       <DataTable
-        data={agents}
+        data={loading ? [] : agents}
         columns={columns}
         pageSize={10}
         searchable

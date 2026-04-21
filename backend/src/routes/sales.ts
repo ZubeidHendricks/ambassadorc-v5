@@ -8,6 +8,12 @@ import {
 } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { hasSyncTables } from "../lib/syncCheck";
+import {
+  FOXPRO_STATUS_CASE_SQL,
+  FOXPRO_STATUS_DEFINITIONS,
+  foxProStatusLabel,
+  foxProStatusWhere,
+} from "../lib/foxproStatus";
 
 const router = Router();
 
@@ -150,13 +156,26 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     let p = 1;
 
     if (status) {
-      // Map normalized status back to FoxPro patterns
-      if (status === 'cancelled') { whereClauses.push(`("Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%' OR "Status" ILIKE '%delet%')`); }
-      else if (status === 'active') { whereClauses.push(`("Status" ILIKE '%active%' OR "Status" = 'Active Client')`); }
-      else if (status === 'approved') { whereClauses.push(`("Status" ILIKE '%passed%' OR "Status" ILIKE '%approved%' OR "Status" ILIKE '%ok%')`); }
-      else if (status === 'qa_pending') { whereClauses.push(`("Status" ILIKE '%qa%' OR "Status" ILIKE '%quality%' OR "Status" ILIKE '%pending%' OR "Status" ILIKE '%awaiting%')`); }
-      else if (status === 'new') { whereClauses.push(`("Status" NOT ILIKE '%cancel%' AND "Status" NOT ILIKE '%lapse%' AND "Status" NOT ILIKE '%delet%' AND "Status" NOT ILIKE '%active%' AND "Status" NOT ILIKE '%passed%' AND "Status" NOT ILIKE '%approved%' AND "Status" NOT ILIKE '%qa%' AND "Status" NOT ILIKE '%pending%' AND "Status" NOT ILIKE '%awaiting%')`); }
-      else { whereClauses.push(`"Status" ILIKE $${p}`); params.push(`%${status}%`); p++; }
+      if (FOXPRO_STATUS_DEFINITIONS.some((item) => item.group === status)) {
+        whereClauses.push(foxProStatusWhere(status));
+      } else if (status === 'active' || status === 'approved') {
+        whereClauses.push(foxProStatusWhere('qlink_uploaded'));
+      } else {
+        whereClauses.push(`"Status" ILIKE $${p}`);
+        params.push(`%${status}%`);
+        p++;
+      }
+    }
+
+    if (agentId && !isNaN(agentId)) {
+      whereClauses.push(`"SalesAgentId" = $${p}`);
+      params.push(agentId);
+      p++;
+    }
+    if (productId && !isNaN(productId)) {
+      whereClauses.push(`"CampaignID" = $${p}`);
+      params.push(productId);
+      p++;
     }
 
     const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
@@ -166,9 +185,9 @@ router.get("/", async (req: AuthRequest, res: Response) => {
         `SELECT _sync_id::integer as id,
                 0 as "clientId",
                 CONCAT("FirstName", ' ', "LastName") as "clientName",
-                0 as "productId",
+                COALESCE("CampaignID", 0)::integer as "productId",
                 COALESCE("ProductName", 'Unknown') as "productName",
-                0 as "agentId",
+                COALESCE("SalesAgentId", 0)::integer as "agentId",
                 COALESCE("SalesAgentUserName", '') as "agentName",
                 COALESCE(
                   NULLIF(
@@ -178,15 +197,9 @@ router.get("/", async (req: AuthRequest, res: Response) => {
                   ),
                   CASE COALESCE("ProductName",'') WHEN 'Life Saver Legal' THEN 129 WHEN 'LegalNet' THEN 129 WHEN 'Life Saver 24' THEN 199 WHEN 'Five-In-One' THEN 199 ELSE 129 END
                 ) as "premiumAmount",
-                CASE
-                  WHEN "Status" ILIKE '%cancel%' OR "Status" ILIKE '%lapse%' OR "Status" ILIKE '%delet%' THEN 'cancelled'
-                  WHEN "Status" ILIKE '%active%' OR "Status" = 'Active Client' THEN 'active'
-                  WHEN "Status" ILIKE '%passed%' OR "Status" ILIKE '%approved%' OR "Status" ILIKE '%ok%' THEN 'approved'
-                  WHEN "Status" ILIKE '%qa%' OR "Status" ILIKE '%quality%' OR "Status" ILIKE '%pending%' OR "Status" ILIKE '%awaiting%' THEN 'qa_pending'
-                  ELSE 'new'
-                END as status,
-                NULL::bigint as "campaignId",
-                NULL::text as "campaignName",
+                ${FOXPRO_STATUS_CASE_SQL} as status,
+                COALESCE("CampaignID", 0)::bigint as "campaignId",
+                COALESCE("ClientGroupName", "DataSource", '') as "campaignName",
                 COALESCE("Status", 'Unknown') as "rawStatus",
                 _synced_at as "createdAt"
          FROM sync_sales_data
@@ -221,6 +234,95 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       success: false,
       error: "An unexpected error occurred.",
     });
+  }
+});
+
+// ─── GET /api/sales/status-dictionary ───────────────────────────────────────
+
+router.get("/status-dictionary", async (_req: AuthRequest, res: Response) => {
+  res.json({ success: true, data: { statuses: FOXPRO_STATUS_DEFINITIONS } });
+});
+
+// ─── GET /api/sales/export-status ───────────────────────────────────────────
+
+router.get("/export-status", async (req: AuthRequest, res: Response) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const skip = (page - 1) * limit;
+    const group = (req.query.group as string | undefined) || "";
+    const allowedGroups = new Set(FOXPRO_STATUS_DEFINITIONS.map((item) => item.group));
+
+    if (await hasSyncTables()) {
+      const whereSQL = group && allowedGroups.has(group as any) ? `WHERE ${foxProStatusWhere(group, "s")}` : "";
+      const caseSQL = FOXPRO_STATUS_CASE_SQL.replaceAll('"Status"', 's."Status"');
+
+      const [summaryRows, statusRows, countRow] = await Promise.all([
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT export_group as "group", COUNT(*)::integer as count
+           FROM (SELECT ${caseSQL} as export_group FROM sync_sales_data s) grouped
+           GROUP BY export_group
+           ORDER BY count DESC`
+        ),
+        prisma.$queryRawUnsafe<any[]>(
+          `SELECT s._sync_id::integer as id,
+                  CONCAT(COALESCE(s."FirstName", ''), ' ', COALESCE(s."LastName", '')) as "clientName",
+                  COALESCE(s."ProductName", 'Unknown') as "productName",
+                  COALESCE(s."SalesAgentUserName", '') as "agentName",
+                  COALESCE(s."Status", 'Unknown') as "rawStatus",
+                  COALESCE(s."SubStatus", '') as "subStatus",
+                  ${caseSQL} as "statusGroup",
+                  s."LastOutcome" as "lastOutcome",
+                  s."LastUpdated" as "lastUpdated",
+                  s."DateLoaded" as "dateLoaded",
+                  s._synced_at as "syncedAt"
+           FROM sync_sales_data s
+           ${whereSQL}
+           ORDER BY s."LastUpdated" DESC NULLS LAST, s._synced_at DESC
+           LIMIT $1 OFFSET $2`,
+          limit, skip
+        ),
+        prisma.$queryRawUnsafe<[{ n: bigint }]>(
+          `SELECT COUNT(*) as n FROM sync_sales_data s ${whereSQL}`
+        ),
+      ]);
+
+      const summary = summaryRows.map((row) => ({
+        ...row,
+        label: foxProStatusLabel(row.group),
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          summary,
+          statuses: statusRows.map((row) => ({
+            ...row,
+            label: foxProStatusLabel(row.statusGroup),
+          })),
+          pagination: { page, limit, total: Number(countRow[0].n), totalPages: Math.ceil(Number(countRow[0].n) / limit) },
+        },
+      });
+      return;
+    }
+
+    const nativeRows = await prisma.sale.groupBy({ by: ["status"], _count: { status: true } });
+    const summary = nativeRows.map((row) => ({
+      group: String(row.status).toLowerCase(),
+      label: String(row.status).replace(/_/g, " "),
+      count: row._count.status,
+    }));
+    res.json({
+      success: true,
+      data: {
+        summary,
+        statuses: [],
+        pagination: { page, limit, total: 0, totalPages: 1 },
+      },
+    });
+  } catch (error) {
+    console.error("Export status error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 

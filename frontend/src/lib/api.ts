@@ -368,6 +368,7 @@ export interface Sale {
   status: string
   campaignId?: number
   campaignName?: string
+  rawStatus?: string
   createdAt: string
 }
 
@@ -384,6 +385,36 @@ export interface QAItem {
   reviewedBy?: string
   reviewedAt?: string
   createdAt: string
+}
+
+export interface FoxProStatusDefinition {
+  group: string
+  label: string
+  examples: string[]
+  stage: string
+  action: string
+  description: string
+}
+
+export interface ExportStatusSummary {
+  group: string
+  label: string
+  count: number
+}
+
+export interface ExportStatusRecord {
+  id: number
+  clientName: string
+  productName: string
+  agentName: string
+  rawStatus: string
+  subStatus?: string
+  statusGroup: string
+  label: string
+  lastOutcome?: string
+  lastUpdated?: string
+  dateLoaded?: string
+  syncedAt: string
 }
 
 export interface Commission {
@@ -411,6 +442,8 @@ export interface Agent {
   saleCount: number
   totalEarnings: number
   status: string
+  assignedCampaignId?: number | null
+  assignedCampaignName?: string | null
   createdAt: string
 }
 
@@ -789,6 +822,28 @@ export async function updateSaleStatus(id: number, status: string) {
   return res.data!
 }
 
+export async function getFoxProStatusDictionary(): Promise<FoxProStatusDefinition[]> {
+  const res = await request<{ statuses: FoxProStatusDefinition[] }>('/sales/status-dictionary')
+  return res.data!.statuses
+}
+
+export async function getExportStatuses(group?: string, page = 1, limit = 20): Promise<{
+  summary: ExportStatusSummary[]
+  statuses: ExportStatusRecord[]
+  pagination: PaginationInfo
+}> {
+  const params = new URLSearchParams()
+  if (group) params.set('group', group)
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  const res = await request<any>(`/sales/export-status?${params.toString()}`)
+  return {
+    summary: res.data!.summary ?? [],
+    statuses: res.data!.statuses ?? [],
+    pagination: res.data!.pagination ?? { page, limit, total: 0, totalPages: 1 },
+  }
+}
+
 // ─── Quality Assurance ─────────────────────────────────────────────
 
 export async function getQAItems(status?: string, page = 1, limit = 20): Promise<PaginatedResult<QAItem>> {
@@ -873,6 +928,8 @@ export async function getAgents() {
     saleCount: a._count?.sales ?? a.metrics?.approvedSales ?? 0,
     totalEarnings: a.metrics?.totalCommission ?? 0,
     status: a.status ?? (a.isActive ? 'active' : 'inactive'),
+    assignedCampaignId: a.assignedCampaignId ?? null,
+    assignedCampaignName: a.assignedCampaignName ?? a.assignedCampaign?.name ?? null,
     createdAt: a.createdAt,
   })) as Agent[]
 }
@@ -894,6 +951,14 @@ export async function updateAgentTier(id: number, tier: string) {
   const res = await request<Agent>(`/admin/agents/${id}/tier`, {
     method: 'PUT',
     body: JSON.stringify({ tier }),
+  })
+  return res.data!
+}
+
+export async function assignAgentCampaign(id: number, campaignId: number | null) {
+  const res = await request<Agent>(`/admin/agents/${id}/campaign`, {
+    method: 'PUT',
+    body: JSON.stringify({ campaignId }),
   })
   return res.data!
 }
@@ -1250,16 +1315,19 @@ export async function getAuditLog(filters?: { entity?: string; userId?: number; 
 export interface Campaign {
   id: number
   name: string
-  status: string
+  status?: string
+  isActive?: boolean
   startDate: string
   endDate?: string
-  saleCount: number
+  saleCount?: number
+  _count?: { assignedAmbassadors?: number }
   createdAt: string
 }
 
 export async function getCampaigns() {
-  const res = await request<Campaign[]>('/sales/campaigns')
-  return res.data!
+  const res = await request<any>('/sales/campaigns')
+  const d = res.data!
+  return (Array.isArray(d) ? d : d.campaigns ?? []) as Campaign[]
 }
 
 // ─── Debit Orders ─────────────────────────────────────────────────

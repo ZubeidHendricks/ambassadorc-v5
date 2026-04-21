@@ -8,13 +8,15 @@ import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
-const pipelineStatuses = ['new', 'qa_pending', 'approved', 'active', 'cancelled']
+const pipelineStatuses = ['new', 'qa_pending', 'qa_passed', 'exported_awaiting_outcome', 'qlink_uploaded', 'repair', 'cancelled']
 const pipelineLabels: Record<string, string> = {
-  new: 'New',
-  qa_pending: 'QA Pending',
-  approved: 'QA Approved',
-  active: 'Active',
-  cancelled: 'Cancelled',
+  new: 'Sales Capture',
+  qa_pending: 'In QA Validation',
+  qa_passed: 'QA Passed',
+  exported_awaiting_outcome: 'Exported Awaiting Outcome',
+  qlink_uploaded: 'Q-Link Uploaded',
+  repair: 'Repair',
+  cancelled: 'Client Cancelled',
 }
 
 const tableColumns: Column<Sale>[] = [
@@ -22,7 +24,8 @@ const tableColumns: Column<Sale>[] = [
   { key: 'productName', header: 'Product' },
   { key: 'agentName', header: 'Agent' },
   { key: 'premiumAmount', header: 'Premium', render: (r) => `R${r.premiumAmount}` },
-  { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+  { key: 'status', header: 'Status', render: (r) => <StatusBadge status={pipelineLabels[r.status] ?? r.status} /> },
+  { key: 'rawStatus', header: 'FoxPro Status', render: (r) => r.rawStatus || '-' },
   { key: 'campaignName', header: 'Campaign', render: (r) => r.campaignName || '-' },
   { key: 'createdAt', header: 'Date', render: (r) => new Date(r.createdAt).toLocaleDateString('en-ZA') },
 ]
@@ -76,7 +79,7 @@ export default function Sales() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sales Pipeline</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Track and manage your sales from lead to active policy.
+            Follow the FoxPro operations flow from sales capture through QA, export, Q-Link upload, repair, and cancellation.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -147,17 +150,23 @@ export default function Sales() {
                         <p className="mt-1.5 text-xs text-gray-400">{sale.campaignName}</p>
                       )}
                       <div className="mt-3">
-                        <select
-                          value={sale.status}
-                          onChange={(e) => handleStatusChange(sale.id, e.target.value)}
-                          className="w-full rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs focus:border-primary focus:outline-none"
-                        >
-                          {pipelineStatuses.map((s) => (
-                            <option key={s} value={s}>
-                              Move to: {pipelineLabels[s]}
-                            </option>
-                          ))}
-                        </select>
+                        {sale.rawStatus ? (
+                          <div className="rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-500">
+                            FoxPro source: {sale.rawStatus}
+                          </div>
+                        ) : (
+                          <select
+                            value={sale.status}
+                            onChange={(e) => handleStatusChange(sale.id, e.target.value)}
+                            className="w-full rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-xs focus:border-primary focus:outline-none"
+                          >
+                            {pipelineStatuses.map((s) => (
+                              <option key={s} value={s}>
+                                Move to: {pipelineLabels[s]}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     </div>
                   ))}

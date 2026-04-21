@@ -151,3 +151,12 @@ All 15+ data endpoints verified returning `success: true` on both environments.
 - Admin dashboard with analytics
 - AI-powered automation agents (lead scoring, QA checks, SMS dispatch)
 - Integration adapters: QLink, SagePay, NetCash, GuardRisk, ViciDialer, WATI
+
+## FoxPro Operations Flow
+
+The admin surface semi-replicates the FoxPro operations workflow while keeping the modern AmbassadorC UI:
+- Central status dictionary: `backend/src/lib/foxproStatus.ts` maps FoxPro labels/codes such as `QLink Result: 0 - Ok (Uploaded)`, `Client Cancelled - Other`, `QA Validation Passed`, `Exported Awaiting Outcome`, `T1`, and `In Validation with Quality Assurance` into operational groups.
+- Sales pipeline: `/admin/sales` uses FoxPro-inspired stages (`Sales Capture`, `In QA Validation`, `QA Passed`, `Exported Awaiting Outcome`, `Q-Link Uploaded`, `Repair`, `Client Cancelled`) and preserves raw FoxPro status labels from synced data.
+- QA mailbox: `/admin/qa` uses Submit, Repair, and Cancel language. Synced FoxPro rows are audit-captured locally only; bidirectional FoxPro write-back remains out of scope.
+- Export/Q-Link monitoring: `/admin/export-status` groups synced sales by export and return outcome, with drill-down rows and status explanations. Backend endpoints: `GET /api/sales/status-dictionary` and `GET /api/sales/export-status`.
+- Agents and campaigns: `/admin/agents` now highlights master/admin access, call-centre/QA users, active campaigns, and allows admins to assign registered agents to sales campaigns via `PUT /api/admin/agents/:id/campaign`.

@@ -9,6 +9,8 @@ const statusConfig: Record<string, { bg: string; text: string; dot: string }> = 
   paid: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
   signed: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
   delivered: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  qa_validation_passed: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
+  q_link_uploaded: { bg: 'bg-success-light', text: 'text-emerald-700', dot: 'bg-success' },
 
   // Info states
   viewed: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
@@ -16,16 +18,20 @@ const statusConfig: Record<string, { bg: string; text: string; dot: string }> = 
   new: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
   in_progress: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
   contacted: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
+  exported_awaiting_outcome: { bg: 'bg-primary-50', text: 'text-primary', dot: 'bg-primary-light' },
 
   // Warning states
   pending: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
   processing: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
   qa_pending: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
+  in_validation_with_quality_assurance: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
+  repair: { bg: 'bg-warning-light', text: 'text-amber-700', dot: 'bg-warning' },
 
   // Error states
   rejected: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
   failed: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
   cancelled: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
+  client_cancelled: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
   escalated: { bg: 'bg-error-light', text: 'text-red-700', dot: 'bg-error' },
 
   // Neutral states

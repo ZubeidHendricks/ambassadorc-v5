@@ -27,6 +27,7 @@ const routeTitles: Record<string, string> = {
   '/admin/sql': 'SQL Console',
   '/admin/sync': 'FoxPro Sync',
   '/admin/reports': 'Reports',
+  '/admin/export-status': 'Export & Q-Link Status',
   '/payments': 'My Payments',
 }
 
