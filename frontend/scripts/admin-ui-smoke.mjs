@@ -61,6 +61,7 @@ async function assertRoleNavigation(sections) {
 
   const qaRoutes = visibleRoutesForRole(sections, 'QA_OFFICER')
   assertRouteVisible(qaRoutes, '/admin', 'QA_OFFICER')
+  assert(qaRoutes.filter((route) => route === '/admin').length === 1, 'QA_OFFICER should see /admin once in navigation')
   assertRouteVisible(qaRoutes, '/admin/qa', 'QA_OFFICER')
   assertRouteVisible(qaRoutes, '/admin/export-status', 'QA_OFFICER')
   assertRouteVisible(qaRoutes, '/admin/documents', 'QA_OFFICER')
@@ -153,7 +154,8 @@ async function assertRenderedSidebar(vite, setRole) {
   assert(!ambassadorSidebar.includes('Ambassador Backend'), 'AMBASSADOR sidebar should not render Ambassador Backend')
 
   const qaSidebar = renderSidebar('QA_OFFICER')
-  assertIncludesAll(qaSidebar, 'QA_OFFICER sidebar', ['Operations Center', 'QA Validation', 'Export & Q-Link', 'Document Delivery'])
+  assertIncludesAll(qaSidebar, 'QA_OFFICER sidebar', ['Marketing Overview', 'QA Validation', 'Export & Q-Link', 'Document Delivery'])
+  assert(!qaSidebar.includes('Operations Center'), 'QA_OFFICER sidebar should not duplicate Operations Center and Marketing Overview')
   assert(!qaSidebar.includes('Submit Referrals'), 'QA_OFFICER sidebar should not render Submit Referrals')
   assert(!qaSidebar.includes('Submit Lead'), 'QA_OFFICER sidebar should not render Submit Lead')
   assert(!qaSidebar.includes('Operations Exports'), 'QA_OFFICER sidebar should not render Operations Exports')

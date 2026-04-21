@@ -59,7 +59,7 @@ export const sections: NavSectionConfig[] = [
   {
     id: 'workspace-home',
     title: 'Workspace Home',
-    roles: ['QA_OFFICER', 'ADMIN'],
+    roles: ['ADMIN'],
     items: [
       { to: '/admin', label: 'Operations Center', icon: LayoutDashboard },
     ],
