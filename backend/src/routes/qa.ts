@@ -286,6 +286,7 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
       res.status(400).json({ success: false, error: "Unknown QA verdict." });
       return;
     }
+    const responseStatus = status === "PASSED" ? "passed" : status === "FAILED" ? "failed" : "escalated";
 
     if (await hasSyncTables()) {
       const rows = await prisma.$queryRawUnsafe<any[]>(
@@ -318,7 +319,7 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
         success: true,
         data: {
           ...rows[0],
-          status: verdict === "repair" ? "escalated" : verdict === "cancel" ? "failed" : verdict,
+          status: responseStatus,
           notes,
           reviewedBy: `${req.ambassador!.id}`,
           reviewedAt: new Date().toISOString(),
