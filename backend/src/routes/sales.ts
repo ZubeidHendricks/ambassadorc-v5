@@ -18,6 +18,25 @@ import {
 
 const router = Router();
 
+const nativeSalesStatusToFoxProGroup: Record<string, string> = {
+  NEW: "new",
+  QA_PENDING: "qa_pending",
+  QA_APPROVED: "qa_passed",
+  QA_REJECTED: "repair",
+  ACTIVE: "qlink_uploaded",
+  CANCELLED: "cancelled",
+};
+
+const foxProGroupToNativeSalesStatus: Record<string, string[]> = {
+  new: ["NEW"],
+  qa_pending: ["QA_PENDING"],
+  qa_passed: ["QA_APPROVED"],
+  exported_awaiting_outcome: ["QA_APPROVED"],
+  qlink_uploaded: ["ACTIVE"],
+  repair: ["QA_REJECTED"],
+  cancelled: ["CANCELLED"],
+};
+
 // All routes require authentication
 router.use(authenticate);
 
@@ -105,7 +124,10 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     // ── Native Prisma path (production — no sync tables) ──────────────────
     if (!(await hasSyncTables())) {
       const where: any = {};
-      if (status) where.status = status;
+      if (status) {
+        const mappedStatuses = foxProGroupToNativeSalesStatus[status] ?? [status.toUpperCase()];
+        where.status = { in: mappedStatuses };
+      }
       if (agentId && !isNaN(agentId)) where.agentId = agentId;
       if (productId && !isNaN(productId)) where.productId = productId;
 
@@ -133,7 +155,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
         agentId: s.agentId,
         agentName: `${s.agent.firstName} ${s.agent.lastName}`,
         premiumAmount: Number(s.product.premiumAmount ?? 129),
-        status: ({ NEW: 'new', QA_PENDING: 'qa_pending', QA_APPROVED: 'approved', QA_REJECTED: 'cancelled', ACTIVE: 'active', CANCELLED: 'cancelled' } as Record<string, string>)[s.status] ?? 'new',
+        status: nativeSalesStatusToFoxProGroup[s.status] ?? 'new',
         campaignId: null,
         campaignName: null,
         createdAt: s.createdAt,
@@ -157,10 +179,16 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     let p = 1;
 
     if (status) {
-      if (FOXPRO_STATUS_DEFINITIONS.some((item) => item.group === status)) {
-        whereClauses.push(foxProStatusWhere(status));
-      } else if (status === 'active' || status === 'approved') {
-        whereClauses.push(foxProStatusWhere('qlink_uploaded'));
+      const groupedStatus = FOXPRO_STATUS_DEFINITIONS.some((item) => item.group === status)
+        ? status
+        : status === "active" || status === "approved"
+          ? "qlink_uploaded"
+          : null;
+
+      if (groupedStatus) {
+        whereClauses.push(`(${FOXPRO_STATUS_CASE_SQL}) = $${p}`);
+        params.push(groupedStatus);
+        p++;
       } else {
         whereClauses.push(`"Status" ILIKE $${p}`);
         params.push(`%${status}%`);
@@ -256,8 +284,8 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
       FOXPRO_STATUS_DEFINITIONS.some((item) => item.group === value);
 
     if (await hasSyncTables()) {
-      const whereSQL = group && isFoxProStatusGroup(group) ? `WHERE ${foxProStatusWhere(group, "s")}` : "";
       const caseSQL = FOXPRO_STATUS_CASE_SQL.replaceAll('"Status"', 's."Status"');
+      const whereSQL = group && isFoxProStatusGroup(group) ? `WHERE (${caseSQL}) = '${group}'` : "";
 
       const [summaryRows, statusRows, countRow] = await Promise.all([
         prisma.$queryRawUnsafe<any[]>(
@@ -310,8 +338,8 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
 
     const nativeRows = await prisma.sale.groupBy({ by: ["status"], _count: { status: true } });
     const summary = nativeRows.map((row) => ({
-      group: String(row.status).toLowerCase(),
-      label: String(row.status).replace(/_/g, " "),
+      group: nativeSalesStatusToFoxProGroup[String(row.status)] ?? "new",
+      label: foxProStatusLabel(nativeSalesStatusToFoxProGroup[String(row.status)] ?? "new"),
       count: row._count.status,
     }));
     res.json({
