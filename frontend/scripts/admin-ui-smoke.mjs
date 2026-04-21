@@ -174,6 +174,23 @@ async function assertSalesAgentContent(vite, setRole) {
   ])
 }
 
+async function assertQaMailboxContent(vite, setRole) {
+  const { default: QualityAssurance } = await vite.ssrLoadModule('/src/pages/admin/QualityAssurance.tsx')
+  setRole('QA_OFFICER')
+  const text = normalizeRenderedText(renderToString(React.createElement(QualityAssurance)))
+  assertIncludesAll(text, '/admin/qa mailbox coverage', [
+    'QA MAILBOX',
+    'Client ID',
+    'Client Name',
+    'Date Of Sale',
+    'Sales Verification Agent',
+    'SUBMIT BUTTON',
+    'REPAIR',
+    'CANCEL BUTTON',
+    'If SUBMIT BUTTON the sale is loaded for export @ midnight sales export to Netcash or Q-Link',
+  ])
+}
+
 async function assertRenderedSidebar(vite, setRole) {
   const { default: Sidebar } = await vite.ssrLoadModule('/src/components/layout/Sidebar.tsx')
   const renderSidebar = (role) => {
@@ -235,6 +252,7 @@ async function main() {
     await assertDashboardContent(vite, setRole)
     await assertCallCentreControlContent(vite, setRole)
     await assertSalesAgentContent(vite, setRole)
+    await assertQaMailboxContent(vite, setRole)
     await assertRenderedSidebar(vite, setRole)
     console.log('Admin UI smoke checks passed')
   } finally {

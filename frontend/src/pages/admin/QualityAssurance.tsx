@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { getQAItems, submitQAVerdict, type QAItem, type PaginationInfo } from '@/lib/api'
@@ -11,7 +11,6 @@ export default function QualityAssurance() {
   const [filter, setFilter] = useState<string>('pending')
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState<PaginationInfo>({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 1 })
-  const [notes, setNotes] = useState<Record<number, string>>({})
   const [processing, setProcessing] = useState<number | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
@@ -39,7 +38,7 @@ export default function QualityAssurance() {
     setActionError(null)
     setActionMessage(null)
     try {
-      const updated = await submitQAVerdict(id, { verdict, notes: notes[id] || '' })
+      const updated = await submitQAVerdict(id, { verdict, notes: '' })
       const updatedStatus = updated.status?.toLowerCase() || (verdict === 'repair' ? 'repair' : verdict === 'cancel' ? 'failed' : verdict)
       setItems((prev) =>
         prev.map((item) =>
@@ -60,15 +59,22 @@ export default function QualityAssurance() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Quality Assurance</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Mailbox-style queue for sales waiting on Quality Assurance before export.
-        </p>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">QA MAILBOX</p>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900">Quality Assurance</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Mailbox-style queue for sales waiting on Quality Assurance before export.
+          </p>
+        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+          <Clock className="mr-2 inline h-4 w-4" />
+          If SUBMIT BUTTON the sale is loaded for export @ midnight sales export to Netcash or Q-Link.
+        </div>
       </div>
 
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-        <span className="font-semibold">FoxPro QA flow:</span> Submit/Pass sends a sale to export, Repair keeps it in operations for correction, and Cancel/Fail stops the sale before collection.
+        <span className="font-semibold">FoxPro QA flow:</span> SUBMIT BUTTON sends a sale to export, REPAIR keeps it in operations for correction, and CANCEL BUTTON stops the sale before collection.
       </div>
 
       {actionError && (
@@ -99,110 +105,89 @@ export default function QualityAssurance() {
         ))}
       </div>
 
-      <div className="space-y-4">
-        {items.length === 0 && (
-          <div className="rounded-xl border-2 border-dashed border-gray-200 p-12 text-center text-gray-400">
-            No QA items found.
-          </div>
-        )}
-        {items.map((item) => (
-          <div
-            key={item.id}
-            className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
-          >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-semibold text-gray-900">{item.clientName}</h3>
-                  <StatusBadge status={item.status} />
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
-                  <div>
-                    <span className="text-gray-500">Product:</span>{' '}
-                    <span className="font-medium">{item.productName}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Agent:</span>{' '}
-                    <span className="font-medium">{item.agentName}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Premium:</span>{' '}
-                    <span className="font-medium">R{item.premiumAmount}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Date:</span>{' '}
-                    <span className="font-medium">
-                      {new Date(item.createdAt).toLocaleDateString('en-ZA')}
-                    </span>
-                  </div>
-                </div>
-                {item.notes && (
-                  <p className="mt-2 text-sm text-gray-600">
-                    <span className="font-medium">Notes:</span> {item.notes}
-                  </p>
-                )}
-                {item.reviewedBy && (
-                  <p className="mt-1 text-xs text-gray-400">
-                    Reviewed by {item.reviewedBy} on{' '}
-                    {item.reviewedAt
-                      ? new Date(item.reviewedAt).toLocaleString('en-ZA')
-                      : '-'}
-                  </p>
-                )}
-                {item.writeBack?.status && (
-                  <p className="mt-1 text-xs text-emerald-700">
-                    FoxPro write-back {item.writeBack.status}
-                    {item.writeBack.sourceId ? ` for SalesData #${item.writeBack.sourceId}` : ''}.
-                  </p>
-                )}
-              </div>
-
-              {item.status === 'pending' && (
-                <div className="flex shrink-0 flex-col gap-3 lg:w-64">
-                  <textarea
-                    value={notes[item.id] || ''}
-                    onChange={(e) =>
-                      setNotes((prev) => ({ ...prev, [item.id]: e.target.value }))
-                    }
-                      placeholder="QA notes / repair reason..."
-                    rows={2}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleVerdict(item.id, 'passed')}
-                      disabled={processing === item.id}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Submit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleVerdict(item.id, 'cancel')}
-                      disabled={processing === item.id}
-                      className="flex-1"
-                    >
-                      <XCircle className="h-4 w-4" />
-                      Cancel
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleVerdict(item.id, 'repair')}
-                      disabled={processing === item.id}
-                    >
-                      <AlertTriangle className="h-4 w-4" />
-                      Repair
-                    </Button>
-                  </div>
-                </div>
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-[980px] w-full border-collapse text-left text-sm">
+            <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-600">
+              <tr>
+                <th className="w-12 border-b border-r border-gray-200 px-3 py-3">#</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">Client ID</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">Client Name</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">Date Of Sale</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">Sales Verification Agent</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">SUBMIT BUTTON</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">REPAIR</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">CANCEL BUTTON</th>
+                <th className="border-b border-gray-200 px-3 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-400">
+                    No QA mailbox rows found.
+                  </td>
+                </tr>
               )}
-            </div>
-          </div>
-        ))}
+              {items.map((item, index) => {
+                const isPending = item.status === 'pending'
+                return (
+                  <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="border-r border-gray-200 px-3 py-2 text-gray-500">{(pagination.page - 1) * PAGE_SIZE + index + 1}</td>
+                    <td className="border-r border-gray-200 px-3 py-2 font-medium text-gray-900">{item.clientIdNumber || item.saleId}</td>
+                    <td className="border-r border-gray-200 px-3 py-2 text-gray-900">{item.clientName}</td>
+                    <td className="border-r border-gray-200 px-3 py-2 text-gray-700">{new Date(item.createdAt).toLocaleDateString('en-ZA')}</td>
+                    <td className="border-r border-gray-200 px-3 py-2 text-gray-700">{item.agentName}</td>
+                    <td className="border-r border-gray-200 px-2 py-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleVerdict(item.id, 'passed')}
+                        disabled={!isPending || processing === item.id}
+                        className="h-8 w-full bg-emerald-600 px-2 text-[11px] hover:bg-emerald-700"
+                      >
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        SUBMIT BUTTON
+                      </Button>
+                    </td>
+                    <td className="border-r border-gray-200 px-2 py-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleVerdict(item.id, 'repair')}
+                        disabled={!isPending || processing === item.id}
+                        className="h-8 w-full px-2 text-[11px]"
+                      >
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        REPAIR
+                      </Button>
+                    </td>
+                    <td className="border-r border-gray-200 px-2 py-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleVerdict(item.id, 'cancel')}
+                        disabled={!isPending || processing === item.id}
+                        className="h-8 w-full px-2 text-[11px]"
+                      >
+                        <XCircle className="h-3.5 w-3.5" />
+                        CANCEL BUTTON
+                      </Button>
+                    </td>
+                    <td className="px-3 py-2">
+                      <StatusBadge status={item.status} />
+                      {item.writeBack?.status && (
+                        <p className="mt-1 text-xs text-emerald-700">
+                          FoxPro write-back {item.writeBack.status}
+                          {item.writeBack.sourceId ? ` for SalesData #${item.writeBack.sourceId}` : ''}.
+                        </p>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {pagination.totalPages > 1 && (

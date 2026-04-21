@@ -518,6 +518,7 @@ export interface Sale {
 export interface QAItem {
   id: number
   saleId: number
+  clientIdNumber?: string
   clientName: string
   productName: string
   agentName: string

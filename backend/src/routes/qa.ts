@@ -59,6 +59,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
            ),
            qa_items AS (
              SELECT s._sync_id::integer as id, s._sync_id::integer as "saleId",
+                    COALESCE(s."IDNumber", '') as "clientIdNumber",
                     CONCAT(s."FirstName", ' ', s."LastName") as "clientName",
                     COALESCE(s."ProductName", 'Unknown') as "productName",
                     COALESCE(s."SalesAgentUserName", '') as "agentName",
@@ -101,12 +102,13 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       prisma.qualityCheck.findMany({
         where, skip, take: limit,
         orderBy: { createdAt: "desc" },
-        include: { sale: { include: { client: { select: { firstName: true, lastName: true } }, product: { select: { name: true } }, agent: { select: { firstName: true, lastName: true } } } }, checker: { select: { firstName: true, lastName: true } } },
+        include: { sale: { include: { client: { select: { idNumber: true, firstName: true, lastName: true } }, product: { select: { name: true } }, agent: { select: { firstName: true, lastName: true } } } }, checker: { select: { firstName: true, lastName: true } } },
       }),
       prisma.qualityCheck.count({ where }),
     ]);
     const rows = checks.map((c: any) => ({
       id: c.id, saleId: c.saleId,
+      clientIdNumber: c.sale?.client?.idNumber ?? "",
       clientName: c.sale?.client ? `${c.sale.client.firstName} ${c.sale.client.lastName}` : "Unknown",
       productName: c.sale?.product?.name ?? "Unknown",
       agentName: c.sale?.agent ? `${c.sale.agent.firstName} ${c.sale.agent.lastName}` : "Unknown",
