@@ -156,7 +156,7 @@ export default function QualityAssurance() {
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleVerdict(item.id, 'failed')}
+                      onClick={() => handleVerdict(item.id, 'cancel')}
                       disabled={processing === item.id}
                       className="flex-1"
                     >

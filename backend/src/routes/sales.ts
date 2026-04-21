@@ -342,18 +342,57 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const nativeRows = await prisma.sale.groupBy({ by: ["status"], _count: { status: true } });
-    const summary = nativeRows.map((row) => ({
-      group: nativeSalesStatusToFoxProGroup[String(row.status)] ?? "new",
-      label: foxProStatusLabel(nativeSalesStatusToFoxProGroup[String(row.status)] ?? "new"),
-      count: row._count.status,
+    const nativeWhere: any = {};
+    if (group && isFoxProStatusGroup(group)) {
+      nativeWhere.status = { in: foxProGroupToNativeSalesStatus[group] ?? [] };
+    }
+    const [nativeRows, nativeStatusRows, nativeTotal] = await Promise.all([
+      prisma.sale.groupBy({ by: ["status"], _count: { status: true } }),
+      prisma.sale.findMany({
+        where: nativeWhere,
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+        include: {
+          client: { select: { firstName: true, lastName: true } },
+          product: { select: { name: true } },
+          agent: { select: { firstName: true, lastName: true } },
+        },
+      }),
+      prisma.sale.count({ where: nativeWhere }),
+    ]);
+    const summaryMap = new Map<string, number>();
+    for (const row of nativeRows) {
+      const grouped = nativeSalesStatusToFoxProGroup[String(row.status)] ?? "new";
+      summaryMap.set(grouped, (summaryMap.get(grouped) ?? 0) + row._count.status);
+    }
+    const summary = [...summaryMap.entries()].map(([statusGroup, count]) => ({
+      group: statusGroup,
+      label: foxProStatusLabel(statusGroup),
+      count,
     }));
     res.json({
       success: true,
       data: {
         summary,
-        statuses: [],
-        pagination: { page, limit, total: 0, totalPages: 1 },
+        statuses: nativeStatusRows.map((sale) => {
+          const statusGroup = nativeSalesStatusToFoxProGroup[String(sale.status)] ?? "new";
+          return {
+            id: sale.id,
+            clientName: sale.client ? `${sale.client.firstName} ${sale.client.lastName}` : "Unknown",
+            productName: sale.product?.name ?? "Unknown",
+            agentName: sale.agent ? `${sale.agent.firstName} ${sale.agent.lastName}` : "",
+            rawStatus: String(sale.status),
+            subStatus: "",
+            statusGroup,
+            label: foxProStatusLabel(statusGroup),
+            lastOutcome: null,
+            lastUpdated: sale.updatedAt,
+            dateLoaded: sale.createdAt,
+            syncedAt: sale.createdAt,
+          };
+        }),
+        pagination: { page, limit, total: nativeTotal, totalPages: Math.ceil(nativeTotal / limit) },
       },
     });
   } catch (error) {
