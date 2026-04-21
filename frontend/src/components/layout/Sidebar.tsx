@@ -5,62 +5,11 @@ import { cn } from '@/lib/utils'
 import { Logo, LogoMark } from '@/components/ui/Logo'
 import { sections } from './navConfig'
 import {
-  LayoutDashboard,
-  Users,
-  UserPlus,
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Shield,
-  Package,
-  FileText,
-  ShoppingCart,
-  CheckSquare,
-  Coins,
-  UserCheck,
-  Bot,
-  GitBranch,
-  MessageSquare,
-  DollarSign,
-  Plug,
-  Trophy,
-  Send,
-  History,
   X,
-  Terminal,
-  ArrowLeftRight,
-  Wallet,
-  FileBarChart,
-  FileCheck2,
-  Landmark,
 } from 'lucide-react'
-
-const iconMap = {
-  LayoutDashboard,
-  Users,
-  UserPlus,
-  Shield,
-  Package,
-  FileText,
-  ShoppingCart,
-  CheckSquare,
-  Coins,
-  UserCheck,
-  Bot,
-  GitBranch,
-  MessageSquare,
-  DollarSign,
-  Plug,
-  Trophy,
-  Send,
-  History,
-  Terminal,
-  ArrowLeftRight,
-  Wallet,
-  FileBarChart,
-  FileCheck2,
-  Landmark,
-}
 
 interface SidebarProps {
   collapsed: boolean
@@ -122,7 +71,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
-                const Icon = iconMap[item.icon as keyof typeof iconMap] ?? LayoutDashboard
+                const Icon = item.icon
                 const active = isActive(item.to)
                 return (
                   <Link
