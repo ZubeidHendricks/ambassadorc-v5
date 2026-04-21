@@ -109,6 +109,20 @@ async function assertDashboardContent(vite, setRole) {
       'Ambassador Backend & FNB Cycle',
       'Admin required',
     ])
+    const { default: AmbassadorBackend } = await vite.ssrLoadModule('/src/pages/admin/AmbassadorBackend.tsx')
+    const backendText = normalizeRenderedText(renderToString(React.createElement(AmbassadorBackend)))
+    assertIncludesAll(backendText, 'ambassador backend spreadsheet headers', [
+      'AMBASSADORS',
+      'Date Submitted',
+      'Confirmed Numbers',
+      'Total for payment',
+      'CSV Export File',
+      'Import CSV File to FNB',
+      'Authorise Payment',
+      'Export Paid File',
+      'Update Table',
+      'Paid',
+    ])
   } finally {
     console.warn = originalWarn
   }

@@ -203,6 +203,7 @@ export interface AmbassadorPayment {
 
 export interface AmbassadorOperationsRow {
   ambassadorId: number
+  dateSubmitted: string
   name: string
   surname: string
   mobileNo: string

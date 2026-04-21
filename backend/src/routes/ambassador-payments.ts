@@ -76,8 +76,9 @@ async function getOperationalRows() {
       firstName: true,
       lastName: true,
       mobileNo: true,
-      referrals: { select: { id: true, status: true } },
-      leads: { select: { id: true, type: true, status: true } },
+      createdAt: true,
+      referrals: { select: { id: true, status: true, createdAt: true } },
+      leads: { select: { id: true, type: true, status: true, createdAt: true } },
       ambassadorPayments: {
         select: {
           id: true,
@@ -116,9 +117,20 @@ async function getOperationalRows() {
     const latestPayment = ambassador.ambassadorPayments
       .slice()
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    const activityDates = [
+      ...ambassador.referrals.map((referral) => referral.createdAt),
+      ...ambassador.leads.map((lead) => lead.createdAt),
+      latestPayment?.createdAt,
+      ambassador.createdAt,
+    ].filter((date): date is Date => !!date);
+    const dateSubmitted = activityDates
+      .slice()
+      .sort((a, b) => a.getTime() - b.getTime())[0]
+      .toISOString();
 
     return {
       ambassadorId: ambassador.id,
+      dateSubmitted,
       name: ambassador.firstName,
       surname: ambassador.lastName,
       mobileNo: ambassador.mobileNo,
