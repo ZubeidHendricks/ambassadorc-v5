@@ -21,7 +21,7 @@ export const FOXPRO_STATUS_DEFINITIONS: FoxProStatusDefinition[] = [
   {
     group: "new",
     label: "New / Sales Capture",
-    examples: ["New", "T1"],
+    examples: ["New"],
     stage: "Sales",
     action: "Complete sale capture and send to QA",
     description: "Records still in sales capture or not yet mapped to a downstream operational step.",

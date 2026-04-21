@@ -13,7 +13,6 @@ import {
   FOXPRO_STATUS_DEFINITIONS,
   FoxProStatusGroup,
   foxProStatusLabel,
-  foxProStatusWhere,
 } from "../lib/foxproStatus";
 
 const router = Router();

@@ -334,7 +334,6 @@ router.post("/:id/verdict", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    req.body.status = status;
     const existing = await prisma.qualityCheck.findUnique({ where: { id } });
     if (!existing) {
       res.status(404).json({ success: false, error: "QA check not found." });
