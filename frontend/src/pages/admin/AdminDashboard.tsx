@@ -46,6 +46,13 @@ export default function AdminDashboard() {
   const formatCurrency = (val: number) =>
     `R${val.toLocaleString('en-ZA', { minimumFractionDigits: 0 })}`
   const statValue = (value: string | number) => loading ? '—' : value
+  const bookCoverage = stats.totalClients > 0
+    ? Math.min(100, Math.round((stats.activePolicies / stats.totalClients) * 100))
+    : 0
+  const commissionShare = stats.monthlyRevenue > 0
+    ? Math.min(100, Math.round((stats.commissionsPaid / stats.monthlyRevenue) * 100))
+    : 0
+  const qaLoad = Math.min(100, stats.pendingQA * 10)
 
   const processColumns: ProcessColumn[] = [
     {
@@ -245,6 +252,22 @@ export default function AdminDashboard() {
               <p className="text-[10px] uppercase tracking-wide text-gray-500">Revenue</p>
             </div>
           </div>
+          <div className="mt-5 space-y-3">
+            <AnalyticsMeter
+              label="Policy Attachment"
+              value={loading ? '—' : `${bookCoverage}%`}
+              width={loading ? 0 : bookCoverage}
+              tone="bg-emerald-500"
+              detail="Active policies measured against client records"
+            />
+            <AnalyticsMeter
+              label="Commission Ratio"
+              value={loading ? '—' : `${commissionShare}%`}
+              width={loading ? 0 : commissionShare}
+              tone="bg-orange-500"
+              detail="Paid commissions compared with monthly revenue"
+            />
+          </div>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Team Activity</p>
@@ -263,6 +286,50 @@ export default function AdminDashboard() {
               <p className="text-[10px] uppercase tracking-wide text-orange-700/70">Commissions</p>
             </div>
           </div>
+          <div className="mt-5 space-y-3">
+            <AnalyticsMeter
+              label="QA Queue Pressure"
+              value={statValue(stats.pendingQA)}
+              width={loading ? 0 : qaLoad}
+              tone="bg-amber-500"
+              detail="Pending QA items needing validation or repair"
+            />
+            <AnalyticsMeter
+              label="Agent Coverage"
+              value={statValue(stats.activeAgents)}
+              width={loading ? 0 : Math.min(100, stats.activeAgents * 8)}
+              tone="bg-violet-500"
+              detail="Active agents available for marketing and onboarding work"
+            />
+          </div>
+        </div>
+      </div>
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">Operations Activity</p>
+            <h2 className="mt-1 text-sm font-bold text-gray-900">Current workflow focus</h2>
+          </div>
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">
+            FoxPro-aligned dashboard
+          </span>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <ActivityTile
+            label="Marketing"
+            value="Ambassador app launch lane"
+            detail="WhatsApp invite, registration, referral capture, and backend earnings table"
+          />
+          <ActivityTile
+            label="Collections"
+            value="Q-Link outcome monitoring"
+            detail="RC/C, t1, u, uploaded, and exported awaiting outcome queues"
+          />
+          <ActivityTile
+            label="Client Care"
+            value="Document and SMS follow-through"
+            detail="Welcome packs, policy documents, and payment communication"
+          />
         </div>
       </div>
     </div>
@@ -315,5 +382,44 @@ function ProcessCard({ to, title, description, tags, icon: CardIcon }: ProcessCa
         ))}
       </div>
     </Link>
+  )
+}
+
+function AnalyticsMeter({
+  label,
+  value,
+  width,
+  tone,
+  detail,
+}: {
+  label: string
+  value: string | number
+  width: number
+  tone: string
+  detail: string
+}) {
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold text-gray-800">{label}</p>
+          <p className="text-[11px] text-gray-500">{detail}</p>
+        </div>
+        <span className="text-xs font-black text-gray-900">{value}</span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+        <div className={`h-full rounded-full ${tone}`} style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  )
+}
+
+function ActivityTile({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
+      <p className="mt-1 text-sm font-black text-gray-900">{value}</p>
+      <p className="mt-2 text-xs leading-relaxed text-gray-500">{detail}</p>
+    </div>
   )
 }

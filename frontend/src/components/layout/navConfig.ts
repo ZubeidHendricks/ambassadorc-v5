@@ -1,4 +1,20 @@
-export const sections = [
+export type AppRole = 'AMBASSADOR' | 'AGENT' | 'QA_OFFICER' | 'ADMIN'
+
+export interface NavItemConfig {
+  to: string
+  label: string
+  icon: string
+  roles?: AppRole[]
+}
+
+export interface NavSectionConfig {
+  id: string
+  title: string
+  items: NavItemConfig[]
+  roles?: AppRole[]
+}
+
+export const sections: NavSectionConfig[] = [
   {
     id: 'personal',
     title: 'Personal',

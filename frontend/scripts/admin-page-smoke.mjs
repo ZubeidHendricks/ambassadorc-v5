@@ -1,7 +1,6 @@
 import React from 'react'
 import { renderToString } from 'react-dom/server'
 import { createServer } from 'vite'
-import { sections } from '../src/components/layout/navConfig.mjs'
 
 const FRONTEND_BASE = process.env.FRONTEND_BASE ?? 'http://127.0.0.1:5000'
 
@@ -28,6 +27,10 @@ const dashboardRequiredText = [
   'RC/C',
   't1',
   'u',
+  'Policy Attachment',
+  'Commission Ratio',
+  'Operations Activity',
+  'Current workflow focus',
 ]
 
 const smokeUserBase = {
@@ -41,7 +44,7 @@ function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
-function visibleRoutesForRole(role) {
+function visibleRoutesForRole(sections, role) {
   return sections
     .filter((section) => !section.roles || section.roles.includes(role))
     .flatMap((section) => section.items)
@@ -57,18 +60,18 @@ function assertRouteHidden(routes, route, role) {
   assert(!routes.includes(route), `${role} should not see ${route} navigation`)
 }
 
-async function assertRoleNavigation() {
+async function assertRoleNavigation(sections) {
   const marketingSection = sections.find((section) => section.id === 'marketing-agents')
   assert(marketingSection, 'Marketing navigation section is missing')
   assert(marketingSection.roles?.includes('AMBASSADOR'), 'Marketing navigation is not visible to ambassadors')
 
-  const ambassadorRoutes = visibleRoutesForRole('AMBASSADOR')
+  const ambassadorRoutes = visibleRoutesForRole(sections, 'AMBASSADOR')
   assertRouteVisible(ambassadorRoutes, '/referrals', 'AMBASSADOR')
   assertRouteVisible(ambassadorRoutes, '/leads', 'AMBASSADOR')
   assertRouteHidden(ambassadorRoutes, '/admin/agents', 'AMBASSADOR')
   assertRouteHidden(ambassadorRoutes, '/admin/ambassador-backend', 'AMBASSADOR')
 
-  const qaRoutes = visibleRoutesForRole('QA_OFFICER')
+  const qaRoutes = visibleRoutesForRole(sections, 'QA_OFFICER')
   assertRouteVisible(qaRoutes, '/admin', 'QA_OFFICER')
   assertRouteVisible(qaRoutes, '/admin/qa', 'QA_OFFICER')
   assertRouteVisible(qaRoutes, '/admin/export-status', 'QA_OFFICER')
@@ -78,7 +81,7 @@ async function assertRoleNavigation() {
   assertRouteHidden(qaRoutes, '/admin/reports', 'QA_OFFICER')
   assertRouteHidden(qaRoutes, '/admin/sms', 'QA_OFFICER')
 
-  const adminRoutes = visibleRoutesForRole('ADMIN')
+  const adminRoutes = visibleRoutesForRole(sections, 'ADMIN')
   assertRouteVisible(adminRoutes, '/admin', 'ADMIN')
   assertRouteVisible(adminRoutes, '/admin/agents', 'ADMIN')
   assertRouteVisible(adminRoutes, '/admin/ambassador-backend', 'ADMIN')
@@ -165,7 +168,19 @@ async function assertDashboardContent() {
 }
 
 async function main() {
-  await assertRoleNavigation()
+  const navVite = await createServer({
+    appType: 'custom',
+    logLevel: 'silent',
+    server: { middlewareMode: true },
+  })
+  let sections
+  try {
+    ;({ sections } = await navVite.ssrLoadModule('/src/components/layout/navConfig.ts'))
+  } finally {
+    await navVite.close()
+  }
+
+  await assertRoleNavigation(sections)
   await assertDashboardContent()
 
   for (const path of adminPaths) {
