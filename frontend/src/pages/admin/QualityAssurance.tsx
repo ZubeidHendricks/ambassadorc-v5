@@ -69,12 +69,12 @@ export default function QualityAssurance() {
         </div>
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
           <Clock className="mr-2 inline h-4 w-4" />
-          If SUBMIT BUTTON the sale is loaded for export @ midnight sales export to Netcash or Q-Link.
+          If SUBMIT the sale is loaded for export @ midnight sales export to Netcash or Q-Link.
         </div>
       </div>
 
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-        <span className="font-semibold">FoxPro QA flow:</span> SUBMIT BUTTON sends a sale to export, REPAIR keeps it in operations for correction, and CANCEL BUTTON stops the sale before collection.
+        <span className="font-semibold">FoxPro QA flow:</span> SUBMIT sends a sale to export, REPAIR keeps it in operations for correction, and CANCEL stops the sale before collection.
       </div>
 
       {actionError && (
@@ -115,9 +115,9 @@ export default function QualityAssurance() {
                 <th className="border-b border-r border-gray-200 px-3 py-3">Client Name</th>
                 <th className="border-b border-r border-gray-200 px-3 py-3">Date Of Sale</th>
                 <th className="border-b border-r border-gray-200 px-3 py-3">Sales Verification Agent</th>
-                <th className="border-b border-r border-gray-200 px-3 py-3">SUBMIT BUTTON</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">SUBMIT</th>
                 <th className="border-b border-r border-gray-200 px-3 py-3">REPAIR</th>
-                <th className="border-b border-r border-gray-200 px-3 py-3">CANCEL BUTTON</th>
+                <th className="border-b border-r border-gray-200 px-3 py-3">CANCEL</th>
                 <th className="border-b border-gray-200 px-3 py-3">Status</th>
               </tr>
             </thead>
@@ -146,7 +146,7 @@ export default function QualityAssurance() {
                         className="h-8 w-full bg-emerald-600 px-2 text-[11px] hover:bg-emerald-700"
                       >
                         <CheckCircle className="h-3.5 w-3.5" />
-                        SUBMIT BUTTON
+                        SUBMIT
                       </Button>
                     </td>
                     <td className="border-r border-gray-200 px-2 py-2">
@@ -170,7 +170,7 @@ export default function QualityAssurance() {
                         className="h-8 w-full px-2 text-[11px]"
                       >
                         <XCircle className="h-3.5 w-3.5" />
-                        CANCEL BUTTON
+                        CANCEL
                       </Button>
                     </td>
                     <td className="px-3 py-2">

@@ -195,10 +195,10 @@ async function assertQaMailboxContent(vite, setRole) {
     'Client Name',
     'Date Of Sale',
     'Sales Verification Agent',
-    'SUBMIT BUTTON',
+    'SUBMIT',
     'REPAIR',
-    'CANCEL BUTTON',
-    'If SUBMIT BUTTON the sale is loaded for export @ midnight sales export to Netcash or Q-Link',
+    'CANCEL',
+    'If SUBMIT the sale is loaded for export @ midnight sales export to Netcash or Q-Link',
   ])
 }
 
