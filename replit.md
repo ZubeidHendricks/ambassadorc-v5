@@ -150,7 +150,7 @@ All 15+ data endpoints verified returning `success: true` on both environments.
 - Policy management and billing
 - Admin dashboard with analytics
 - AI-powered automation agents (lead scoring, QA checks, SMS dispatch)
-- Integration adapters: QLink, SagePay, NetCash, GuardRisk, ViciDialer, WATI
+- Integration adapters: QLink, SagePay, NetCash, GuardRisk, ViciDialer, Zapier WhatsApp (3 templates: Ambassador Invite, Referrals Received, Member Sign-Up)
 
 ## FoxPro Operations Flow
 

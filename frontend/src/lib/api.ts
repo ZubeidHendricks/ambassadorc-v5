@@ -1714,15 +1714,25 @@ export async function triggerGuardRiskExport() {
   return res.data!
 }
 
-// WhatsApp / WATI
-export async function sendWhatsApp(number: string, template: string, params: unknown[]) {
-  const res = await request<{ sent: boolean }>(
-    '/integrations/whatsapp/send',
+// WhatsApp via Zapier
+export type ZapierWaTemplate = 'ambassador_invite' | 'referrals_received' | 'member_signup'
+
+export async function sendZapierWhatsApp(phone: string, template: ZapierWaTemplate, name?: string) {
+  const res = await request<{ sent: boolean; webhookConfigured: boolean }>(
+    '/integrations/zapier/whatsapp/send',
     {
       method: 'POST',
-      body: JSON.stringify({ number, template, params }),
+      body: JSON.stringify({ phone, template, name }),
     }
   )
+  return res.data!
+}
+
+export async function getZapierWhatsAppTemplates() {
+  const res = await request<{
+    templates: Array<{ id: string; name: string; description: string; envVar: string }>
+    status: Array<{ template: string; name: string; configured: boolean }>
+  }>('/integrations/zapier/whatsapp/templates')
   return res.data!
 }
 

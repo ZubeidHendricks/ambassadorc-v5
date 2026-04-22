@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
-import { Send, MessageSquare, Users, Clock } from 'lucide-react'
+import { Send, MessageSquare, Users, Clock, MessageCircle, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { DataTable, type Column } from '@/components/ui/data-table'
@@ -9,23 +9,272 @@ import {
   sendSms,
   sendBulkSms,
   getSmsTemplates,
+  sendZapierWhatsApp,
+  getZapierWhatsAppTemplates,
+  type ZapierWaTemplate,
   type SmsRecord,
 } from '@/lib/api'
+import { cn } from '@/lib/utils'
 
 const tabTriggerClass =
   'px-4 py-2.5 text-sm font-medium text-gray-500 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-gray-700 transition-colors'
+
+// ─── WhatsApp template definitions (matching Zapier Zap content) ───────────
+
+const WA_TEMPLATES: Array<{
+  id: ZapierWaTemplate
+  name: string
+  trigger: string
+  preview: string[]
+  cta: string
+}> = [
+  {
+    id: 'ambassador_invite',
+    name: 'Become an Ambassador',
+    trigger: 'Send to invite someone to become a Lifesaver Ambassador',
+    preview: [
+      'LIFESAVER — (Refer & Earn) Ambassador Program',
+      '',
+      'Become a Lifesaver Ambassador today and earn extra money by referring fellow government employees.',
+      '',
+      'OR simply complete the member signup for interested Government Employees and Submit. We will do the rest.',
+      '',
+      'Two Exciting Earning Opportunities:',
+      '1. EARN R1 000 — R100 per successful signup. A bonus R1 000 for every 10 successful membership signups you do in a calendar month. You Earn R2 000.',
+      '2. EARN R100 — For every 10 Government employees/colleagues that you refer.',
+      '',
+      '👉 Click here to Register: http://lifesaverambassador.com/',
+    ],
+    cta: 'Click here to Register',
+  },
+  {
+    id: 'referrals_received',
+    name: 'Referrals Received',
+    trigger: 'Send when a member submits 10 non-duplicate referrals',
+    preview: [
+      'LIFESAVER — Congratulations! Referrals Received',
+      '',
+      'We have received your 10 Referrals.',
+      'Check your SMS\'s for confirmation of your CASH SEND — this will occur in the next 24 HRS.',
+      'Payment made Mon–Fri.',
+      '',
+      'Earning Opportunities Reminder:',
+      '1. EARN R1 000 — R100 per successful signup. A bonus R1 000 for every 10 successful membership signups you do in a calendar month. You Earn R2 000.',
+      '2. EARN R100 — For every 10 Government employees/colleagues that you refer.',
+      '',
+      '👉 Ambassador Login',
+    ],
+    cta: 'Ambassador Login',
+  },
+  {
+    id: 'member_signup',
+    name: 'Member Sign-Up Received',
+    trigger: 'Send when a member signup has been received and verified',
+    preview: [
+      'LIFESAVER — Congratulations! Member Sign-Up Received',
+      '',
+      'We have received your member signup.',
+      'Once we have successfully completed the compliance procedure and verified the sale with the client, payment will be made.',
+      '',
+      'Check your SMS\'s for confirmation of your CASH SEND — this will occur in the next 24 HRS.',
+      'Payment made Mon–Fri.',
+      '',
+      'Earning Opportunities Reminder:',
+      '1. EARN R1 000 — R100 per successful signup. A bonus R1 000 for every 10 successful membership signups you do in a calendar month. You Earn R2 000.',
+      '2. EARN R100 — For every 10 Government employees/colleagues that you refer.',
+      '',
+      '👉 Ambassador Login',
+    ],
+    cta: 'Ambassador Login',
+  },
+]
+
+// ─── WhatsApp Tab ───────────────────────────────────────────────────────────
+
+function WhatsAppTab() {
+  const [selectedTemplate, setSelectedTemplate] = useState<ZapierWaTemplate>('ambassador_invite')
+  const [phone, setPhone] = useState('')
+  const [name, setName] = useState('')
+  const [sending, setSending] = useState(false)
+  const [result, setResult] = useState<{ sent: boolean; message: string } | null>(null)
+  const [webhookStatus, setWebhookStatus] = useState<Array<{ template: string; configured: boolean }>>([])
+
+  useEffect(() => {
+    getZapierWhatsAppTemplates()
+      .then((d) => setWebhookStatus(d.status))
+      .catch(() => {})
+  }, [])
+
+  const currentTemplate = WA_TEMPLATES.find((t) => t.id === selectedTemplate)!
+  const currentStatus = webhookStatus.find((s) => s.template === selectedTemplate)
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!phone) return
+    setSending(true)
+    setResult(null)
+    try {
+      const res = await sendZapierWhatsApp(phone, selectedTemplate, name || undefined)
+      setResult({
+        sent: res.sent,
+        message: res.sent
+          ? `WhatsApp message sent successfully via Zapier.`
+          : `Webhook for this template is not yet configured. Set the ZAPIER_WA_WEBHOOK_${selectedTemplate.toUpperCase()} environment variable.`,
+      })
+      if (res.sent) {
+        setPhone('')
+        setName('')
+      }
+    } catch (err) {
+      setResult({ sent: false, message: err instanceof Error ? err.message : 'Send failed' })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+      {/* Left — template selector + send form */}
+      <div className="space-y-4">
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-600">Select Template</p>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {WA_TEMPLATES.map((t) => {
+              const status = webhookStatus.find((s) => s.template === t.id)
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => { setSelectedTemplate(t.id); setResult(null) }}
+                  className={cn(
+                    'w-full px-4 py-3 text-left transition-colors hover:bg-gray-50',
+                    selectedTemplate === t.id && 'bg-primary/5'
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className={cn('text-sm font-semibold', selectedTemplate === t.id ? 'text-primary' : 'text-gray-900')}>
+                        {t.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">{t.trigger}</p>
+                    </div>
+                    {status !== undefined && (
+                      <span className={cn(
+                        'shrink-0 text-xs font-medium',
+                        status.configured ? 'text-emerald-600' : 'text-amber-500'
+                      )}>
+                        {status.configured ? '● Live' : '○ Not set'}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <form onSubmit={handleSend} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-600">Send Message</p>
+          </div>
+          <div className="space-y-3 p-4">
+            {currentStatus && !currentStatus.configured && (
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Webhook not configured. Add the Zapier webhook URL in environment settings to activate this template.
+              </div>
+            )}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Recipient WhatsApp Number
+              </label>
+              <input
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="0821234567 or 27821234567"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <p className="mt-1 text-xs text-gray-400">SA numbers — 0xx or 27xx format accepted</p>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Name <span className="font-normal text-gray-400">(optional — personalises message)</span>
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Thabo Nkosi"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+
+            {result && (
+              <div className={cn(
+                'flex items-start gap-2 rounded-lg px-3 py-2 text-sm',
+                result.sent
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-amber-50 text-amber-700'
+              )}>
+                {result.sent
+                  ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                  : <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />}
+                {result.message}
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              disabled={sending || !phone}
+              className="w-full"
+            >
+              <Send className="h-4 w-4" />
+              {sending ? 'Sending via Zapier…' : `Send — ${currentTemplate.name}`}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      {/* Right — message preview */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-gray-600">Message Preview</p>
+          <p className="mt-0.5 text-xs text-gray-500">Wording sent by Zapier WhatsApp — {currentTemplate.name}</p>
+        </div>
+        <div className="p-4">
+          <div className="rounded-xl bg-[#dcf8c6] px-4 py-3 shadow-sm">
+            {currentTemplate.preview.map((line, i) => (
+              line === '' ? (
+                <div key={i} className="h-3" />
+              ) : (
+                <p key={i} className="text-sm leading-relaxed text-gray-800">{line}</p>
+              )
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-gray-400">
+            This preview reflects the message wording. The actual WhatsApp template is configured in your Zapier Zap.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main SMS Center ────────────────────────────────────────────────────────
 
 export default function SmsCenter() {
   const [history, setHistory] = useState<SmsRecord[]>([])
   const [templates, setTemplates] = useState<{ id: string; name: string; body: string }[]>([])
 
-  // Single SMS state
   const [recipient, setRecipient] = useState('')
   const [message, setMessage] = useState('')
   const [templateId, setTemplateId] = useState('')
   const [sending, setSending] = useState(false)
 
-  // Bulk SMS state
   const [bulkRecipients, setBulkRecipients] = useState('')
   const [bulkMessage, setBulkMessage] = useState('')
   const [bulkTemplateId, setBulkTemplateId] = useState('')
@@ -82,7 +331,6 @@ export default function SmsCenter() {
       setBulkRecipients('')
       setBulkMessage('')
       setBulkTemplateId('')
-      // Refresh history
       getSmsHistory().then(setHistory).catch(() => {})
     } catch {
       // handle
@@ -134,24 +382,30 @@ export default function SmsCenter() {
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">SMS Center</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Messaging Center</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Send messages and manage SMS communications.
+          Send SMS messages and WhatsApp notifications to clients and ambassadors.
         </p>
       </div>
 
-      <Tabs.Root defaultValue="compose">
+      <Tabs.Root defaultValue="whatsapp">
         <Tabs.List className="flex border-b border-gray-200">
+          <Tabs.Trigger value="whatsapp" className={tabTriggerClass}>
+            <span className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4" />
+              WhatsApp
+            </span>
+          </Tabs.Trigger>
           <Tabs.Trigger value="compose" className={tabTriggerClass}>
             <span className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
-              Compose
+              SMS Compose
             </span>
           </Tabs.Trigger>
           <Tabs.Trigger value="bulk" className={tabTriggerClass}>
             <span className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Bulk Send
+              Bulk SMS
             </span>
           </Tabs.Trigger>
           <Tabs.Trigger value="history" className={tabTriggerClass}>
@@ -162,7 +416,12 @@ export default function SmsCenter() {
           </Tabs.Trigger>
         </Tabs.List>
 
-        {/* Single Compose Tab */}
+        {/* WhatsApp Tab */}
+        <Tabs.Content value="whatsapp" className="mt-6">
+          <WhatsAppTab />
+        </Tabs.Content>
+
+        {/* Single SMS Compose Tab */}
         <Tabs.Content value="compose" className="mt-6">
           <div className="max-w-lg rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <form onSubmit={handleSendSingle} className="space-y-4">
@@ -219,7 +478,7 @@ export default function SmsCenter() {
           </div>
         </Tabs.Content>
 
-        {/* Bulk Tab */}
+        {/* Bulk SMS Tab */}
         <Tabs.Content value="bulk" className="mt-6">
           <div className="max-w-lg rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <form onSubmit={handleSendBulk} className="space-y-4">

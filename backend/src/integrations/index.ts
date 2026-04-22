@@ -15,7 +15,7 @@ export { smsPortalService } from "./sms-portal.js";
 export { netcashService } from "./netcash.js";
 export { guardRiskService } from "./guardrisk.js";
 export { viciDialerService } from "./vicidialer.js";
-export { watiService } from "./wati.js";
+export { sendZapierWhatsApp, getZapierWaStatus, ZAPIER_WA_TEMPLATES } from "./zapier-whatsapp.js";
 
 // ── Default Integration Configs ────────────────────────────────────────────
 
@@ -90,14 +90,6 @@ const DEFAULT_CONFIGS: DefaultConfig[] = [
       port: 22,
     },
     settings: { remotePath: "/uploads", localExportDir: "/tmp/guardrisk-exports" },
-  },
-  {
-    name: "WATI",
-    displayName: "WATI WhatsApp",
-    baseUrl: "https://live-server.wati.io",
-    credentials: {
-      apiToken: "",
-    },
   },
 ];
 
@@ -175,8 +167,7 @@ export async function testIntegrationConnection(
 
     case "NETCASH":
     case "VICIDIALER":
-    case "GUARDRISK":
-    case "WATI": {
+    case "GUARDRISK": {
       try {
         const row = await prisma.integrationConfig.findUnique({
           where: { name: name.toUpperCase() },

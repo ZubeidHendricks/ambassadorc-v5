@@ -18,7 +18,9 @@ import {
   netcashService,
   guardRiskService,
   viciDialerService,
-  watiService,
+  sendZapierWhatsApp,
+  getZapierWaStatus,
+  ZAPIER_WA_TEMPLATES,
   testIntegrationConnection,
 } from "../integrations/index.js";
 
@@ -370,26 +372,42 @@ router.post("/vicidialer/add-lead", async (req: Request, res: Response) => {
   }
 });
 
-// ─── WATI Routes ───────────────────────────────────────────────────────────
+// ─── Zapier WhatsApp Routes ────────────────────────────────────────────────
 
-router.post("/wati/send", async (req: Request, res: Response) => {
+router.get("/zapier/whatsapp/templates", (_req: Request, res: Response) => {
+  const status = getZapierWaStatus();
+  res.json({ success: true, data: { templates: ZAPIER_WA_TEMPLATES, status } });
+});
+
+router.post("/zapier/whatsapp/send", async (req: Request, res: Response) => {
   try {
-    const { number, templateName, params, name, regId } = req.body;
+    const { phone, template, name } = req.body;
 
-    // Convenience: if name and regId provided, send welcome message
-    if (name && regId && number) {
-      await watiService.sendWelcomeMessage(number, name, regId);
-      return res.json({ success: true, data: { sent: true, type: "welcome" } });
-    }
-
-    if (!number || !templateName) {
+    if (!phone || !template) {
       return res
         .status(400)
-        .json({ success: false, error: "number and templateName are required" });
+        .json({ success: false, error: "phone and template are required" });
     }
 
-    await watiService.sendTemplateMessage(number, templateName, params ?? []);
-    res.json({ success: true, data: { sent: true } });
+    const validTemplates = ["ambassador_invite", "referrals_received", "member_signup"];
+    if (!validTemplates.includes(template)) {
+      return res.status(400).json({
+        success: false,
+        error: `template must be one of: ${validTemplates.join(", ")}`,
+      });
+    }
+
+    const result = await sendZapierWhatsApp({ phone, template, name });
+
+    if (!result.webhookConfigured) {
+      return res.status(503).json({
+        success: false,
+        error: `Zapier webhook not configured for template '${template}'. Set the ${result.template.toUpperCase()} env var.`,
+        data: result,
+      });
+    }
+
+    res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

@@ -38,7 +38,9 @@ import {
   sendTestSms,
   uploadViciDialerLeads,
   triggerGuardRiskExport,
-  sendWhatsApp,
+  sendZapierWhatsApp,
+  getZapierWhatsAppTemplates,
+  type ZapierWaTemplate,
   getFileExports,
   type IntegrationConfig,
   type QLinkBatch,
@@ -107,9 +109,9 @@ const integrationMeta: IntegrationMeta[] = [
     bgColor: 'bg-rose-50',
   },
   {
-    key: 'wati',
-    name: 'WATI / WhatsApp',
-    description: 'WhatsApp Business messaging and notifications',
+    key: 'zapier_whatsapp',
+    name: 'Zapier WhatsApp',
+    description: 'WhatsApp Business messaging via Zapier webhook triggers',
     icon: MessageCircle,
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-50',
@@ -514,9 +516,15 @@ export default function Integrations() {
   // Guard Risk state
   const [exportingGuardRisk, setExportingGuardRisk] = useState(false)
 
-  // WhatsApp state
-  const [waForm, setWaForm] = useState({ number: '', template: 'test_message', params: '' })
+  // Zapier WhatsApp state
+  const [waForm, setWaForm] = useState({ phone: '', template: 'ambassador_invite' as ZapierWaTemplate, name: '' })
   const [sendingWa, setSendingWa] = useState(false)
+  const [waResult, setWaResult] = useState<{ sent: boolean; message: string } | null>(null)
+  const [zapierTemplateStatus, setZapierTemplateStatus] = useState<Array<{ template: string; name: string; configured: boolean }>>([])
+
+  useEffect(() => {
+    getZapierWhatsAppTemplates().then((d) => setZapierTemplateStatus(d.status)).catch(() => {})
+  }, [])
 
   // File exports state
   const [fileExports, setFileExports] = useState<FileExport[]>([])
@@ -697,16 +705,19 @@ export default function Integrations() {
     } catch { /* handled */ }
   }
 
-  // ─── WhatsApp Actions ─────────────────────────────────────────────
+  // ─── Zapier WhatsApp Actions ──────────────────────────────────────
 
   const handleSendWhatsApp = async () => {
-    if (!waForm.number) return
+    if (!waForm.phone) return
     setSendingWa(true)
+    setWaResult(null)
     try {
-      const params = waForm.params ? JSON.parse(waForm.params) : []
-      await sendWhatsApp(waForm.number, waForm.template, params)
-      setWaForm({ number: '', template: 'test_message', params: '' })
-    } catch { /* handled */ } finally {
+      const result = await sendZapierWhatsApp(waForm.phone, waForm.template, waForm.name || undefined)
+      setWaResult({ sent: result.sent, message: result.sent ? 'Message sent via Zapier' : 'Webhook not configured' })
+      if (result.sent) setWaForm((p) => ({ ...p, phone: '', name: '' }))
+    } catch (err) {
+      setWaResult({ sent: false, message: err instanceof Error ? err.message : 'Send failed' })
+    } finally {
       setSendingWa(false)
     }
   }
@@ -1024,31 +1035,66 @@ export default function Integrations() {
           </Button>
         </IntegrationCard>
 
-        {/* ──── WATI / WhatsApp ──── */}
+        {/* ──── Zapier WhatsApp ──── */}
         <IntegrationCard
           meta={integrationMeta[6]}
-          config={getConfig('wati')}
-          onConfigure={() => setConfigModal('wati')}
-          onTest={() => handleTest('wati')}
-          testing={testingMap['wati'] || false}
-          testResult={testResults['wati'] || null}
+          config={undefined}
+          onConfigure={() => {}}
+          onTest={() => {}}
+          testing={false}
+          testResult={null}
         >
           <div className="space-y-2">
-            <input
-              placeholder="WhatsApp number (e.g. 27812345678)"
-              value={waForm.number}
-              onChange={(e) => setWaForm((p) => ({ ...p, number: e.target.value }))}
-              className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
-            />
-            <Button
-              size="sm"
-              onClick={handleSendWhatsApp}
-              disabled={sendingWa || !waForm.number}
-              className="w-full text-xs"
-            >
-              {sendingWa ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-              Send Test Message
-            </Button>
+            <p className="text-xs font-medium text-gray-600">Webhook Status</p>
+            {zapierTemplateStatus.map((t) => (
+              <div key={t.template} className="flex items-center justify-between">
+                <span className="text-xs text-gray-700">{t.name}</span>
+                <span className={cn('text-xs font-semibold', t.configured ? 'text-emerald-600' : 'text-amber-600')}>
+                  {t.configured ? 'Configured' : 'Not set'}
+                </span>
+              </div>
+            ))}
+            <div className="border-t border-gray-100 pt-2">
+              <p className="mb-1.5 text-xs font-medium text-gray-600">Send Test Message</p>
+              <input
+                placeholder="Phone (e.g. 0821234567)"
+                value={waForm.phone}
+                onChange={(e) => setWaForm((p) => ({ ...p, phone: e.target.value }))}
+                className="mb-1.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+              />
+              <input
+                placeholder="Name (optional)"
+                value={waForm.name}
+                onChange={(e) => setWaForm((p) => ({ ...p, name: e.target.value }))}
+                className="mb-1.5 w-full rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+              />
+              <select
+                value={waForm.template}
+                onChange={(e) => setWaForm((p) => ({ ...p, template: e.target.value as ZapierWaTemplate }))}
+                className="mb-1.5 w-full rounded-md border border-gray-300 bg-white px-2 py-1.5 text-xs focus:border-primary focus:outline-none"
+              >
+                <option value="ambassador_invite">Become an Ambassador</option>
+                <option value="referrals_received">Referrals Received</option>
+                <option value="member_signup">Member Sign-Up Received</option>
+              </select>
+              <Button
+                size="sm"
+                onClick={handleSendWhatsApp}
+                disabled={sendingWa || !waForm.phone}
+                className="w-full text-xs"
+              >
+                {sendingWa ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                Send via Zapier
+              </Button>
+              {waResult && (
+                <div className={cn(
+                  'mt-1.5 rounded-md px-2 py-1.5 text-xs font-medium',
+                  waResult.sent ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                )}>
+                  {waResult.message}
+                </div>
+              )}
+            </div>
           </div>
         </IntegrationCard>
       </div>
