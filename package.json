@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "description": "Lifesaver Refer & Earn - Ambassador Program v5",
+  "prisma": {
+    "schema": "backend/prisma/schema.prisma"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run dev",

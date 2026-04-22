@@ -65,7 +65,7 @@ externalPort = 3001
 [deployment]
 deploymentTarget = "autoscale"
 run = ["bash", "start.sh"]
-build = ["bash", "-c", "cd backend && npm install && npx prisma generate && npm run build && cd ../frontend && npm install && npm run build && cp -r dist ../backend/public"]
+build = ["bash", "-c", "cd backend && npm install --ignore-engines && npx prisma generate && npx prisma db push && npm run build && cd ../frontend && npm install && npm run build && cp -r dist ../backend/public"]
 
 [postMerge]
 path = "scripts/post-merge.sh"

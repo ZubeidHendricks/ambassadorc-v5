@@ -3,11 +3,7 @@ set -e
 
 cd backend
 
-# Generate Prisma client if needed
-npx prisma generate
-
-# Push schema to database
-npx prisma db push
-
-# Start the server
-node dist/index.js
+# Prisma client is generated during the build step.
+# Schema sync (db push) also runs during build.
+# Just start the compiled server here.
+exec node dist/index.js
