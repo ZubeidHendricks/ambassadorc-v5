@@ -1778,6 +1778,26 @@ export async function getUltraMsgPreview(template: UltraMsgTemplate, name?: stri
   return res.data!
 }
 
+export interface UltraMsgHistoryMessage {
+  id: string
+  type: string
+  from: string
+  to: string
+  body: string
+  time: number
+  status: string
+  ack: string
+}
+
+export async function getUltraMsgMessages(
+  status: 'all' | 'sent' | 'queue' | 'unsent' | 'invalid' | 'expired' = 'sent'
+) {
+  const res = await request<UltraMsgHistoryMessage[]>(
+    `/integrations/ultramsg/messages?status=${status}&limit=100`
+  )
+  return res.data ?? []
+}
+
 // File Exports
 export async function getFileExports() {
   const res = await request<FileExport[]>('/integrations/files')

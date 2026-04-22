@@ -12,8 +12,10 @@ import {
   getUltraMsgStatus,
   sendUltraMsgWhatsApp,
   getUltraMsgPreview,
+  getUltraMsgMessages,
   type UltraMsgTemplate,
   type UltraMsgTemplateInfo,
+  type UltraMsgHistoryMessage,
   type SmsRecord,
 } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -255,6 +257,8 @@ function WhatsAppTab() {
 
 export default function SmsCenter() {
   const [history, setHistory] = useState<SmsRecord[]>([])
+  const [waHistory, setWaHistory] = useState<UltraMsgHistoryMessage[]>([])
+  const [waHistoryStatus, setWaHistoryStatus] = useState<'all' | 'sent' | 'queue' | 'unsent' | 'invalid' | 'expired'>('sent')
   const [templates, setTemplates] = useState<{ id: string; name: string; body: string }[]>([])
 
   const [recipient, setRecipient] = useState('')
@@ -271,7 +275,13 @@ export default function SmsCenter() {
   useEffect(() => {
     getSmsHistory().then(setHistory).catch(() => {})
     getSmsTemplates().then(setTemplates).catch(() => {})
+    getUltraMsgMessages('sent').then(setWaHistory).catch(() => {})
   }, [])
+
+  const loadWaHistory = (status: typeof waHistoryStatus) => {
+    setWaHistoryStatus(status)
+    getUltraMsgMessages(status).then(setWaHistory).catch(() => {})
+  }
 
   const handleTemplateSelect = (id: string, setBulk = false) => {
     const tmpl = templates.find((t) => t.id === id)
@@ -543,14 +553,87 @@ export default function SmsCenter() {
 
         {/* History Tab */}
         <Tabs.Content value="history" className="mt-6">
-          <DataTable
-            data={history}
-            columns={historyColumns}
-            pageSize={10}
-            searchable
-            searchPlaceholder="Search messages..."
-            searchKeys={['recipient', 'recipientName', 'message']}
-          />
+          <div className="space-y-6">
+
+            {/* WhatsApp message history from UltraMsg */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50 px-4 py-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-gray-600">WhatsApp Messages</p>
+                  <p className="mt-0.5 text-xs text-gray-500">Live from UltraMsg — {waHistory.length} messages</p>
+                </div>
+                <div className="flex gap-1">
+                  {(['sent', 'queue', 'unsent', 'all'] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => loadWaHistory(s)}
+                      className={cn(
+                        'rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors',
+                        waHistoryStatus === s
+                          ? 'bg-primary text-white'
+                          : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                      )}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {waHistory.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-gray-400">
+                  No WhatsApp messages found for "{waHistoryStatus}" status.
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {waHistory.map((msg) => {
+                    const ackLabels: Record<string, string> = {
+                      '0': 'Pending',
+                      '1': 'Sent',
+                      '2': 'Delivered',
+                      '3': 'Read',
+                    }
+                    const ackLabel = ackLabels[msg.ack] ?? msg.ack ?? msg.status
+                    const ackColor =
+                      msg.ack === '3' ? 'text-emerald-600' :
+                      msg.ack === '2' ? 'text-blue-600' :
+                      msg.ack === '1' ? 'text-gray-600' : 'text-amber-500'
+                    return (
+                      <div key={msg.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50">
+                        <div className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#dcf8c6] text-xs">
+                          💬
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-gray-900">{msg.to}</p>
+                            <span className={cn('shrink-0 text-xs font-medium', ackColor)}>
+                              {ackLabel}
+                            </span>
+                          </div>
+                          <p className="mt-0.5 line-clamp-2 text-xs text-gray-500">{msg.body}</p>
+                          <p className="mt-1 text-xs text-gray-400">
+                            {msg.time ? new Date(msg.time * 1000).toLocaleString('en-ZA') : '—'}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* SMS history */}
+            <div>
+              <p className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-500">SMS History</p>
+              <DataTable
+                data={history}
+                columns={historyColumns}
+                pageSize={10}
+                searchable
+                searchPlaceholder="Search SMS messages..."
+                searchKeys={['recipient', 'recipientName', 'message']}
+              />
+            </div>
+          </div>
         </Tabs.Content>
       </Tabs.Root>
     </div>

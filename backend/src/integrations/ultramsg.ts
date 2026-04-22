@@ -192,3 +192,45 @@ export function getUltraMsgStatus(): {
     instanceId: instanceId ?? null,
   }
 }
+
+// ── Message History ──────────────────────────────────────────────────────────
+
+export interface UltraMsgMessage {
+  id: string
+  type: string
+  chatId: string
+  from: string
+  to: string
+  body: string
+  time: number
+  status: string
+  ack: string
+}
+
+export async function fetchUltraMsgMessages(
+  status: 'all' | 'queue' | 'sent' | 'unsent' | 'invalid' | 'expired' = 'sent',
+  page = 1,
+  limit = 100
+): Promise<UltraMsgMessage[]> {
+  const instanceId = process.env.ULTRAMSG_INSTANCE_ID
+  const token = process.env.ULTRAMSG_TOKEN
+
+  if (!instanceId || !token) return []
+
+  const params = new URLSearchParams({
+    token,
+    page: String(page),
+    limit: String(limit),
+    ...(status !== 'all' ? { status } : {}),
+  })
+
+  const url = `https://api.ultramsg.com/${instanceId}/messages?${params}`
+  const res = await fetch(url)
+
+  if (!res.ok) throw new Error(`UltraMsg messages API returned HTTP ${res.status}`)
+
+  const data: any = await res.json()
+
+  // UltraMsg returns { messages: [...] } or directly an array
+  return Array.isArray(data) ? data : (data?.messages ?? [])
+}

@@ -25,6 +25,7 @@ import {
   getUltraMsgStatus,
   buildTemplateBody,
   ULTRAMSG_TEMPLATES,
+  fetchUltraMsgMessages,
   testIntegrationConnection,
 } from "../integrations/index.js";
 
@@ -467,6 +468,24 @@ router.post("/ultramsg/send", async (req: Request, res: Response) => {
     }
 
     res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── UltraMsg Message History ──────────────────────────────────────────────
+
+router.get("/ultramsg/messages", async (req: Request, res: Response) => {
+  try {
+    const status = (req.query.status as string) || "sent";
+    const page = parseInt(String(req.query.page ?? "1"), 10);
+    const limit = Math.min(parseInt(String(req.query.limit ?? "100"), 10), 200);
+
+    const validStatuses = ["all", "queue", "sent", "unsent", "invalid", "expired"];
+    const safeStatus = validStatuses.includes(status) ? status as any : "sent";
+
+    const messages = await fetchUltraMsgMessages(safeStatus, page, limit);
+    res.json({ success: true, data: messages });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }

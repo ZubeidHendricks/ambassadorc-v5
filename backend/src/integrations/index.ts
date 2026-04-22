@@ -21,6 +21,7 @@ export {
   getUltraMsgStatus,
   buildTemplateBody,
   ULTRAMSG_TEMPLATES,
+  fetchUltraMsgMessages,
 } from "./ultramsg.js";
 
 // ── Default Integration Configs ────────────────────────────────────────────

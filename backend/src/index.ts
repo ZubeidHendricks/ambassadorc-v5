@@ -43,6 +43,7 @@ import syncRoutes from "./routes/sync";
 import leaderboardRoutes from "./routes/leaderboard";
 import reportsRoutes from "./routes/reports";
 import ambassadorPaymentRoutes from "./routes/ambassador-payments";
+import webhookRoutes from "./routes/webhooks";
 import { seedIntegrationConfigs } from "./integrations/index";
 import { scheduleDailySync } from "./sync/engine";
 import { runLeadScorer } from "./agents/lead-scorer";
@@ -142,6 +143,7 @@ app.use("/api/sync", syncRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/reports", reportsRoutes);
 app.use("/api/ambassador-payments", ambassadorPaymentRoutes);
+app.use("/api/webhooks", webhookRoutes);
 
 // ─── Serve Static Frontend (Production) ────────────────────────────────────
 
