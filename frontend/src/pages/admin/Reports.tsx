@@ -346,106 +346,106 @@ export default function Reports() {
               </div>
             )}
 
-            <div id="monthly-premium-preview" className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
-              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+            <div id="monthly-premium-preview" className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Monthly Premium Page</p>
-                <h3 className="mt-1 text-lg font-bold text-gray-900">MONTHLY PREMIUM</h3>
-                <p className="mt-1 text-sm text-gray-500">Worksheet view of exported sales, Debit Order banked revenue, Persal banked revenue, failed counts, and lost revenue.</p>
+                <h3 className="mt-1 text-lg font-bold text-gray-900">Monthly Premium</h3>
+                <p className="mt-1 text-sm text-gray-500">Exported sales, Debit Order banked revenue, Persal banked revenue, failed counts, and lost revenue.</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-[1180px] w-full border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-white text-center font-semibold text-gray-800">
-                      <th className="border border-gray-200 px-2 py-2 text-left">Product</th>
-                      <th className="border border-gray-200 px-2 py-2">Prem</th>
-                      <th className="border border-gray-200 px-2 py-2">Exported<br />Sales</th>
-                      <th className="border border-gray-200 px-2 py-2">Debit<br />Order</th>
-                      <th className="border border-gray-200 px-2 py-2">Successful</th>
-                      <th className="border border-gray-200 px-2 py-2">Banked<br />Revenue</th>
-                      <th className="border border-gray-200 px-2 py-2">Failed</th>
-                      <th className="border border-gray-200 px-2 py-2">Lost<br />Revenue</th>
-                      <th className="border border-gray-200 px-2 py-2">Persal</th>
-                      <th className="border border-gray-200 px-2 py-2">Successful</th>
-                      <th className="border border-gray-200 px-2 py-2">Banked<br />Revenue</th>
-                      <th className="border border-gray-200 px-2 py-2">Failed</th>
-                      <th className="border border-gray-200 px-2 py-2">Lost<br />Revenue</th>
-                      <th className="border border-gray-200 px-2 py-2">Total Banked<br />Revenue</th>
-                      <th className="border border-gray-200 px-2 py-2">Total Lost<br />Revenue</th>
+                <table className="min-w-[1200px] w-full border-collapse text-sm">
+                  <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-600">
+                    <tr>
+                      <th className="border-b border-gray-200 px-4 py-3 text-left">Product</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Prem</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Exported Sales</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Debit Order</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Successful</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Banked Revenue</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Failed</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Lost Revenue</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Persal</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Successful</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Banked Revenue</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Failed</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Lost Revenue</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Total Banked</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-right">Total Lost</th>
                     </tr>
                   </thead>
                   <tbody>
                     {monthlyPremiumRows.map((row) => (
-                      <tr key={row.productName} className="text-right text-gray-900">
-                        <td className="border border-gray-200 px-2 py-2 text-left font-medium">{row.productName}</td>
-                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.premiumAmount)}</td>
-                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.exportedSales)}</td>
-                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.debitOrder)}</td>
-                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.debitSuccessful)}</td>
-                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.debitRevenue)}</td>
-                        <td className="border border-gray-200 px-2 py-2 text-red-600">{formatWorksheetNumber(row.debitFailed)}</td>
-                        <td className="border border-gray-200 px-2 py-2 text-red-600">{formatWorksheetNumber(row.debitLostRevenue)}</td>
-                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.persal)}</td>
-                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.persalSuccessful)}</td>
-                        <td className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(row.persalRevenue)}</td>
-                        <td className="border border-gray-200 px-2 py-2 text-red-600">{formatWorksheetNumber(row.persalFailed)}</td>
-                        <td className="border border-gray-200 px-2 py-2 text-red-600">{formatWorksheetNumber(row.persalLostRevenue)}</td>
-                        <td className="border border-gray-200 px-2 py-2"></td>
-                        <td className="border border-gray-200 px-2 py-2"></td>
+                      <tr key={row.productName} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-900">{row.productName}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(row.premiumAmount)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(row.exportedSales)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(row.debitOrder)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(row.debitSuccessful)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(row.debitRevenue)}</td>
+                        <td className="px-4 py-3 text-right text-red-600">{formatWorksheetNumber(row.debitFailed)}</td>
+                        <td className="px-4 py-3 text-right text-red-600">{formatWorksheetNumber(row.debitLostRevenue)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(row.persal)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(row.persalSuccessful)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(row.persalRevenue)}</td>
+                        <td className="px-4 py-3 text-right text-red-600">{formatWorksheetNumber(row.persalFailed)}</td>
+                        <td className="px-4 py-3 text-right text-red-600">{formatWorksheetNumber(row.persalLostRevenue)}</td>
+                        <td className="px-4 py-3 text-right text-gray-700"></td>
+                        <td className="px-4 py-3 text-right text-gray-700"></td>
                       </tr>
                     ))}
-                    <tr className="border-t-2 border-gray-900 text-right font-semibold text-gray-900">
-                      <td className="border border-gray-200 px-2 py-3 text-left">Actual Revenue</td>
-                      <td className="border border-gray-200 px-2 py-3"></td>
-                      <td className="border border-gray-200 px-2 py-3">{formatWorksheetNumber(monthlyPremiumTotals.exportedSales)}</td>
-                      <td className="border border-gray-200 px-2 py-3"></td>
-                      <td className="border border-gray-200 px-2 py-3"></td>
-                      <td className="border border-gray-200 px-2 py-3">{formatWorksheetNumber(monthlyPremiumTotals.debitRevenue)}</td>
-                      <td className="border border-gray-200 px-2 py-3"></td>
-                      <td className="border border-gray-200 px-2 py-3 text-red-600">{formatWorksheetNumber(monthlyPremiumTotals.debitLostRevenue)}</td>
-                      <td className="border border-gray-200 px-2 py-3"></td>
-                      <td className="border border-gray-200 px-2 py-3"></td>
-                      <td className="border border-gray-200 px-2 py-3">{formatWorksheetNumber(monthlyPremiumTotals.persalRevenue)}</td>
-                      <td className="border border-gray-200 px-2 py-3"></td>
-                      <td className="border border-gray-200 px-2 py-3 text-red-600">{formatWorksheetNumber(monthlyPremiumTotals.persalLostRevenue)}</td>
-                      <td className="border border-gray-200 px-2 py-3">{formatWorksheetNumber(totalBankedRevenue)}</td>
-                      <td className="border border-gray-200 px-2 py-3 text-red-600">{formatWorksheetNumber(totalLostRevenue)}</td>
+                    <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900">
+                      <td className="px-4 py-3">Actual Revenue</td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right">{formatWorksheetNumber(monthlyPremiumTotals.exportedSales)}</td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right">{formatWorksheetNumber(monthlyPremiumTotals.debitRevenue)}</td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right text-red-600">{formatWorksheetNumber(monthlyPremiumTotals.debitLostRevenue)}</td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right">{formatWorksheetNumber(monthlyPremiumTotals.persalRevenue)}</td>
+                      <td className="px-4 py-3 text-right"></td>
+                      <td className="px-4 py-3 text-right text-red-600">{formatWorksheetNumber(monthlyPremiumTotals.persalLostRevenue)}</td>
+                      <td className="px-4 py-3 text-right">{formatWorksheetNumber(totalBankedRevenue)}</td>
+                      <td className="px-4 py-3 text-right text-red-600">{formatWorksheetNumber(totalLostRevenue)}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <div id="global-book-preview" className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
-              <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+            <div id="global-book-preview" className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Global Book Page</p>
                 <h3 className="mt-1 text-lg font-bold text-gray-900">Persal Monthly Summary</h3>
-                <p className="mt-1 text-sm text-gray-500">Global Book workbook view with Q-Link, Netcash, total book, premiums, and average premium rows across Jan-26 to Dec-26.</p>
+                <p className="mt-1 text-sm text-gray-500">Q-Link, Netcash, total book, premiums, and average premium rows across Jan-26 to Dec-26.</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="min-w-[1280px] w-full border-collapse text-[11px]">
-                  <thead>
-                    <tr className="bg-gray-900 text-center font-semibold text-white">
-                      <th className="border border-gray-300 px-2 py-2 text-left">Code</th>
-                      <th className="border border-gray-300 px-2 py-2 text-left">Description</th>
+                <table className="min-w-[1280px] w-full border-collapse text-sm">
+                  <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-600">
+                    <tr>
+                      <th className="border-b border-gray-200 px-4 py-3 text-left">Code</th>
+                      <th className="border-b border-gray-200 px-4 py-3 text-left">Description</th>
                       {globalBookMonths.map((month) => (
-                        <th key={month} className="border border-gray-300 px-2 py-2">{month}</th>
+                        <th key={month} className="border-b border-gray-200 px-4 py-3 text-right">{month}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {persalSummaryRows.map((row) => (
-                      <tr key={row.code} className="text-right text-gray-900">
-                        <td className="border border-gray-200 px-2 py-1 text-left font-semibold">{row.code}</td>
-                        <td className="border border-gray-200 px-2 py-1 text-left">{row.description}</td>
+                      <tr key={row.code} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-semibold text-gray-900">{row.code}</td>
+                        <td className="px-4 py-3 text-gray-700">{row.description}</td>
                         {row.months.map((value, index) => (
-                          <td key={`${row.code}-${globalBookMonths[index]}`} className="border border-gray-200 px-2 py-1">{formatWorksheetNumber(value) || '-'}</td>
+                          <td key={`${row.code}-${globalBookMonths[index]}`} className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(value) || '-'}</td>
                         ))}
                       </tr>
                     ))}
-                    <tr className="border-t-2 border-gray-900 bg-gray-50 text-right font-black text-gray-900">
-                      <td className="border border-gray-200 px-2 py-2 text-left" colSpan={2}>Q-Link Total</td>
+                    <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900">
+                      <td className="px-4 py-3" colSpan={2}>Q-Link Total</td>
                       {persalMonthTotals.map((value, index) => (
-                        <td key={`persal-total-${globalBookMonths[index]}`} className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(value) || '-'}</td>
+                        <td key={`persal-total-${globalBookMonths[index]}`} className="px-4 py-3 text-right">{formatWorksheetNumber(value) || '-'}</td>
                       ))}
                     </tr>
                   </tbody>
@@ -461,55 +461,55 @@ export default function Reports() {
                     section.rows.reduce((sum, row) => sum + globalBookValue(row.values, monthIndex).value, 0)
                   )
                   return (
-                    <table key={section.title} className="min-w-[1680px] w-full border-collapse text-[11px]">
+                    <table key={section.title} className="min-w-[1680px] w-full border-collapse text-sm">
                       <thead>
-                        <tr className="bg-gray-200 text-center font-bold text-gray-900">
-                          <th className="border border-gray-300 px-2 py-2 text-left">{section.title}</th>
+                        <tr className="bg-gray-100 text-xs font-bold uppercase tracking-wide text-gray-700">
+                          <th className="border-b border-gray-200 px-4 py-3 text-left">{section.title}</th>
                           {globalBookMonths.map((month) => (
-                            <th key={`${section.title}-${month}`} className="border border-gray-300 px-2 py-2" colSpan={2}>{month}</th>
+                            <th key={`${section.title}-${month}`} className="border-b border-gray-200 px-4 py-3 text-center" colSpan={2}>{month}</th>
                           ))}
                         </tr>
-                        <tr className="bg-gray-50 text-center font-semibold text-gray-700">
-                          <th className="border border-gray-200 px-2 py-1 text-left">Product</th>
+                        <tr className="bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-500">
+                          <th className="border-b border-gray-200 px-4 py-3 text-left">Product</th>
                           {globalBookMonths.map((month) => (
                             <Fragment key={`${section.title}-${month}-headers`}>
-                              <th key={`${section.title}-${month}-count`} className="border border-gray-200 px-2 py-1">Count</th>
-                              <th key={`${section.title}-${month}-value`} className="border border-gray-200 px-2 py-1">Value</th>
+                              <th key={`${section.title}-${month}-count`} className="border-b border-gray-200 px-4 py-3 text-right">Count</th>
+                              <th key={`${section.title}-${month}-value`} className="border-b border-gray-200 px-4 py-3 text-right">Value</th>
                             </Fragment>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {section.rows.map((row, rowIndex) => (
-                          <tr key={`${section.title}-${row.product}-${rowIndex}`} className="text-right text-gray-900">
-                            <td className="border border-gray-200 px-2 py-1 text-left">{row.product}</td>
+                          <tr key={`${section.title}-${row.product}-${rowIndex}`} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3 text-gray-900">{row.product}</td>
                             {globalBookMonths.map((month, monthIndex) => {
                               const value = globalBookValue(row.values, monthIndex)
                               return (
                                 <Fragment key={`${section.title}-${row.product}-${month}`}>
-                                  <td key={`${section.title}-${row.product}-${month}-count`} className="border border-gray-200 px-2 py-1">{formatWorksheetNumber(value.count) || '-'}</td>
-                                  <td key={`${section.title}-${row.product}-${month}-value`} className="border border-gray-200 px-2 py-1 text-blue-700">{formatWorksheetCurrency(value.value)}</td>
+                                  <td key={`${section.title}-${row.product}-${month}-count`} className="px-4 py-3 text-right text-gray-700">{formatWorksheetNumber(value.count) || '-'}</td>
+                                  <td key={`${section.title}-${row.product}-${month}-value`} className="px-4 py-3 text-right text-primary">{formatWorksheetCurrency(value.value)}</td>
                                 </Fragment>
                               )
                             })}
                           </tr>
                         ))}
-                        <tr className="border-t-2 border-gray-900 bg-gray-50 text-right font-black text-gray-900">
-                          <td className="border border-gray-200 px-2 py-2 text-left">Total Book & Premiums</td>
+                        <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900">
+                          <td className="px-4 py-3">Total Book & Premiums</td>
                           {globalBookMonths.map((month, monthIndex) => (
                             <Fragment key={`${section.title}-${month}-totals`}>
-                              <td key={`${section.title}-${month}-total-count`} className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(monthlyCounts[monthIndex]) || '-'}</td>
-                              <td key={`${section.title}-${month}-total-value`} className="border border-gray-200 px-2 py-2 text-blue-700">{formatWorksheetCurrency(monthlyValues[monthIndex])}</td>
+                              <td key={`${section.title}-${month}-total-count`} className="px-4 py-3 text-right">{formatWorksheetNumber(monthlyCounts[monthIndex]) || '-'}</td>
+                              <td key={`${section.title}-${month}-total-value`} className="px-4 py-3 text-right text-primary">{formatWorksheetCurrency(monthlyValues[monthIndex])}</td>
                             </Fragment>
                           ))}
                         </tr>
-                        <tr className="text-right font-semibold text-gray-700">
-                          <td className="border border-gray-200 px-2 py-2 text-left">Average Premiums</td>
+                        <tr className="border-b border-gray-100 text-gray-700">
+                          <td className="px-4 py-3 font-medium">Average Premiums</td>
                           {globalBookMonths.map((month, monthIndex) => (
                             <Fragment key={`${section.title}-${month}-averages`}>
-                              <td key={`${section.title}-${month}-average-count`} className="border border-gray-200 px-2 py-2"></td>
-                              <td key={`${section.title}-${month}-average-value`} className="border border-gray-200 px-2 py-2 text-blue-700">
-                                {monthlyCounts[monthIndex] ? formatWorksheetCurrency(monthlyValues[monthIndex] / monthlyCounts[monthIndex]) : '#DIV/0!'}
+                              <td key={`${section.title}-${month}-average-count`} className="px-4 py-3 text-right"></td>
+                              <td key={`${section.title}-${month}-average-value`} className="px-4 py-3 text-right text-primary">
+                                {monthlyCounts[monthIndex] ? formatWorksheetCurrency(monthlyValues[monthIndex] / monthlyCounts[monthIndex]) : '—'}
                               </td>
                             </Fragment>
                           ))}
@@ -520,11 +520,11 @@ export default function Reports() {
                 })}
               </div>
 
-              <div className="overflow-x-auto border-t-2 border-gray-900">
-                <table className="min-w-[1680px] w-full border-collapse text-[11px]">
+              <div className="overflow-x-auto border-t-2 border-gray-200">
+                <table className="min-w-[1680px] w-full border-collapse text-sm">
                   <tbody>
-                    <tr className="bg-gray-900 text-right font-black text-white">
-                      <td className="border border-gray-700 px-2 py-2 text-left">Total</td>
+                    <tr className="bg-gray-900 font-semibold text-white">
+                      <td className="px-4 py-3 text-left">Total</td>
                       {globalBookMonths.map((month, monthIndex) => {
                         const count = globalBookSections.reduce(
                           (sum, section) => sum + section.rows.reduce((rowSum, row) => rowSum + globalBookValue(row.values, monthIndex).count, 0),
@@ -536,14 +536,14 @@ export default function Reports() {
                         )
                         return (
                           <Fragment key={`global-total-${month}`}>
-                            <td key={`global-total-${month}-count`} className="border border-gray-700 px-2 py-2">{formatWorksheetNumber(count) || '-'}</td>
-                            <td key={`global-total-${month}-value`} className="border border-gray-700 px-2 py-2">{formatWorksheetCurrency(value)}</td>
+                            <td key={`global-total-${month}-count`} className="px-4 py-3 text-right">{formatWorksheetNumber(count) || '-'}</td>
+                            <td key={`global-total-${month}-value`} className="px-4 py-3 text-right">{formatWorksheetCurrency(value)}</td>
                           </Fragment>
                         )
                       })}
                     </tr>
-                    <tr className="bg-gray-50 text-right font-semibold text-gray-900">
-                      <td className="border border-gray-200 px-2 py-2 text-left">Total Book & Premiums</td>
+                    <tr className="bg-gray-50 font-semibold text-gray-900">
+                      <td className="px-4 py-3 text-left">Total Book & Premiums</td>
                       {globalBookMonths.map((month, monthIndex) => {
                         const count = globalBookSections.reduce(
                           (sum, section) => sum + section.rows.reduce((rowSum, row) => rowSum + globalBookValue(row.values, monthIndex).count, 0),
@@ -555,8 +555,8 @@ export default function Reports() {
                         )
                         return (
                           <Fragment key={`global-book-${month}`}>
-                            <td key={`global-book-${month}-count`} className="border border-gray-200 px-2 py-2">{formatWorksheetNumber(count) || '-'}</td>
-                            <td key={`global-book-${month}-value`} className="border border-gray-200 px-2 py-2 text-blue-700">{formatWorksheetCurrency(value)}</td>
+                            <td key={`global-book-${month}-count`} className="px-4 py-3 text-right">{formatWorksheetNumber(count) || '-'}</td>
+                            <td key={`global-book-${month}-value`} className="px-4 py-3 text-right text-primary">{formatWorksheetCurrency(value)}</td>
                           </Fragment>
                         )
                       })}

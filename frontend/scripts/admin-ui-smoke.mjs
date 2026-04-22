@@ -241,13 +241,13 @@ async function assertReportsContent(vite, setRole) {
   const text = normalizeRenderedText(renderToString(React.createElement(Reports)))
   assertIncludesAll(text, '/admin/reports workbook worksheet coverage', [
     'Monthly Premium Page',
-    'MONTHLY PREMIUM',
+    'Monthly Premium',
     'Debit Order',
     'Banked Revenue',
     'Lost Revenue',
     'Persal',
-    'Total Banked Revenue',
-    'Total Lost Revenue',
+    'Total Banked',
+    'Total Lost',
     'Actual Revenue',
     'Lifesaver 24 Basic',
     'Lifesaver legal Basic',
