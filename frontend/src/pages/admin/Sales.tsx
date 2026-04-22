@@ -319,26 +319,26 @@ export default function Sales() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-white text-left text-xs font-bold uppercase tracking-wide text-gray-500">
-                    <th className="border-b border-gray-200 px-3 py-3">Product</th>
-                    <th className="border-b border-gray-200 px-3 py-3 text-right">Premium</th>
-                    <th className="border-b border-gray-200 px-3 py-3 text-right">Sales</th>
-                    <th className="border-b border-gray-200 px-3 py-3 text-right">Value</th>
+                  <tr className="bg-gray-50 text-left text-xs font-bold uppercase tracking-wide text-gray-600">
+                    <th className="border-b border-gray-200 px-4 py-3">Product</th>
+                    <th className="border-b border-gray-200 px-4 py-3 text-right">Premium</th>
+                    <th className="border-b border-gray-200 px-4 py-3 text-right">Sales</th>
+                    <th className="border-b border-gray-200 px-4 py-3 text-right">Value</th>
                   </tr>
                 </thead>
                 <tbody>
                   {productSpreadRows.map((row) => (
-                    <tr key={`${row.productName}-${row.premiumAmount}`} className="border-b border-gray-100">
-                      <td className="px-3 py-2 font-medium text-gray-900">{row.productName}</td>
-                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.premiumAmount ?? 0)}</td>
-                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.sales)}</td>
-                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.value)}</td>
+                    <tr key={`${row.productName}-${row.premiumAmount}`} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{row.productName}</td>
+                      <td className="px-4 py-3 text-right text-gray-900">{formatNumber(row.premiumAmount ?? 0)}</td>
+                      <td className="px-4 py-3 text-right text-gray-900">{formatNumber(row.sales)}</td>
+                      <td className="px-4 py-3 text-right text-gray-900">{formatNumber(row.value)}</td>
                     </tr>
                   ))}
-                  <tr className="border-t-2 border-gray-900 bg-gray-50 font-black text-gray-900">
-                    <td className="px-3 py-2" colSpan={2}>Total</td>
-                    <td className="px-3 py-2 text-right">{formatNumber(productTotal)}</td>
-                    <td className="px-3 py-2 text-right">{formatNumber(productValueTotal)}</td>
+                  <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900">
+                    <td className="px-4 py-3" colSpan={2}>Total</td>
+                    <td className="px-4 py-3 text-right">{formatNumber(productTotal)}</td>
+                    <td className="px-4 py-3 text-right">{formatNumber(productValueTotal)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -352,34 +352,34 @@ export default function Sales() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-white text-left text-xs font-bold uppercase tracking-wide text-gray-500">
-                    <th className="border-b border-gray-200 px-3 py-3">Agent</th>
-                    <th className="border-b border-gray-200 px-3 py-3 text-right">Sales</th>
-                    <th className="border-b border-gray-200 px-3 py-3 text-right">Value</th>
+                  <tr className="bg-gray-50 text-left text-xs font-bold uppercase tracking-wide text-gray-600">
+                    <th className="border-b border-gray-200 px-4 py-3">Agent</th>
+                    <th className="border-b border-gray-200 px-4 py-3 text-right">Sales</th>
+                    <th className="border-b border-gray-200 px-4 py-3 text-right">Value</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activeAgentRows.map((row) => (
-                    <tr key={`${row.agentId}-${row.agentName}`} className="border-b border-gray-100">
-                      <td className="px-3 py-2">
+                    <tr key={`${row.agentId}-${row.agentName}`} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3">
                         <button
                           type="button"
                           onClick={() => {
                             if (row.agentId && agents.some((agent) => agent.id === row.agentId)) setAgentFilter(String(row.agentId))
                           }}
-                          className="text-left font-medium text-blue-700 underline"
+                          className="text-left font-medium text-primary hover:underline"
                         >
                           {row.agentName}
                         </button>
                       </td>
-                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.sales)}</td>
-                      <td className="px-3 py-2 text-right text-gray-900">{formatNumber(row.value)}</td>
+                      <td className="px-4 py-3 text-right text-gray-900">{formatNumber(row.sales)}</td>
+                      <td className="px-4 py-3 text-right text-gray-900">{formatNumber(row.value)}</td>
                     </tr>
                   ))}
-                  <tr className="border-t-2 border-gray-900 bg-gray-50 font-black text-gray-900">
-                    <td className="px-3 py-2">Total</td>
-                    <td className="px-3 py-2 text-right">{formatNumber(agentTotal)}</td>
-                    <td className="px-3 py-2 text-right">{formatNumber(agentValueTotal)}</td>
+                  <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold text-gray-900">
+                    <td className="px-4 py-3">Total</td>
+                    <td className="px-4 py-3 text-right">{formatNumber(agentTotal)}</td>
+                    <td className="px-4 py-3 text-right">{formatNumber(agentValueTotal)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -432,7 +432,7 @@ export default function Sales() {
 
             <div className="grid gap-4 border-t border-gray-900 bg-white p-4 md:grid-cols-[190px_1fr]">
               <Button type="button" onClick={handleSubmitSale} className="justify-start">
-                <Send className="h-4 w-4" /> Submit Sale Button
+                <Send className="h-4 w-4" /> Submit Sale
               </Button>
               <div className="space-y-2 text-sm">
                 <div className={cn('flex items-center gap-2 font-medium', salesAgentValidation.id ? 'text-emerald-700' : 'text-amber-700')}>
@@ -483,10 +483,10 @@ export default function Sales() {
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <Button type="button" variant="outline" onClick={handleValidationEdit} disabled={salesAgentStage === 'capture'}>
-                  <Edit3 className="h-4 w-4" /> Edit Button
+                  <Edit3 className="h-4 w-4" /> Edit
                 </Button>
                 <Button type="button" variant="success" onClick={handleSubmitValidation} disabled={salesAgentStage === 'capture'}>
-                  <ShieldCheck className="h-4 w-4" /> Submit Validation Button
+                  <ShieldCheck className="h-4 w-4" /> Submit Validation
                 </Button>
               </div>
               <div className={cn(

@@ -173,14 +173,14 @@ async function assertSalesAgentContent(vite, setRole) {
     'Client Department',
     'Client First Debit Date',
     'Dependants',
-    'Submit Sale Button',
+    'Submit Sale',
     'Validate ID',
     'Validate only 10 digits in Mobile Number',
     'If possible Spelling Validation',
     'Next page displays all details for Validation Agent',
-    'Edit Button',
+    'Edit',
     'Validation Agent Name:',
-    'Submit Validation Button',
+    'Submit Validation',
     'Sale gets a T status and lies in the QA Bay for second check',
   ])
 }

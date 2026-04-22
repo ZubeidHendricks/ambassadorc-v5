@@ -10,7 +10,6 @@ interface Props {
 export default function ProtectedRoute({ children, allowedRoles }: Props) {
   const { user, loading } = useAuth()
   const location = useLocation()
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
