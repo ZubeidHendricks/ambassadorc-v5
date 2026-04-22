@@ -9,9 +9,11 @@ import {
   sendSms,
   sendBulkSms,
   getSmsTemplates,
-  sendZapierWhatsApp,
-  getZapierWhatsAppTemplates,
-  type ZapierWaTemplate,
+  getUltraMsgStatus,
+  sendUltraMsgWhatsApp,
+  getUltraMsgPreview,
+  type UltraMsgTemplate,
+  type UltraMsgTemplateInfo,
   type SmsRecord,
 } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -19,94 +21,67 @@ import { cn } from '@/lib/utils'
 const tabTriggerClass =
   'px-4 py-2.5 text-sm font-medium text-gray-500 data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary hover:text-gray-700 transition-colors'
 
-// ─── WhatsApp template definitions (matching Zapier Zap content) ───────────
+// ── WhatsApp preview renderer ──────────────────────────────────────────────
+// Converts the *bold* and newline formatting from the backend template body
+// into readable HTML-ish JSX for the preview bubble.
 
-const WA_TEMPLATES: Array<{
-  id: ZapierWaTemplate
-  name: string
-  trigger: string
-  preview: string[]
-  cta: string
-}> = [
-  {
-    id: 'ambassador_invite',
-    name: 'Become an Ambassador',
-    trigger: 'Send to invite someone to become a Lifesaver Ambassador',
-    preview: [
-      'LIFESAVER — (Refer & Earn) Ambassador Program',
-      '',
-      'Become a Lifesaver Ambassador today and earn extra money by referring fellow government employees.',
-      '',
-      'OR simply complete the member signup for interested Government Employees and Submit. We will do the rest.',
-      '',
-      'Two Exciting Earning Opportunities:',
-      '1. EARN R1 000 — R100 per successful signup. A bonus R1 000 for every 10 successful membership signups you do in a calendar month. You Earn R2 000.',
-      '2. EARN R100 — For every 10 Government employees/colleagues that you refer.',
-      '',
-      '👉 Click here to Register: http://lifesaverambassador.com/',
-    ],
-    cta: 'Click here to Register',
-  },
-  {
-    id: 'referrals_received',
-    name: 'Referrals Received',
-    trigger: 'Send when a member submits 10 non-duplicate referrals',
-    preview: [
-      'LIFESAVER — Congratulations! Referrals Received',
-      '',
-      'We have received your 10 Referrals.',
-      'Check your SMS\'s for confirmation of your CASH SEND — this will occur in the next 24 HRS.',
-      'Payment made Mon–Fri.',
-      '',
-      'Earning Opportunities Reminder:',
-      '1. EARN R1 000 — R100 per successful signup. A bonus R1 000 for every 10 successful membership signups you do in a calendar month. You Earn R2 000.',
-      '2. EARN R100 — For every 10 Government employees/colleagues that you refer.',
-      '',
-      '👉 Ambassador Login',
-    ],
-    cta: 'Ambassador Login',
-  },
-  {
-    id: 'member_signup',
-    name: 'Member Sign-Up Received',
-    trigger: 'Send when a member signup has been received and verified',
-    preview: [
-      'LIFESAVER — Congratulations! Member Sign-Up Received',
-      '',
-      'We have received your member signup.',
-      'Once we have successfully completed the compliance procedure and verified the sale with the client, payment will be made.',
-      '',
-      'Check your SMS\'s for confirmation of your CASH SEND — this will occur in the next 24 HRS.',
-      'Payment made Mon–Fri.',
-      '',
-      'Earning Opportunities Reminder:',
-      '1. EARN R1 000 — R100 per successful signup. A bonus R1 000 for every 10 successful membership signups you do in a calendar month. You Earn R2 000.',
-      '2. EARN R100 — For every 10 Government employees/colleagues that you refer.',
-      '',
-      '👉 Ambassador Login',
-    ],
-    cta: 'Ambassador Login',
-  },
-]
+function MessagePreview({ body }: { body: string }) {
+  if (!body) return null
+  return (
+    <div className="space-y-0.5">
+      {body.split('\n').map((line, i) => {
+        // Render **bold** segments
+        const parts = line.split(/(\*[^*]+\*)/g)
+        return (
+          <p key={i} className={cn('text-sm leading-relaxed text-gray-800', line === '' && 'h-2')}>
+            {parts.map((part, j) =>
+              part.startsWith('*') && part.endsWith('*') ? (
+                <strong key={j}>{part.slice(1, -1)}</strong>
+              ) : (
+                part
+              )
+            )}
+          </p>
+        )
+      })}
+    </div>
+  )
+}
 
-// ─── WhatsApp Tab ───────────────────────────────────────────────────────────
+// ── WhatsApp Tab ────────────────────────────────────────────────────────────
 
 function WhatsAppTab() {
-  const [selectedTemplate, setSelectedTemplate] = useState<ZapierWaTemplate>('ambassador_invite')
+  const [selectedTemplate, setSelectedTemplate] = useState<UltraMsgTemplate>('ambassador_invite')
   const [phone, setPhone] = useState('')
   const [name, setName] = useState('')
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ sent: boolean; message: string } | null>(null)
-  const [webhookStatus, setWebhookStatus] = useState<Array<{ template: string; configured: boolean }>>([])
 
+  const [configured, setConfigured] = useState<boolean | null>(null)
+  const [templates, setTemplates] = useState<UltraMsgTemplateInfo[]>([])
+  const [previewBody, setPreviewBody] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
+
+  // Load UltraMsg status + template list
   useEffect(() => {
-    getZapierWhatsAppTemplates()
-      .then((d) => setWebhookStatus(d.status))
-      .catch(() => {})
+    getUltraMsgStatus()
+      .then((d) => {
+        setConfigured(d.configured)
+        setTemplates(d.templates)
+      })
+      .catch(() => setConfigured(false))
   }, [])
 
-  const currentTemplate = WA_TEMPLATES.find((t) => t.id === selectedTemplate)!
-  const currentStatus = webhookStatus.find((s) => s.template === selectedTemplate)
+  // Refresh preview when template or name changes
+  useEffect(() => {
+    setPreviewLoading(true)
+    getUltraMsgPreview(selectedTemplate, name || undefined)
+      .then((d) => setPreviewBody(d.body))
+      .catch(() => setPreviewBody(''))
+      .finally(() => setPreviewLoading(false))
+  }, [selectedTemplate, name])
+
+  const currentTemplate = templates.find((t) => t.id === selectedTemplate)
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -114,12 +89,12 @@ function WhatsAppTab() {
     setSending(true)
     setResult(null)
     try {
-      const res = await sendZapierWhatsApp(phone, selectedTemplate, name || undefined)
+      const res = await sendUltraMsgWhatsApp(phone, selectedTemplate, name || undefined)
       setResult({
         sent: res.sent,
         message: res.sent
-          ? `WhatsApp message sent successfully via Zapier.`
-          : `Webhook for this template is not yet configured. Set the ZAPIER_WA_WEBHOOK_${selectedTemplate.toUpperCase()} environment variable.`,
+          ? 'WhatsApp message sent successfully.'
+          : 'UltraMsg is not yet configured. Add ULTRAMSG_INSTANCE_ID and ULTRAMSG_TOKEN in environment settings.',
       })
       if (res.sent) {
         setPhone('')
@@ -136,56 +111,67 @@ function WhatsAppTab() {
     <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
       {/* Left — template selector + send form */}
       <div className="space-y-4">
+
+        {/* UltraMsg status banner */}
+        {configured === false && (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-semibold">UltraMsg not connected</p>
+              <p className="mt-0.5 text-xs">
+                Sign up at <strong>ultramsg.com</strong>, scan the QR code to link a WhatsApp number,
+                then add <code className="rounded bg-amber-100 px-1">ULTRAMSG_INSTANCE_ID</code> and{' '}
+                <code className="rounded bg-amber-100 px-1">ULTRAMSG_TOKEN</code> as environment secrets.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {configured === true && (
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span><strong>UltraMsg connected</strong> — WhatsApp messages will deliver immediately.</span>
+          </div>
+        )}
+
+        {/* Template selector */}
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
             <p className="text-xs font-bold uppercase tracking-wide text-gray-600">Select Template</p>
           </div>
           <div className="divide-y divide-gray-100">
-            {WA_TEMPLATES.map((t) => {
-              const status = webhookStatus.find((s) => s.template === t.id)
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => { setSelectedTemplate(t.id); setResult(null) }}
-                  className={cn(
-                    'w-full px-4 py-3 text-left transition-colors hover:bg-gray-50',
-                    selectedTemplate === t.id && 'bg-primary/5'
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className={cn('text-sm font-semibold', selectedTemplate === t.id ? 'text-primary' : 'text-gray-900')}>
-                        {t.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-gray-500">{t.trigger}</p>
-                    </div>
-                    {status !== undefined && (
-                      <span className={cn(
-                        'shrink-0 text-xs font-medium',
-                        status.configured ? 'text-emerald-600' : 'text-amber-500'
-                      )}>
-                        {status.configured ? '● Live' : '○ Not set'}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              )
-            })}
+            {(templates.length > 0
+              ? templates
+              : [
+                  { id: 'ambassador_invite' as UltraMsgTemplate, name: 'Become an Ambassador', description: 'Invite someone to join the Refer & Earn program', trigger: '' },
+                  { id: 'referrals_received' as UltraMsgTemplate, name: 'Referrals Received', description: 'Confirmation when 10 referrals are submitted', trigger: '' },
+                  { id: 'member_signup' as UltraMsgTemplate, name: 'Member Sign-Up Received', description: 'Confirmation that a signup has been received', trigger: '' },
+                ]
+            ).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => { setSelectedTemplate(t.id); setResult(null) }}
+                className={cn(
+                  'w-full px-4 py-3 text-left transition-colors hover:bg-gray-50',
+                  selectedTemplate === t.id && 'bg-primary/5'
+                )}
+              >
+                <p className={cn('text-sm font-semibold', selectedTemplate === t.id ? 'text-primary' : 'text-gray-900')}>
+                  {t.name}
+                </p>
+                <p className="mt-0.5 text-xs text-gray-500">{t.description}</p>
+              </button>
+            ))}
           </div>
         </div>
 
+        {/* Send form */}
         <form onSubmit={handleSend} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
             <p className="text-xs font-bold uppercase tracking-wide text-gray-600">Send Message</p>
           </div>
           <div className="space-y-3 p-4">
-            {currentStatus && !currentStatus.configured && (
-              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                Webhook not configured. Add the Zapier webhook URL in environment settings to activate this template.
-              </div>
-            )}
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
                 Recipient WhatsApp Number
@@ -202,7 +188,7 @@ function WhatsAppTab() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
-                Name <span className="font-normal text-gray-400">(optional — personalises message)</span>
+                Name <span className="font-normal text-gray-400">(optional — personalises greeting)</span>
               </label>
               <input
                 type="text"
@@ -216,9 +202,7 @@ function WhatsAppTab() {
             {result && (
               <div className={cn(
                 'flex items-start gap-2 rounded-lg px-3 py-2 text-sm',
-                result.sent
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-amber-50 text-amber-700'
+                result.sent ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
               )}>
                 {result.sent
                   ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
@@ -233,30 +217,33 @@ function WhatsAppTab() {
               className="w-full"
             >
               <Send className="h-4 w-4" />
-              {sending ? 'Sending via Zapier…' : `Send — ${currentTemplate.name}`}
+              {sending ? 'Sending…' : `Send — ${currentTemplate?.name ?? 'Message'}`}
             </Button>
           </div>
         </form>
       </div>
 
-      {/* Right — message preview */}
+      {/* Right — live message preview */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-100 bg-gray-50 px-4 py-3">
           <p className="text-xs font-bold uppercase tracking-wide text-gray-600">Message Preview</p>
-          <p className="mt-0.5 text-xs text-gray-500">Wording sent by Zapier WhatsApp — {currentTemplate.name}</p>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Exact text that will be delivered via WhatsApp
+            {name && <> — personalised for <strong>{name}</strong></>}
+          </p>
         </div>
         <div className="p-4">
-          <div className="rounded-xl bg-[#dcf8c6] px-4 py-3 shadow-sm">
-            {currentTemplate.preview.map((line, i) => (
-              line === '' ? (
-                <div key={i} className="h-3" />
-              ) : (
-                <p key={i} className="text-sm leading-relaxed text-gray-800">{line}</p>
-              )
-            ))}
+          <div className={cn(
+            'rounded-xl bg-[#dcf8c6] px-4 py-3 shadow-sm transition-opacity',
+            previewLoading && 'opacity-50'
+          )}>
+            {previewBody
+              ? <MessagePreview body={previewBody} />
+              : <p className="text-sm text-gray-400 italic">Loading preview…</p>
+            }
           </div>
           <p className="mt-3 text-xs text-gray-400">
-            This preview reflects the message wording. The actual WhatsApp template is configured in your Zapier Zap.
+            Preview updates live as you type a name. Sent via UltraMsg — no Meta template approval required.
           </p>
         </div>
       </div>
@@ -264,7 +251,7 @@ function WhatsAppTab() {
   )
 }
 
-// ─── Main SMS Center ────────────────────────────────────────────────────────
+// ── Main SMS / Messaging Center ─────────────────────────────────────────────
 
 export default function SmsCenter() {
   const [history, setHistory] = useState<SmsRecord[]>([])
@@ -307,7 +294,7 @@ export default function SmsCenter() {
       setMessage('')
       setTemplateId('')
     } catch {
-      // handle
+      // silent
     } finally {
       setSending(false)
     }
@@ -333,7 +320,7 @@ export default function SmsCenter() {
       setBulkTemplateId('')
       getSmsHistory().then(setHistory).catch(() => {})
     } catch {
-      // handle
+      // silent
     } finally {
       setBulkSending(false)
     }
@@ -384,7 +371,7 @@ export default function SmsCenter() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Messaging Center</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Send SMS messages and WhatsApp notifications to clients and ambassadors.
+          Send WhatsApp notifications and SMS messages to clients and ambassadors.
         </p>
       </div>
 
@@ -449,9 +436,7 @@ export default function SmsCenter() {
                 >
                   <option value="">Custom message</option>
                   {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
+                    <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
               </div>
@@ -466,9 +451,7 @@ export default function SmsCenter() {
                   placeholder="Type your message..."
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-                <p className="mt-1 text-right text-xs text-gray-400">
-                  {message.length}/160
-                </p>
+                <p className="mt-1 text-right text-xs text-gray-400">{message.length}/160</p>
               </div>
               <Button type="submit" disabled={sending || !recipient || !message}>
                 <Send className="h-4 w-4" />
@@ -491,7 +474,7 @@ export default function SmsCenter() {
                   value={bulkRecipients}
                   onChange={(e) => setBulkRecipients(e.target.value)}
                   rows={5}
-                  placeholder="0821234567&#10;0839876543&#10;0711112222"
+                  placeholder={'0821234567\n0839876543\n0711112222'}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm font-mono focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
                 <p className="mt-1 text-xs text-gray-400">
@@ -509,9 +492,7 @@ export default function SmsCenter() {
                 >
                   <option value="">Custom message</option>
                   {templates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
+                    <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
               </div>
@@ -526,9 +507,7 @@ export default function SmsCenter() {
                   placeholder="Type your message..."
                   className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
-                <p className="mt-1 text-right text-xs text-gray-400">
-                  {bulkMessage.length}/160
-                </p>
+                <p className="mt-1 text-right text-xs text-gray-400">{bulkMessage.length}/160</p>
               </div>
 
               {bulkResult && (
@@ -548,7 +527,9 @@ export default function SmsCenter() {
                   disabled={bulkSending || recipientCount === 0 || !bulkMessage}
                 >
                   <Send className="h-4 w-4" />
-                  {bulkSending ? 'Sending...' : `Send to ${recipientCount} recipient${recipientCount !== 1 ? 's' : ''}`}
+                  {bulkSending
+                    ? 'Sending...'
+                    : `Send to ${recipientCount} recipient${recipientCount !== 1 ? 's' : ''}`}
                 </Button>
                 {recipientCount > 0 && (
                   <p className="text-xs text-gray-500">

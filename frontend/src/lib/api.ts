@@ -1714,7 +1714,7 @@ export async function triggerGuardRiskExport() {
   return res.data!
 }
 
-// WhatsApp via Zapier
+// WhatsApp via Zapier (legacy)
 export type ZapierWaTemplate = 'ambassador_invite' | 'referrals_received' | 'member_signup'
 
 export async function sendZapierWhatsApp(phone: string, template: ZapierWaTemplate, name?: string) {
@@ -1733,6 +1733,48 @@ export async function getZapierWhatsAppTemplates() {
     templates: Array<{ id: string; name: string; description: string; envVar: string }>
     status: Array<{ template: string; name: string; configured: boolean }>
   }>('/integrations/zapier/whatsapp/templates')
+  return res.data!
+}
+
+// WhatsApp via UltraMsg
+export type UltraMsgTemplate = 'ambassador_invite' | 'referrals_received' | 'member_signup'
+
+export interface UltraMsgTemplateInfo {
+  id: UltraMsgTemplate
+  name: string
+  description: string
+  trigger: string
+}
+
+export async function getUltraMsgStatus() {
+  const res = await request<{
+    configured: boolean
+    instanceId: string | null
+    templates: UltraMsgTemplateInfo[]
+  }>('/integrations/ultramsg/status')
+  return res.data!
+}
+
+export async function sendUltraMsgWhatsApp(
+  phone: string,
+  template: UltraMsgTemplate,
+  name?: string
+) {
+  const res = await request<{ sent: boolean; phone: string; template: string; configured: boolean }>(
+    '/integrations/ultramsg/send',
+    {
+      method: 'POST',
+      body: JSON.stringify({ phone, template, name }),
+    }
+  )
+  return res.data!
+}
+
+export async function getUltraMsgPreview(template: UltraMsgTemplate, name?: string) {
+  const params = name ? `?name=${encodeURIComponent(name)}` : ''
+  const res = await request<{ template: string; body: string }>(
+    `/integrations/ultramsg/preview/${template}${params}`
+  )
   return res.data!
 }
 

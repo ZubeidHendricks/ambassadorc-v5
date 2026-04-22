@@ -21,6 +21,10 @@ import {
   sendZapierWhatsApp,
   getZapierWaStatus,
   ZAPIER_WA_TEMPLATES,
+  sendUltraMsgWhatsApp,
+  getUltraMsgStatus,
+  buildTemplateBody,
+  ULTRAMSG_TEMPLATES,
   testIntegrationConnection,
 } from "../integrations/index.js";
 
@@ -403,6 +407,61 @@ router.post("/zapier/whatsapp/send", async (req: Request, res: Response) => {
       return res.status(503).json({
         success: false,
         error: `Zapier webhook not configured for template '${template}'. Set the ${result.template.toUpperCase()} env var.`,
+        data: result,
+      });
+    }
+
+    res.json({ success: true, data: result });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─── UltraMsg WhatsApp Routes ──────────────────────────────────────────────
+
+router.get("/ultramsg/status", (_req: Request, res: Response) => {
+  const status = getUltraMsgStatus();
+  res.json({ success: true, data: { ...status, templates: ULTRAMSG_TEMPLATES } });
+});
+
+router.get("/ultramsg/preview/:template", (req: Request, res: Response) => {
+  const { template } = req.params;
+  const { name } = req.query;
+  const validTemplates = ["ambassador_invite", "referrals_received", "member_signup"];
+  if (!validTemplates.includes(template)) {
+    return res.status(400).json({ success: false, error: "Invalid template" });
+  }
+  const body = buildTemplateBody(
+    template as any,
+    name ? String(name) : undefined
+  );
+  res.json({ success: true, data: { template, body } });
+});
+
+router.post("/ultramsg/send", async (req: Request, res: Response) => {
+  try {
+    const { phone, template, name } = req.body;
+
+    if (!phone || !template) {
+      return res
+        .status(400)
+        .json({ success: false, error: "phone and template are required" });
+    }
+
+    const validTemplates = ["ambassador_invite", "referrals_received", "member_signup"];
+    if (!validTemplates.includes(template)) {
+      return res.status(400).json({
+        success: false,
+        error: `template must be one of: ${validTemplates.join(", ")}`,
+      });
+    }
+
+    const result = await sendUltraMsgWhatsApp(phone, template as any, name);
+
+    if (!result.configured) {
+      return res.status(503).json({
+        success: false,
+        error: "UltraMsg not configured. Set ULTRAMSG_INSTANCE_ID and ULTRAMSG_TOKEN environment variables.",
         data: result,
       });
     }

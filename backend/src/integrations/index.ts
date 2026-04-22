@@ -16,6 +16,12 @@ export { netcashService } from "./netcash.js";
 export { guardRiskService } from "./guardrisk.js";
 export { viciDialerService } from "./vicidialer.js";
 export { sendZapierWhatsApp, getZapierWaStatus, ZAPIER_WA_TEMPLATES } from "./zapier-whatsapp.js";
+export {
+  sendUltraMsgWhatsApp,
+  getUltraMsgStatus,
+  buildTemplateBody,
+  ULTRAMSG_TEMPLATES,
+} from "./ultramsg.js";
 
 // ── Default Integration Configs ────────────────────────────────────────────
 
