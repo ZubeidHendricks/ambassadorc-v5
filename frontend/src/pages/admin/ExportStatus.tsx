@@ -98,9 +98,9 @@ export default function ExportStatus() {
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-primary">EXPORT STATUS PAGE</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Export Status Page</p>
           <h1 className="mt-1 text-2xl font-bold text-gray-900">Export Return Status</h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-500">Worksheet view for product export counts, returned reasons, and debit-order repair actions.</p>
+          <p className="mt-1 max-w-3xl text-sm text-gray-500">Product export counts, returned reasons, and debit-order repair actions.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <div>
@@ -153,27 +153,32 @@ export default function ExportStatus() {
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-sm">
-            <thead className="text-left text-xs font-semibold uppercase tracking-[0.2em] text-gray-900">
+            <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-600">
               <tr>
-                <th className="w-28 border-b border-r border-gray-200 px-3 py-4">Date</th>
-                <th className="border-b border-r border-gray-200 px-3 py-4" colSpan={3}>EXPORT STATUS PAGE</th>
-                <th className="border-b border-r border-gray-200 px-3 py-4" colSpan={2}>EXPORT RETURN STATUS</th>
-                <th className="border-b border-gray-200 px-3 py-4">Action</th>
+                <th className="border-b border-gray-200 px-4 py-3 text-right">Exports</th>
+                <th className="border-b border-gray-200 px-4 py-3 text-left">Product</th>
+                <th className="border-b border-gray-200 px-4 py-3 text-right">Premium</th>
+                <th className="border-b border-gray-200 px-4 py-3 text-right">Count</th>
+                <th className="border-b border-gray-200 px-4 py-3 text-left">Export Return Status</th>
+                <th className="border-b border-gray-200 px-4 py-3 text-left">Action</th>
               </tr>
             </thead>
             <tbody>
               {worksheetRows.map((row, index) => (
-                <tr key={`${row.productName}-${row.premiumAmount}`} className="border-b border-gray-100">
-                  <td className="border-r border-gray-200 px-3 py-2 text-right text-blue-700 underline">{row.count.toLocaleString('en-ZA')}</td>
-                  <td className="border-r border-gray-200 px-3 py-2 text-blue-700 underline">{row.productName}</td>
-                  <td className="border-r border-gray-200 px-3 py-2 text-right text-gray-900">{row.premiumAmount.toLocaleString('en-ZA')}</td>
-                  <td className="border-r border-gray-200 px-3 py-2 text-right text-gray-900">{row.count.toLocaleString('en-ZA')}</td>
-                  <td className="border-r border-gray-200 px-3 py-2 text-red-700">
+                <tr key={`${row.productName}-${row.premiumAmount}`} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="px-4 py-3 text-right text-gray-700">{row.count.toLocaleString('en-ZA')}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{row.productName}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">{row.premiumAmount.toLocaleString('en-ZA')}</td>
+                  <td className="px-4 py-3 text-right text-gray-700">{row.count.toLocaleString('en-ZA')}</td>
+                  <td className="px-4 py-3 text-red-600">
                     {index === 0 ? (
-                      <span><span className="mr-2 font-medium">{primaryReturn?.count.toLocaleString('en-ZA') ?? 0}</span>{returnStatusText(primaryReturn)}</span>
+                      <span>
+                        <span className="mr-2 font-semibold">{primaryReturn?.count.toLocaleString('en-ZA') ?? 0}</span>
+                        {returnStatusText(primaryReturn)}
+                      </span>
                     ) : null}
                   </td>
-                  <td className="px-3 py-2 font-medium text-gray-900">{index === 0 ? primaryReturn?.action ?? 'Switch to Debit Order' : ''}</td>
+                  <td className="px-4 py-3 text-gray-700">{index === 0 ? primaryReturn?.action ?? 'Switch to Debit Order' : ''}</td>
                 </tr>
               ))}
             </tbody>

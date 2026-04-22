@@ -207,8 +207,8 @@ async function assertExportStatusContent(vite, setRole) {
   setRole('QA_OFFICER')
   const text = normalizeRenderedText(renderToString(React.createElement(ExportStatus)))
   assertIncludesAll(text, '/admin/export-status worksheet coverage', [
-    'EXPORT STATUS PAGE',
-    'EXPORT RETURN STATUS',
+    'Export Status Page',
+    'Export Return Status',
     'Lifesaver 24 Basic',
     'Lifesaver 24 Plus',
     'Lifesaver legal Basic',
