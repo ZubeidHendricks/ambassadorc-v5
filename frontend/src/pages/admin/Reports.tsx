@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useState, useEffect } from 'react'
 import { downloadEarningsReport, downloadOperationsReport, type OperationsReportType } from '@/lib/api'
 import {
   Card,
@@ -137,6 +137,17 @@ function globalBookValue(values: Array<{ count: number; value: number }>, index:
 }
 
 export default function Reports() {
+  useEffect(() => {
+    if (window.location.hash) {
+      const id = window.location.hash.replace('#', '')
+      const timer = setTimeout(() => {
+        const el = document.getElementById(id)
+        if (el) el.scrollIntoView({ behavior: 'auto', block: 'start' })
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [])
+
   const [downloading, setDownloading] = useState(false)
   const [operationsDownload, setOperationsDownload] = useState<OperationsReportType | null>(null)
   const [reportYear, setReportYear] = useState(new Date().getFullYear())
@@ -335,7 +346,7 @@ export default function Reports() {
               </div>
             )}
 
-            <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div id="monthly-premium-preview" className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
               <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Monthly Premium Page</p>
                 <h3 className="mt-1 text-lg font-bold text-gray-900">MONTHLY PREMIUM</h3>
@@ -404,7 +415,7 @@ export default function Reports() {
               </div>
             </div>
 
-            <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <div id="global-book-preview" className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white">
               <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.25em] text-primary">Global Book Page</p>
                 <h3 className="mt-1 text-lg font-bold text-gray-900">Persal Monthly Summary</h3>
