@@ -296,6 +296,44 @@ router.put("/admin/bulk-assign", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ─── GET /api/leads/admin/:id — Admin: single lead detail ───────────────────
+
+router.get("/admin/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    const isAdmin = await requireAdminRole(req, res);
+    if (!isAdmin) return;
+
+    const leadId = parseInt(String(req.params.id));
+    if (isNaN(leadId)) {
+      res.status(400).json({ success: false, error: "Invalid lead ID." });
+      return;
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: {
+        id: true, firstName: true, lastName: true, contactNo: true,
+        preferredContact: true, status: true, type: true,
+        employerName: true, idNumber: true, notes: true,
+        callOutcome: true, callNotes: true, dialledAt: true,
+        assignedAt: true, datePaid: true, createdAt: true,
+        ambassador: { select: { id: true, firstName: true, lastName: true, mobileNo: true } },
+        assignedAgent: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    if (!lead) {
+      res.status(404).json({ success: false, error: "Lead not found." });
+      return;
+    }
+
+    res.json({ success: true, data: lead });
+  } catch (error) {
+    console.error("Get lead detail error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
+  }
+});
+
 // ─── PUT /api/leads/:id/outcome — Record call outcome ───────────────────────
 
 router.put("/:id/outcome", async (req: AuthRequest, res: Response) => {

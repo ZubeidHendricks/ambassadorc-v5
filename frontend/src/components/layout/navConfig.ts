@@ -77,6 +77,7 @@ export const sections: NavSectionConfig[] = [
       { to: '/referrals', label: 'Submit Referrals', icon: Send, roles: ['AMBASSADOR', 'AGENT'] },
       { to: '/leads', label: 'Submit Lead', icon: UserPlus, roles: ['AMBASSADOR', 'AGENT'] },
       { to: '/admin/ambassador-backend', label: 'Ambassador Backend', icon: Landmark, roles: ['ADMIN'] },
+      { to: '/admin/leads', label: 'All Leads', icon: PhoneCall, roles: ['ADMIN', 'QA_OFFICER'] },
       { to: '/admin/lead-pipeline', label: 'Lead Pipeline', icon: Kanban, roles: ['ADMIN', 'QA_OFFICER'] },
       { to: '/admin/dialler', label: 'Lead Dialler (Admin)', icon: PhoneCall, roles: ['ADMIN'] },
       { to: '/admin/agent-diallist', label: 'My Dial List', icon: Phone, roles: ['AGENT'] },

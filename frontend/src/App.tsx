@@ -39,6 +39,8 @@ import AmbassadorBackend from '@/pages/admin/AmbassadorBackend'
 import DiallerManagement from '@/pages/admin/DiallerManagement'
 import AgentDialler from '@/pages/admin/AgentDialler'
 import LeadPipeline from '@/pages/admin/LeadPipeline'
+import LeadsAll from '@/pages/admin/LeadsAll'
+import LeadDetail from '@/pages/admin/LeadDetail'
 
 export default function App() {
   return (
@@ -315,6 +317,22 @@ export default function App() {
           }
         />
 
+        <Route
+          path="/admin/leads"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'QA_OFFICER']}>
+              <LeadsAll />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/leads/:id"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'QA_OFFICER']}>
+              <LeadDetail />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/admin/lead-pipeline"
           element={

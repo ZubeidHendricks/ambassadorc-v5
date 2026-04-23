@@ -1904,6 +1904,11 @@ export async function recordCallOutcome(
   return res.data
 }
 
+export async function getAdminLead(id: number) {
+  const res = await request<AdminLead>(`/leads/admin/${id}`)
+  return res.data!
+}
+
 export async function getAgentDialList(outcome?: 'pending' | 'completed') {
   const q = outcome ? `?outcome=${outcome}` : ''
   const res = await request<{
