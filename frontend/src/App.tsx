@@ -38,6 +38,7 @@ import ExportStatus from '@/pages/admin/ExportStatus'
 import AmbassadorBackend from '@/pages/admin/AmbassadorBackend'
 import DiallerManagement from '@/pages/admin/DiallerManagement'
 import AgentDialler from '@/pages/admin/AgentDialler'
+import LeadPipeline from '@/pages/admin/LeadPipeline'
 
 export default function App() {
   return (
@@ -310,6 +311,15 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['AGENT', 'ADMIN']}>
               <AgentDialler />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/lead-pipeline"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'QA_OFFICER']}>
+              <LeadPipeline />
             </ProtectedRoute>
           }
         />
