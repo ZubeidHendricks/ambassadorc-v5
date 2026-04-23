@@ -19,32 +19,28 @@ export default function Layout({ children }: { children: ReactNode }) {
     })
   }, [])
 
-  // Global Ctrl+K handler
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         setCommandOpen((prev) => !prev)
       }
-      if (e.key === 'Escape') {
-        setCommandOpen(false)
-      }
+      if (e.key === 'Escape') setCommandOpen(false)
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [])
 
-  // No sidebar for unauthenticated users
   if (!user) {
     return (
-      <div className="min-h-screen bg-surface-dim">
+      <div className="min-h-screen win11-bg">
         {children}
       </div>
     )
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-dim">
+    <div className="flex h-screen overflow-hidden win11-bg">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={toggleSidebar}

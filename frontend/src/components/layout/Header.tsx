@@ -28,6 +28,11 @@ const routeTitles: Record<string, string> = {
   '/admin/sync': 'FoxPro Sync',
   '/admin/reports': 'Reports',
   '/admin/export-status': 'Export & Q-Link Status',
+  '/admin/leads': 'All Leads',
+  '/admin/lead-pipeline': 'Lead Pipeline',
+  '/admin/dialler': 'Lead Dialler',
+  '/admin/agent-diallist': 'My Dial List',
+  '/admin/ambassador-backend': 'Ambassador Backend',
   '/payments': 'My Payments',
 }
 
@@ -40,19 +45,20 @@ export default function Header({ onMobileMenuToggle, onCommandPaletteOpen }: Hea
   const { user } = useAuth()
   const location = useLocation()
 
-  const pageTitle = routeTitles[location.pathname] || 'AmbassadorC'
+  const pageTitle = routeTitles[location.pathname]
+    ?? (location.pathname.startsWith('/admin/leads/') ? 'Lead Journey' : 'AmbassadorC')
 
   if (!user) return null
 
   return (
-    <header className="win11-mica sticky top-0 z-20 h-[52px]">
-      <div className="flex h-full items-center justify-between px-5 lg:px-7">
+    <header className="win11-mica sticky top-0 z-20 h-[56px]">
+      <div className="flex h-full items-center justify-between px-5 lg:px-6 gap-4">
 
-        {/* Left */}
+        {/* Left — hamburger + page title */}
         <div className="flex items-center gap-3">
           <button
             onClick={onMobileMenuToggle}
-            className="md:hidden rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="md:hidden rounded-xl p-1.5 text-gray-400 hover:bg-black/[0.06] hover:text-gray-700 transition-colors"
             aria-label="Toggle menu"
           >
             <Menu className="h-5 w-5" />
@@ -60,34 +66,37 @@ export default function Header({ onMobileMenuToggle, onCommandPaletteOpen }: Hea
           <h1 className="text-[15px] font-semibold text-gray-900 tracking-tight">{pageTitle}</h1>
         </div>
 
-        {/* Center: Search */}
+        {/* Center — search pill */}
         <button
           onClick={onCommandPaletteOpen}
-          className="hidden sm:flex items-center gap-2.5 rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-1.5 text-sm text-gray-400 hover:border-gray-300 hover:bg-white hover:text-gray-500 transition-all max-w-xs w-full mx-6"
+          className="hidden sm:flex flex-1 max-w-sm items-center gap-2.5 rounded-3xl border border-black/[0.08] bg-white/60 px-4 py-2 text-sm text-gray-400 shadow-sm hover:bg-white/90 hover:border-black/[0.12] hover:text-gray-500 transition-all"
         >
-          <Search className="h-3.5 w-3.5 shrink-0" />
+          <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
           <span className="flex-1 text-left text-[13px]">Search…</span>
-          <kbd className="hidden lg:inline-flex h-5 items-center gap-0.5 rounded-md border border-gray-200 bg-white px-1.5 text-[10px] font-mono text-gray-400">
+          <kbd className="hidden lg:inline-flex h-5 items-center gap-0.5 rounded-lg border border-gray-200 bg-white px-1.5 text-[10px] font-mono text-gray-400 shadow-sm">
             ⌘K
           </kbd>
         </button>
 
-        {/* Right */}
-        <div className="flex items-center gap-1">
+        {/* Right — icons + avatar */}
+        <div className="flex items-center gap-1.5">
           <button
             onClick={onCommandPaletteOpen}
-            className="sm:hidden rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 transition-colors"
+            className="sm:hidden rounded-xl p-1.5 text-gray-400 hover:bg-black/[0.06] transition-colors"
             aria-label="Search"
           >
-            <Search className="h-4.5 w-4.5" />
+            <Search className="h-4 w-4" />
           </button>
-          <button className="relative rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
-            <Bell className="h-4.5 w-4.5" />
-            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500" />
+
+          <button className="relative rounded-xl p-1.5 text-gray-400 hover:bg-black/[0.06] hover:text-gray-600 transition-colors">
+            <Bell className="h-4 w-4" />
+            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500 shadow-sm" />
           </button>
-          {/* User avatar */}
-          <div className="ml-1 flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold text-white"
-            style={{ background: '#004D99' }}>
+
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold text-white shadow-sm ring-2 ring-white"
+            style={{ background: '#0067C0' }}
+          >
             {user.firstName?.[0]}{user.lastName?.[0]}
           </div>
         </div>
