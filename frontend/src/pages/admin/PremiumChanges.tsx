@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { TrendingUp, Info } from 'lucide-react'
 import {
   getProducts,
   updateProduct,
@@ -82,15 +82,15 @@ export default function PremiumChanges() {
     const draft = drafts[row.productName]
     const nextPremium = Number(draft.premium)
     if (!draft.premium || !Number.isFinite(nextPremium) || nextPremium <= 0) {
-      updateDraft(row.productName, { error: 'Enter a valid Change Premium amount.', status: '' })
+      updateDraft(row.productName, { error: 'Enter a valid new premium amount.', status: '' })
       return
     }
     if (!draft.effectiveDate) {
-      updateDraft(row.productName, { error: 'Select an Effective Date.', status: '' })
+      updateDraft(row.productName, { error: 'Select an effective date.', status: '' })
       return
     }
     if (!row.product) {
-      updateDraft(row.productName, { error: 'This Foxbill product is not linked to the product table yet.', status: '' })
+      updateDraft(row.productName, { error: 'Product not yet linked to the product table.', status: '' })
       return
     }
 
@@ -99,7 +99,7 @@ export default function PremiumChanges() {
     try {
       const updated = await updateProduct(row.product.id, { premiumAmount: nextPremium })
       setProducts((current) => current.map((product) => (product.id === updated.id ? updated : product)))
-      updateDraft(row.productName, { premium: '', status: `Updated effective ${new Date(draft.effectiveDate).toLocaleDateString('en-ZA')}` })
+      updateDraft(row.productName, { premium: '', status: `Updated — effective ${new Date(draft.effectiveDate).toLocaleDateString('en-ZA')}` })
     } catch {
       updateDraft(row.productName, { error: 'Could not update this premium. Please try again.', status: '' })
     } finally {
@@ -108,81 +108,143 @@ export default function PremiumChanges() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 px-4 py-3">
-          <p className="text-sm font-medium uppercase tracking-wide text-gray-900">
-            NICOLE CAN MANAGE "FOXBILL" PREMIUM INCREASES FROM HERE
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+
+      {/* Page header */}
+      <div className="flex items-start gap-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+          <TrendingUp className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Foxbill Premium Management</h1>
+          <p className="mt-0.5 text-sm text-gray-500">
+            Update product premium rates. Changes take effect on the selected date.
           </p>
         </div>
+      </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-collapse text-sm">
-            <thead>
-              <tr>
-                <th className="border-b border-r border-gray-200 px-3 py-8 text-left text-sm font-bold uppercase tracking-wide text-gray-900" colSpan={6}>
-                  UPDATE PRODUCT PREMIUM
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, index) => {
-                const draft = drafts[row.productName]
-                const saving = savingProduct === row.productName
-                return (
-                  <tr key={row.productName} className={index === 2 ? 'border-t border-gray-200' : ''}>
-                    <td className="w-[34%] border-r border-gray-200 px-3 py-2 text-gray-900">{row.productName}</td>
-                    <td className="w-20 border-r border-gray-200 px-3 py-2 text-right text-gray-900">{row.currentPremium.toLocaleString('en-ZA')}</td>
-                    <td className="w-36 border-r border-gray-200 px-3 py-2 text-gray-900">Change Premium</td>
-                    <td className="w-32 border-r border-gray-200 px-0 py-0">
+      {/* Table card */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+
+        {/* Column headers */}
+        <div className="grid grid-cols-[1fr_130px_160px_200px_120px] gap-0 border-b border-gray-200 bg-gray-50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <span>Product</span>
+          <span className="text-right">Current (R)</span>
+          <span className="pl-3">New Premium (R)</span>
+          <span className="pl-3">Effective Date</span>
+          <span className="text-center">Action</span>
+        </div>
+
+        {/* Rows */}
+        <div className="divide-y divide-gray-100">
+          {loading ? (
+            <div className="py-10 text-center text-sm text-gray-400">Loading products…</div>
+          ) : (
+            rows.map((row) => {
+              const draft = drafts[row.productName]
+              const saving = savingProduct === row.productName
+              const hasChange = draft.premium && Number(draft.premium) !== row.currentPremium
+
+              return (
+                <div
+                  key={row.productName}
+                  className="grid grid-cols-[1fr_130px_160px_200px_120px] items-center gap-0 px-4 py-3 transition-colors hover:bg-gray-50/60"
+                >
+                  {/* Product name */}
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{row.productName}</p>
+                    {!row.product && (
+                      <span className="mt-0.5 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                        Not linked
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Current premium */}
+                  <div className="text-right">
+                    <span className="text-sm font-semibold text-gray-900">
+                      R {row.currentPremium.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+
+                  {/* New premium input */}
+                  <div className="pl-3">
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400">R</span>
                       <input
                         type="number"
                         min={0}
                         step="0.01"
                         value={draft.premium}
-                        onChange={(event) => updateDraft(row.productName, { premium: event.target.value, error: '', status: '' })}
-                        className="h-11 w-full border-2 border-gray-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                        aria-label={`${row.productName} Change Premium`}
+                        onChange={(e) => updateDraft(row.productName, { premium: e.target.value, error: '', status: '' })}
+                        placeholder="0.00"
+                        className="h-9 w-full rounded-lg border border-gray-200 pl-6 pr-2 text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        aria-label={`${row.productName} new premium`}
                       />
-                    </td>
-                    <td className="w-44 border-r border-gray-200 px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="whitespace-nowrap text-gray-900">Effective Date</span>
-                        <input
-                          type="date"
-                          value={draft.effectiveDate}
-                          onChange={(event) => updateDraft(row.productName, { effectiveDate: event.target.value, error: '', status: '' })}
-                          className="h-9 min-w-36 rounded border border-gray-300 px-2 text-xs focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                          aria-label={`${row.productName} Effective Date`}
-                        />
-                      </div>
-                    </td>
-                    <td className="w-28 px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() => handleUpdate(row)}
-                        disabled={loading || saving}
-                        className="font-semibold uppercase tracking-wide text-yellow-600 hover:text-yellow-700 disabled:cursor-not-allowed disabled:text-gray-400"
-                      >
-                        {saving ? 'UPDATING' : 'UPDATE'}
-                      </button>
-                      {(draft.error || draft.status) && (
-                        <p className={`mt-1 text-xs ${draft.error ? 'text-red-600' : 'text-emerald-600'}`}>
-                          {draft.error || draft.status}
-                        </p>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                    </div>
+                    {hasChange && (
+                      <p className="mt-0.5 text-[10px] text-gray-400">
+                        was R {row.currentPremium.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Effective date input */}
+                  <div className="pl-3">
+                    <input
+                      type="date"
+                      value={draft.effectiveDate}
+                      onChange={(e) => updateDraft(row.productName, { effectiveDate: e.target.value, error: '', status: '' })}
+                      className="h-9 w-full rounded-lg border border-gray-200 px-2.5 text-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      aria-label={`${row.productName} effective date`}
+                    />
+                  </div>
+
+                  {/* Action */}
+                  <div className="flex flex-col items-center gap-1 text-center">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdate(row)}
+                      disabled={loading || saving}
+                      className="inline-flex h-8 items-center rounded-lg bg-primary px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {saving ? (
+                        <span className="flex items-center gap-1.5">
+                          <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                          </svg>
+                          Saving
+                        </span>
+                      ) : 'Update'}
+                    </button>
+
+                    {draft.error && (
+                      <p className="max-w-[110px] text-center text-[10px] leading-tight text-red-600">
+                        {draft.error}
+                      </p>
+                    )}
+                    {draft.status && (
+                      <p className="max-w-[110px] text-center text-[10px] leading-tight text-emerald-600">
+                        {draft.status}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )
+            })
+          )}
         </div>
       </div>
 
-      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-        <span className="font-semibold">Foxbill premium workflow:</span> enter the new premium, choose the effective date, then select UPDATE for the product row Nicole is changing.
+      {/* Help text */}
+      <div className="flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
+        <p>
+          Enter the new premium amount and an effective date, then click <strong>Update</strong> to apply the change to the Foxbill product record.
+        </p>
       </div>
+
     </div>
   )
 }
