@@ -102,7 +102,7 @@ export class SmsPortalService {
       throw new Error(`SMS Portal authentication failed: ${body}`);
     }
 
-    const data = await res.json();
+    const data: any = await res.json();
     this.cachedToken = data.token ?? data.Token;
     // Default 60-minute expiry
     this.tokenExpiresAt = Date.now() + (data.expiresIn ?? 3600) * 1000;
@@ -136,7 +136,7 @@ export class SmsPortalService {
       }),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     if (!res.ok) {
       await this.audit("SMS_SEND_FAIL", { destination: this.maskNumber(destination), error: data });
@@ -205,7 +205,7 @@ export class SmsPortalService {
           }),
         });
 
-        const data = await res.json();
+        const data: any = await res.json();
 
         if (res.ok) {
           const ids =
@@ -247,7 +247,7 @@ export class SmsPortalService {
       headers: { Authorization: `Bearer ${token}` },
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     return {
       messageId,

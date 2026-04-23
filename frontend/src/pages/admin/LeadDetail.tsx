@@ -73,12 +73,12 @@ const STEPS: JourneyStep[] = [
     description: (l) =>
       l.dialledAt
         ? `Agent dialled ${l.contactNo} and recorded a call outcome.`
-        : l.assignedAgentId
-        ? `Lead is in ${l.assignedAgent?.firstName ?? 'agent'}'s dial list, awaiting a call.`
+        : l.assignedAgent
+        ? `Lead is in ${l.assignedAgent.firstName}'s dial list, awaiting a call.`
         : 'Not yet assigned.',
     status: (l) => {
       if (l.dialledAt) return 'done'
-      if (l.assignedAgentId) return 'active'
+      if (l.assignedAgent) return 'active'
       return 'pending'
     },
     timestamp: (l) => l.dialledAt,

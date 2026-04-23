@@ -270,7 +270,7 @@ async function getNativeExportStatusData(period: ReportPeriod): Promise<{ summar
     const key = `${productName}|${premiumAmount}|${statusGroup}`;
     const existing = summary.get(key) ?? { productName, premiumAmount, statusGroup, count: 0, estimatedPremium: 0 };
     existing.count += 1;
-    existing.estimatedPremium += premiumAmount;
+    existing.estimatedPremium = Number(existing.estimatedPremium) + premiumAmount;
     summary.set(key, existing);
     return {
       id: sale.id,
@@ -417,13 +417,13 @@ async function getNativeGlobalBookRows(period: ReportPeriod): Promise<{ rows: Gl
     const summaryKey = `${code}|${month}`;
     const summaryRow = summary.get(summaryKey) ?? { code, description, month, count: 0, amount: 0 };
     summaryRow.count += 1;
-    summaryRow.amount += amount;
+    summaryRow.amount = Number(summaryRow.amount) + amount;
     summary.set(summaryKey, summaryRow);
     const productName = policy.product?.name ?? "Unknown";
     const productKey = `${productName}|${month}`;
     const productRow = products.get(productKey) ?? { productName, month, count: 0, amount: 0 };
     productRow.count += 1;
-    productRow.amount += amount;
+    productRow.amount = Number(productRow.amount) + amount;
     products.set(productKey, productRow);
   }
   return { rows: [...summary.values()], productRows: [...products.values()] };

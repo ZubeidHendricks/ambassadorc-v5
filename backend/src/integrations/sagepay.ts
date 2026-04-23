@@ -101,7 +101,7 @@ export class SagePayService {
       }),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     if (!res.ok) {
       await this.audit("SAGEPAY_STATEMENT_REQUEST_FAIL", data);
@@ -122,7 +122,7 @@ export class SagePayService {
       headers: this.buildHeaders(cfg),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     if (!res.ok) {
       throw new Error(`SagePay statement retrieval failed: ${JSON.stringify(data)}`);
@@ -165,7 +165,7 @@ export class SagePayService {
       body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     if (!res.ok) {
       await this.audit("SAGEPAY_BATCH_UPLOAD_FAIL", { batchRef, error: data });
@@ -237,7 +237,7 @@ export class SagePayService {
       }),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     await this.audit("SAGEPAY_BANK_VALIDATION", {
       accountNumber: `***${accountNumber.slice(-4)}`,
@@ -264,7 +264,7 @@ export class SagePayService {
       headers: this.buildHeaders(cfg),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     if (!res.ok) {
       throw new Error(`SagePay getBankList failed: ${JSON.stringify(data)}`);

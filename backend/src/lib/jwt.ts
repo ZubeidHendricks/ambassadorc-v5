@@ -10,9 +10,8 @@ export interface JwtPayload {
 }
 
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
 }
 
 export function verifyToken(token: string): JwtPayload {

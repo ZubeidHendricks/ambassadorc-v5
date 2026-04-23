@@ -40,7 +40,7 @@ router.post("/ultramsg", async (req: Request, res: Response) => {
     if (eventType === "message_ack") {
       const { id, status } = payload;
       if (id && status) {
-        await prisma.integrationLog
+        await (prisma as any).integrationLog
           .updateMany({
             where: { externalId: String(id), integration: "ULTRAMSG" },
             data: {

@@ -29,7 +29,7 @@ const STAGES: Stage[] = [
     cardBg: 'bg-white hover:bg-orange-50/40',
     dotColor: 'bg-orange-400',
     icon: User,
-    filter: (l) => l.status === 'NEW' && !l.assignedAgentId,
+    filter: (l) => l.status === 'NEW' && !l.assignedAgent,
   },
   {
     id: 'assigned',
@@ -41,7 +41,7 @@ const STAGES: Stage[] = [
     cardBg: 'bg-white hover:bg-yellow-50/40',
     dotColor: 'bg-yellow-400',
     icon: PhoneCall,
-    filter: (l) => !!l.assignedAgentId && !l.callOutcome,
+    filter: (l) => !!l.assignedAgent && !l.callOutcome,
   },
   {
     id: 'no-answer',

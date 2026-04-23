@@ -90,7 +90,7 @@ export class NetcashService {
       }),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     await this.audit("NETCASH_BANK_VALIDATION", {
       accountNumber: `***${accountNumber.slice(-4)}`,
@@ -122,7 +122,7 @@ export class NetcashService {
       }),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     await this.audit("NETCASH_ID_VALIDATION", {
       idNumber: `***${idNumber.slice(-4)}`,
@@ -153,7 +153,7 @@ export class NetcashService {
       headers: this.buildHeaders(cfg),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     if (!res.ok) {
       throw new Error(`Netcash getBankList failed: ${JSON.stringify(data)}`);
@@ -179,7 +179,7 @@ export class NetcashService {
       headers: this.buildHeaders(cfg),
     });
 
-    const data = await res.json();
+    const data: any = await res.json();
 
     if (!res.ok) {
       throw new Error(`Netcash getBranchList failed: ${JSON.stringify(data)}`);

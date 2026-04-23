@@ -448,7 +448,7 @@ router.get("/export-status", async (req: AuthRequest, res: Response) => {
     }
     for (const sale of nativeStatusRows) {
       const productName = sale.product?.name ?? "Unknown";
-      const premiumAmount = productPremiumAmount(productName, sale.product?.premiumAmount ?? 0);
+      const premiumAmount = productPremiumAmount(productName, String(sale.product?.premiumAmount ?? 0));
       const productKey = `${productName}|${premiumAmount}`;
       const productRow = productMap.get(productKey) ?? { productName, premiumAmount, count: 0 };
       productRow.count += 1;

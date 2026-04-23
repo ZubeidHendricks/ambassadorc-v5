@@ -340,7 +340,7 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
         action: "UPDATE",
         entity: "Workflow",
         entityId: String(id),
-        details: updateData,
+        details: updateData as object,
         ipAddress: req.ip ?? null,
       },
     });

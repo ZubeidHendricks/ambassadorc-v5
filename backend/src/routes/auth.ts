@@ -59,6 +59,7 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
         mobileNo: true,
         province: true,
         department: true,
+        role: true,
         createdAt: true,
       },
     });
