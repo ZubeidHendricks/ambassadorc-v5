@@ -150,7 +150,7 @@ export default function Landing() {
 
         {/* Trust badges */}
         <div className="relative mt-16 flex flex-wrap items-center justify-center gap-6 text-xs text-white/25 font-medium">
-          {['SagePay Integrated', 'QLink Connected', 'NetCash Ready', 'Zapier WhatsApp', 'AI Automation'].map(b => (
+          {['SagePay Integrated', 'QLink Connected', 'NetCash Ready', 'WhatsApp Messaging', 'AI Automation'].map(b => (
             <span key={b} className="flex items-center gap-1.5">
               <CheckCircle className="h-3 w-3 text-[#0FCC85]" /> {b}
             </span>

@@ -109,9 +109,9 @@ const integrationMeta: IntegrationMeta[] = [
     bgColor: 'bg-rose-50',
   },
   {
-    key: 'zapier_whatsapp',
-    name: 'Zapier WhatsApp',
-    description: 'WhatsApp Business messaging via Zapier webhook triggers',
+    key: 'ultramsg_whatsapp',
+    name: 'UltraMsg WhatsApp',
+    description: 'WhatsApp messaging via UltraMsg (WhatsApp Web-based, no Meta approval required)',
     icon: MessageCircle,
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-50',
@@ -1035,7 +1035,7 @@ export default function Integrations() {
           </Button>
         </IntegrationCard>
 
-        {/* ──── Zapier WhatsApp ──── */}
+        {/* ──── UltraMsg WhatsApp ──── */}
         <IntegrationCard
           meta={integrationMeta[6]}
           config={undefined}
