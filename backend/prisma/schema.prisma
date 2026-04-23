@@ -35,6 +35,13 @@ enum LeadStatus {
   CLOSED
 }
 
+enum CallOutcome {
+  SALE_MADE
+  COULD_NOT_REACH
+  NOT_INTERESTED
+  CALLBACK_SCHEDULED
+}
+
 enum LeadType {
   REFERRAL_LEAD
   MEMBER_SIGNUP
@@ -209,6 +216,7 @@ model Ambassador {
   sales                Sale[]           @relation("AgentSales")
   qualityChecks        QualityCheck[]   @relation("CheckerQualityChecks")
   commissions          Commission[]
+  assignedLeads        Lead[]           @relation("AgentLeads")
 
   @@index([mobileNo])
   @@index([province])
@@ -266,7 +274,14 @@ model Lead {
   datePaid         DateTime?
   createdAt        DateTime   @default(now())
 
+  assignedAgentId Int?
+  callOutcome     CallOutcome?
+  callNotes       String?    @db.VarChar(500)
+  dialledAt       DateTime?
+  assignedAt      DateTime?
+
   ambassador        Ambassador         @relation(fields: [ambassadorId], references: [id], onDelete: Cascade)
+  assignedAgent     Ambassador?        @relation("AgentLeads", fields: [assignedAgentId], references: [id])
   ambassadorPayment AmbassadorPayment? @relation(fields: [ambassadorPaymentId], references: [id])
   ambassadorPaymentId Int?
 
@@ -274,6 +289,8 @@ model Lead {
   @@index([status])
   @@index([type])
   @@index([contactNo])
+  @@index([assignedAgentId])
+  @@index([callOutcome])
   @@map("leads")
 }
 

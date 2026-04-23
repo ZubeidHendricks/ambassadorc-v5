@@ -25,11 +25,11 @@ A unified insurance management platform for South African insurance operations. 
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts   # Express server entry, serves static in production
-│   │   ├── routes/    # 17 API route modules
+│   │   ├── routes/    # 17 API route modules (incl. leads.ts with dialler endpoints)
 │   │   ├── agents/    # 6 AI automation agents
 │   │   ├── workflows/ # Business process workflow engine
-│   │   └── integrations/ # Third-party service adapters
-│   └── prisma/schema.prisma # 33-model database schema
+│   │   └── integrations/ # Third-party service adapters (ultramsg WhatsApp)
+│   └── prisma/schema.prisma # 33-model schema + Lead dialler columns
 ├── start.sh           # Production startup script
 └── replit.md          # This file
 ```

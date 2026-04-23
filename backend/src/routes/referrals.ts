@@ -2,10 +2,10 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { createReferralBatchSchema } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { sendUltraMsgWhatsApp } from "../integrations/ultramsg.js";
 
 const router = Router();
 
-// All routes require authentication
 router.use(authenticate);
 
 // ─── POST /api/referrals/batch ──────────────────────────────────────────────
@@ -60,10 +60,7 @@ router.post("/batch", async (req: AuthRequest, res: Response) => {
     // Create batch and referrals in a transaction for atomicity
     const batch = await prisma.$transaction(async (tx) => {
       const newBatch = await tx.referralBatch.create({
-        data: {
-          ambassadorId,
-          batchName,
-        },
+        data: { ambassadorId, batchName },
       });
 
       await tx.referral.createMany({
@@ -80,28 +77,36 @@ router.post("/batch", async (req: AuthRequest, res: Response) => {
         where: { id: newBatch.id },
         include: {
           referrals: {
-            select: {
-              id: true,
-              refName: true,
-              refContactNo: true,
-              status: true,
-              createdAt: true,
-            },
+            select: { id: true, refName: true, refContactNo: true, status: true, createdAt: true },
           },
         },
       });
     });
 
-    res.status(201).json({
-      success: true,
-      data: batch,
+    res.status(201).json({ success: true, data: batch });
+
+    // ── Auto-fire WhatsApp "Referrals Received" (async, non-blocking) ──────
+    setImmediate(async () => {
+      try {
+        const ambassador = await prisma.ambassador.findUnique({
+          where: { id: ambassadorId },
+          select: { mobileNo: true, firstName: true },
+        });
+        if (ambassador?.mobileNo) {
+          await sendUltraMsgWhatsApp(
+            ambassador.mobileNo,
+            "referrals_received",
+            ambassador.firstName
+          );
+          console.log(`[WhatsApp] Referrals Received sent to ambassador ${ambassadorId}`);
+        }
+      } catch (err) {
+        console.error("[WhatsApp] Failed to send Referrals Received:", err);
+      }
     });
   } catch (error) {
     console.error("Create referral batch error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 
@@ -110,8 +115,8 @@ router.post("/batch", async (req: AuthRequest, res: Response) => {
 router.get("/batches", async (req: AuthRequest, res: Response) => {
   try {
     const ambassadorId = req.ambassador!.id;
-    const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const page = Math.max(1, parseInt(String(req.query.page) || "1") || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit) || "20") || 20));
     const skip = (page - 1) * limit;
 
     const [batches, total] = await Promise.all([
@@ -120,11 +125,7 @@ router.get("/batches", async (req: AuthRequest, res: Response) => {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
-        include: {
-          _count: {
-            select: { referrals: true },
-          },
-        },
+        include: { _count: { select: { referrals: true } } },
       }),
       prisma.referralBatch.count({ where: { ambassadorId } }),
     ]);
@@ -138,20 +139,12 @@ router.get("/batches", async (req: AuthRequest, res: Response) => {
           referralCount: b._count.referrals,
           createdAt: b.createdAt,
         })),
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-        },
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
       },
     });
   } catch (error) {
     console.error("List referral batches error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 
@@ -159,7 +152,7 @@ router.get("/batches", async (req: AuthRequest, res: Response) => {
 
 router.get("/batch/:id", async (req: AuthRequest, res: Response) => {
   try {
-    const batchId = parseInt(req.params.id);
+    const batchId = parseInt(String(req.params.id));
 
     if (isNaN(batchId)) {
       res.status(400).json({ success: false, error: "Invalid batch ID." });
@@ -167,19 +160,10 @@ router.get("/batch/:id", async (req: AuthRequest, res: Response) => {
     }
 
     const batch = await prisma.referralBatch.findFirst({
-      where: {
-        id: batchId,
-        ambassadorId: req.ambassador!.id,
-      },
+      where: { id: batchId, ambassadorId: req.ambassador!.id },
       include: {
         referrals: {
-          select: {
-            id: true,
-            refName: true,
-            refContactNo: true,
-            status: true,
-            createdAt: true,
-          },
+          select: { id: true, refName: true, refContactNo: true, status: true, createdAt: true },
           orderBy: { createdAt: "asc" },
         },
       },
@@ -193,10 +177,7 @@ router.get("/batch/:id", async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: batch });
   } catch (error) {
     console.error("Get referral batch error:", error);
-    res.status(500).json({
-      success: false,
-      error: "An unexpected error occurred.",
-    });
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 

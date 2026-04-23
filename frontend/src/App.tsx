@@ -36,6 +36,8 @@ import SyncDashboard from '@/pages/admin/SyncDashboard'
 import Reports from '@/pages/admin/Reports'
 import ExportStatus from '@/pages/admin/ExportStatus'
 import AmbassadorBackend from '@/pages/admin/AmbassadorBackend'
+import DiallerManagement from '@/pages/admin/DiallerManagement'
+import AgentDialler from '@/pages/admin/AgentDialler'
 
 export default function App() {
   return (
@@ -290,6 +292,24 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['ADMIN']}>
               <AmbassadorBackend />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Dialler routes */}
+        <Route
+          path="/admin/dialler"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']}>
+              <DiallerManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/agent-diallist"
+          element={
+            <ProtectedRoute allowedRoles={['AGENT', 'ADMIN']}>
+              <AgentDialler />
             </ProtectedRoute>
           }
         />

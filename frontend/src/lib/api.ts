@@ -1803,3 +1803,112 @@ export async function getFileExports() {
   const res = await request<FileExport[]>('/integrations/files')
   return res.data!
 }
+
+// ─── Lead Dialler Flow ───────────────────────────────────────────────────────
+
+export type CallOutcome = 'SALE_MADE' | 'COULD_NOT_REACH' | 'NOT_INTERESTED' | 'CALLBACK_SCHEDULED'
+
+export interface AdminLead {
+  id: number
+  firstName: string
+  lastName: string
+  contactNo: string
+  preferredContact: string | null
+  status: string
+  type: 'REFERRAL_LEAD' | 'MEMBER_SIGNUP'
+  employerName: string | null
+  idNumber: string | null
+  notes: string | null
+  callOutcome: CallOutcome | null
+  callNotes: string | null
+  dialledAt: string | null
+  assignedAt: string | null
+  datePaid: string | null
+  createdAt: string
+  ambassador: { id: number; firstName: string; lastName: string; mobileNo: string }
+  assignedAgent: { id: number; firstName: string; lastName: string } | null
+}
+
+export interface AgentDialLead {
+  id: number
+  firstName: string
+  lastName: string
+  contactNo: string
+  preferredContact: string | null
+  type: 'REFERRAL_LEAD' | 'MEMBER_SIGNUP'
+  status: string
+  employerName: string | null
+  notes: string | null
+  callOutcome: CallOutcome | null
+  callNotes: string | null
+  dialledAt: string | null
+  assignedAt: string | null
+  ambassador: { firstName: string; lastName: string }
+}
+
+export interface DialAgent {
+  id: number
+  name: string
+  assignedCount: number
+}
+
+export async function getAdminLeads(params: {
+  page?: number
+  limit?: number
+  type?: string
+  status?: string
+  assigned?: 'assigned' | 'unassigned' | ''
+} = {}) {
+  const q = new URLSearchParams()
+  if (params.page) q.set('page', String(params.page))
+  if (params.limit) q.set('limit', String(params.limit))
+  if (params.type) q.set('type', params.type)
+  if (params.status) q.set('status', params.status)
+  if (params.assigned) q.set('assigned', params.assigned)
+  const res = await request<{ leads: AdminLead[]; pagination: { total: number; page: number; totalPages: number } }>(
+    `/leads/admin/all?${q}`
+  )
+  return res.data!
+}
+
+export async function getDialAgents() {
+  const res = await request<DialAgent[]>('/leads/admin/agents')
+  return res.data!
+}
+
+export async function assignLead(leadId: number, agentId: number | null) {
+  const res = await request(`/leads/admin/${leadId}/assign`, {
+    method: 'PUT',
+    body: JSON.stringify({ agentId }),
+  })
+  return res.data
+}
+
+export async function bulkAssignLeads(leadIds: number[], agentId: number) {
+  const res = await request('/leads/admin/bulk-assign', {
+    method: 'PUT',
+    body: JSON.stringify({ leadIds, agentId }),
+  })
+  return res.data
+}
+
+export async function recordCallOutcome(
+  leadId: number,
+  callOutcome: CallOutcome,
+  callNotes?: string
+) {
+  const res = await request(`/leads/${leadId}/outcome`, {
+    method: 'PUT',
+    body: JSON.stringify({ callOutcome, callNotes }),
+  })
+  return res.data
+}
+
+export async function getAgentDialList(outcome?: 'pending' | 'completed') {
+  const q = outcome ? `?outcome=${outcome}` : ''
+  const res = await request<{
+    leads: AgentDialLead[]
+    summary: { total: number; pending: number; completed: number; sales: number }
+  }>(`/leads/agent/diallist${q}`)
+  return res.data!
+}
