@@ -148,13 +148,15 @@ app.use("/api/webhooks", webhookRoutes);
 // ─── Serve Static Frontend (Production) ────────────────────────────────────
 
 const publicDir = path.join(__dirname, "..", "public");
-if (process.env.NODE_ENV === "production" && fs.existsSync(publicDir)) {
+if (fs.existsSync(publicDir)) {
+  // Serve the compiled React SPA whenever the public/ build is present.
+  // This covers both the Docker deployment and any local test builds.
   app.use(express.static(publicDir));
   app.get("*", (_req: Request, res: Response) => {
     res.sendFile(path.join(publicDir, "index.html"));
   });
 } else {
-  // ─── 404 Handler ──────────────────────────────────────────────────────────
+  // ─── 404 Handler (dev-only: no frontend build present) ───────────────────
   app.use((_req: Request, res: Response) => {
     res.status(404).json({
       success: false,
