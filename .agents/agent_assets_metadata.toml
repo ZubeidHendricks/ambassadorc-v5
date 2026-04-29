@@ -12,3 +12,9 @@ id = "oN5KTimgh3M1hoR71SVGu"
 uri = "file://AmbassadorC_v5_Complete_Documentation.docx"
 type = "word_document"
 title = "AmbassadorC v5 — Complete System Documentation"
+
+[[outputs]]
+id = "kUpYqA0d7aQUCv3U0bfWY"
+uri = "file://AmbassadorC_v5_User_Manual.docx"
+type = "word_document"
+title = "AmbassadorC v5 — User Manual"
