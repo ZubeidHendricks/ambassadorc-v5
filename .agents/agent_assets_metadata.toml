@@ -18,3 +18,9 @@ id = "kUpYqA0d7aQUCv3U0bfWY"
 uri = "file://AmbassadorC_v5_User_Manual.docx"
 type = "word_document"
 title = "AmbassadorC v5 — User Manual"
+
+[[outputs]]
+id = "miqz8IWZy7W4vVfGe5SZI"
+uri = "file://AmbassadorC_v5_Illustrated_Manual.docx"
+type = "word_document"
+title = "AmbassadorC v5 — Illustrated User Manual (with Screenshots)"
