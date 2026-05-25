@@ -3,7 +3,7 @@ import { ClipboardCheck, Edit3, LayoutGrid, List, Send, ShieldCheck, UserCheck }
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { DataTable, type Column } from '@/components/ui/data-table'
-import { getSales, updateSaleStatus, type Sale, type PaginationInfo } from '@/lib/api'
+import { getSales, updateSaleStatus, getProducts, captureSale, type Sale, type Product, type PaginationInfo, type CaptureSalePayload } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
 
@@ -42,6 +42,7 @@ const tableColumns: Column<Sale>[] = [
 ]
 
 type SalesAgentForm = {
+  clientFirstName: string
   clientSurname: string
   clientId: string
   clientMobile: string
@@ -51,6 +52,8 @@ type SalesAgentForm = {
   clientFirstDebitDate: string
   dependants: string
   validationAgentName: string
+  productId: string
+  collectionMethod: 'PERSAL' | 'DEBIT_ORDER'
 }
 
 type SalesAgentValidation = {
@@ -60,6 +63,7 @@ type SalesAgentValidation = {
 }
 
 const initialSalesAgentForm: SalesAgentForm = {
+  clientFirstName: '',
   clientSurname: '',
   clientId: '',
   clientMobile: '',
@@ -69,6 +73,8 @@ const initialSalesAgentForm: SalesAgentForm = {
   clientFirstDebitDate: '',
   dependants: '',
   validationAgentName: '',
+  productId: '',
+  collectionMethod: 'PERSAL',
 }
 
 const salesAgentFields: Array<{
@@ -77,6 +83,7 @@ const salesAgentFields: Array<{
   type?: string
   area?: boolean
 }> = [
+  { key: 'clientFirstName', label: 'Client First Name' },
   { key: 'clientSurname', label: 'Client Surname' },
   { key: 'clientId', label: 'Client ID' },
   { key: 'clientMobile', label: 'Client Mobile Number' },
@@ -155,6 +162,12 @@ export default function Sales() {
   const [salesAgentStatus, setSalesAgentStatus] = useState<'Draft' | 'A' | 'T'>('Draft')
   const [salesAgentValidation, setSalesAgentValidation] = useState<SalesAgentValidation>(validateSalesAgentForm(initialSalesAgentForm))
   const [salesAgentMessage, setSalesAgentMessage] = useState('Capture the sale details, then submit for validation.')
+  const [products, setProducts] = useState<Product[]>([])
+  const [capturing, setCapturing] = useState(false)
+
+  useEffect(() => {
+    getProducts(1, 100).then((r) => setProducts(r.data)).catch(() => setProducts([]))
+  }, [])
 
   const loadSales = useCallback(async () => {
     try {
@@ -187,7 +200,7 @@ export default function Sales() {
   }
 
   const updateSalesAgentField = (field: keyof SalesAgentForm, value: string) => {
-    setSalesAgentForm((prev) => ({ ...prev, [field]: value }))
+    setSalesAgentForm((prev) => ({ ...prev, [field]: value }) as SalesAgentForm)
     if (salesAgentStage === 'qa-bay') {
       setSalesAgentStage('validation')
       setSalesAgentStatus('A')
@@ -214,16 +227,56 @@ export default function Sales() {
     setSalesAgentMessage('Validation Agent can edit and make corrections before final submit.')
   }
 
-  const handleSubmitValidation = () => {
+  const handleSubmitValidation = async () => {
     const validation = validateSalesAgentForm(salesAgentForm)
     setSalesAgentValidation(validation)
     if (!validation.id || !validation.mobile || !validation.spelling || !salesAgentForm.validationAgentName.trim()) {
       setSalesAgentMessage('Validation cannot submit until all checks pass and Validation Agent Name is captured.')
       return
     }
-    setSalesAgentStage('qa-bay')
-    setSalesAgentStatus('T')
-    setSalesAgentMessage('Sale gets a T status and lies in the QA Bay for second check.')
+    if (!salesAgentForm.clientFirstName.trim()) {
+      setSalesAgentMessage('Capture the Client First Name before submitting.')
+      return
+    }
+    if (!salesAgentForm.productId) {
+      setSalesAgentMessage('Select a Product before submitting.')
+      return
+    }
+
+    const payload: CaptureSalePayload = {
+      productId: Number(salesAgentForm.productId),
+      collectionMethod: salesAgentForm.collectionMethod,
+      firstName: salesAgentForm.clientFirstName.trim(),
+      lastName: salesAgentForm.clientSurname.trim(),
+      idNumber: salesAgentForm.clientId.replace(/\D/g, ''),
+      cellphone: salesAgentForm.clientMobile.replace(/\D/g, ''),
+      address1: salesAgentForm.clientAddress.trim() || undefined,
+      firstDebitDate: salesAgentForm.clientFirstDebitDate || undefined,
+      department: salesAgentForm.collectionMethod === 'PERSAL' ? salesAgentForm.clientDepartment.trim() || undefined : undefined,
+      persalNumber: salesAgentForm.collectionMethod === 'PERSAL' ? salesAgentForm.clientPersal.trim() || undefined : undefined,
+      validationAgent: salesAgentForm.validationAgentName.trim(),
+      dependants: salesAgentForm.dependants.trim()
+        ? salesAgentForm.dependants.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => ({ name: line }))
+        : undefined,
+    }
+
+    setCapturing(true)
+    try {
+      const result = await captureSale(payload)
+      setSalesAgentStage('qa-bay')
+      setSalesAgentStatus('T')
+      setSalesAgentMessage(result.message)
+      setSalesAgentForm({
+        ...initialSalesAgentForm,
+        validationAgentName: user ? `${user.firstName} ${user.lastName}` : '',
+      })
+      setSalesAgentValidation(validateSalesAgentForm(initialSalesAgentForm))
+      loadSales()
+    } catch (e: any) {
+      setSalesAgentMessage(e?.message || 'Capture failed — the sale was not saved.')
+    } finally {
+      setCapturing(false)
+    }
   }
 
   const agents = [...new Map(sales.map((s) => [s.agentId, { id: s.agentId, name: s.agentName }])).values()]
@@ -406,6 +459,30 @@ export default function Sales() {
         <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="border-b border-gray-200 lg:border-b-0 lg:border-r">
             <div className="grid gap-0">
+              <label className="grid gap-0 border-b border-gray-200 sm:grid-cols-[230px_1fr]">
+                <span className="bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-800">Product</span>
+                <select
+                  value={salesAgentForm.productId}
+                  onChange={(e) => updateSalesAgentField('productId', e.target.value)}
+                  className="h-12 w-full border-0 px-4 text-sm text-gray-900 outline-none focus:bg-blue-50"
+                >
+                  <option value="">Select product…</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={String(p.id)}>{p.name} — R{Number(p.premiumAmount ?? 0)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-0 border-b border-gray-200 sm:grid-cols-[230px_1fr]">
+                <span className="bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-800">Collection Method</span>
+                <select
+                  value={salesAgentForm.collectionMethod}
+                  onChange={(e) => updateSalesAgentField('collectionMethod', e.target.value)}
+                  className="h-12 w-full border-0 px-4 text-sm text-gray-900 outline-none focus:bg-blue-50"
+                >
+                  <option value="PERSAL">Persal (Q-Link)</option>
+                  <option value="DEBIT_ORDER">Debit Order (Netcash)</option>
+                </select>
+              </label>
               {salesAgentFields.map((field) => (
                 <label key={field.key} className="grid gap-0 border-b border-gray-200 sm:grid-cols-[230px_1fr]">
                   <span className="bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-800">{field.label}</span>
@@ -485,8 +562,8 @@ export default function Sales() {
                 <Button type="button" variant="outline" onClick={handleValidationEdit} disabled={salesAgentStage === 'capture'}>
                   <Edit3 className="h-4 w-4" /> Edit
                 </Button>
-                <Button type="button" variant="success" onClick={handleSubmitValidation} disabled={salesAgentStage === 'capture'}>
-                  <ShieldCheck className="h-4 w-4" /> Submit Validation
+                <Button type="button" variant="success" onClick={handleSubmitValidation} disabled={salesAgentStage === 'capture' || capturing}>
+                  <ShieldCheck className="h-4 w-4" /> {capturing ? 'Saving…' : 'Submit Validation'}
                 </Button>
               </div>
               <div className={cn(

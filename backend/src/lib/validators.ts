@@ -226,6 +226,46 @@ export const createSaleSchema = z.object({
   source: z.string().max(100).optional().nullable(),
 });
 
+// FoxPro Product Capture (Sales Agent capture → QA Bay)
+const captureDependant = z.object({
+  name: z.string().min(1).max(200),
+  relationship: z.string().max(50).optional().nullable(),
+  dateOfBirth: z.string().max(20).optional().nullable(),
+});
+
+export const captureSaleSchema = z
+  .object({
+    productId: z.number().int().positive("Product is required"),
+    tierName: z.string().max(100).optional().nullable(),
+    premiumAmount: positiveDecimal.optional(),
+    collectionMethod: z.enum(["DEBIT_ORDER", "PERSAL"]),
+    source: z.string().max(100).optional().nullable(),
+
+    // Client
+    title: z.string().max(10).optional().nullable(),
+    firstName: z.string().min(1, "First name is required").max(100),
+    lastName: z.string().min(1, "Surname is required").max(100),
+    idNumber: z.string().regex(/^\d{13}$/, "ID number must be 13 digits"),
+    cellphone: southAfricanMobile,
+    email: z.string().email("Invalid email address").max(255).optional().nullable(),
+    address1: z.string().max(255).optional().nullable(),
+    addressCode: z.string().max(10).optional().nullable(),
+    province: provinceEnum.optional().nullable(),
+
+    firstDebitDate: isoDateString.optional().nullable(),
+    department: z.string().max(120).optional().nullable(),
+    persalNumber: z.string().max(40).optional().nullable(),
+    validationAgent: z.string().max(200).optional().nullable(),
+
+    dependants: z.array(captureDependant).max(20).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.collectionMethod === "PERSAL") {
+      if (!data.department) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "Department is required for Persal" });
+      if (!data.persalNumber) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["persalNumber"], message: "Persal / employee number is required" });
+    }
+  });
+
 export const updateSaleStatusSchema = z.object({
   status: z.enum([
     "NEW",
