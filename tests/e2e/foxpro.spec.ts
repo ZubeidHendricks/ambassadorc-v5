@@ -58,6 +58,9 @@ test.describe('FoxPro · Product Capture', () => {
 
     // Pick the first real product (option 0 is the "Select product…" placeholder).
     const productSelect = page.locator('select').filter({ has: page.locator('option', { hasText: /Select product/ }) }).first()
+    // Products load asynchronously (GET /api/products) — wait for a real option
+    // before the guard so the test runs rather than skipping on a slow load.
+    await productSelect.locator('option').nth(1).waitFor({ state: 'attached', timeout: 15_000 }).catch(() => {})
     const optionCount = await productSelect.locator('option').count()
     test.skip(optionCount < 2, 'no seeded products available to capture against')
     await productSelect.selectOption({ index: 1 })
@@ -77,8 +80,9 @@ test.describe('FoxPro · Product Capture', () => {
     await expect(submitValidation).toBeEnabled({ timeout: 10_000 })
     await submitValidation.click()
 
-    // Backend POST /api/sales/capture → success message mentions the QA Bay / T status.
-    await expect(page.getByText(/QA Bay|status T|captured/i)).toBeVisible({ timeout: 15_000 })
+    // Backend POST /api/sales/capture → unique success message ("Sale captured for <name> …").
+    // (The page also has static "QA Bay" / "T status" labels, so match the dynamic text only.)
+    await expect(page.getByText(/Sale captured for/i)).toBeVisible({ timeout: 15_000 })
   })
 })
 
@@ -129,6 +133,9 @@ test.describe('FoxPro · Daily Lead Quotas', () => {
     await gotoAdmin(page, '/admin/dialler')
     await expect(page.getByText('Daily Lead Quotas')).toBeVisible({ timeout: 20_000 })
     // Quota selects render "5/day".."20/day"; pick the first agent's select and set 15.
+    // Agents load asynchronously (GET /leads/admin/agents) — wait for a quota
+    // select to appear before the guard so the test runs rather than skipping.
+    await page.locator('option', { hasText: /\/day/ }).first().waitFor({ state: 'attached', timeout: 15_000 }).catch(() => {})
     const quotaSelect = page.locator('select', { has: page.locator('option', { hasText: /\/day/ }) }).first()
     test.skip((await quotaSelect.count()) === 0, 'no agents to set a quota for')
     await quotaSelect.selectOption({ label: '15/day' })
