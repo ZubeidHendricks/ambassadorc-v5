@@ -1,0 +1,102 @@
+ Both scripts valid. Let me commit, push, PR, and merge.
+
+● Bash(cd "//wsl.localhost/Ubuntu/home/zubeid/New folder/ambassadorc-v5" && git add scripts/apply-migrations.sh scripts/deploy.sh && git commit -m "chore(deploy): one-…)
+  ⎿  warning: in the working copy of 'scripts/apply-migrations.sh', LF will be replaced by CRLF the next time Git touches it
+     [chore/harden-deploy ccf9483] chore(deploy): one-command safe deploy — apply idempotent SQL + prisma generate
+      2 files changed, 60 insertions(+), 1 deletion(-)
+     … +4 lines (ctrl+o to expand)
+
+● The CRLF warning matters for shell scripts running on the Linux droplet. Let me verify the committed blob is stored as LF (so the server gets LF), and check for a
+  .gitattributes.
+
+● Bash(cd "//wsl.localhost/Ubuntu/home/zubeid/New folder/ambassadorc-v5" && echo "=== CRLF in committed apply-migrations.sh? ===" && git show HEAD:scripts/apply-migrat…)
+  ⎿  === CRLF in committed apply-migrations.sh? ===
+     0
+     === existing deploy.sh committed line ending ===
+     … +5 lines (ctrl+o to expand)
+
+● Committed blobs are LF — the Linux droplet will get correct line endings (autocrlf=true only affects this Windows working copy, which doesn't run the scripts). Let me open
+  and merge the PR.
+
+● Bash(cd "//wsl.localhost/Ubuntu/home/zubeid/New folder/ambassadorc-v5" && gh pr create --title "chore(deploy): one-command safe deploy (apply SQL migrations + prisma…)
+  ⎿  Warning: 2 uncommitted changes
+     https://github.com/ZubeidHendricks/ambassadorc-v5/pull/5
+
+● Bash(cd "//wsl.localhost/Ubuntu/home/zubeid/New folder/ambassadorc-v5" && gh pr view 5 --json mergeable 2>&1 | head -1 && git checkout main 2>&1 | tail -1 && gh pr m…)
+  ⎿  {
+       "mergeable": "MERGEABLE"
+     }
+     … +4 lines (ctrl+o to expand)
+
+● Done — deploy.sh is now a one-command safe deploy (PR #5 merged, e68bf70). Here's exactly how we do this.
+
+  The deploy, end to end
+
+  From any machine that has the repo + the SSH key to the droplet:
+
+  git checkout main && git pull
+  DO_SSH_KEY_PATH=/path/to/do_deploy_key bash scripts/deploy.sh
+  (If your key is already in ssh-agent or is the default key, just bash scripts/deploy.sh.)
+
+  That script now does, on the droplet, in order:
+  1. git reset --hard origin/main
+  2. Apply the idempotent SQL (scripts/apply-migrations.sh → psql runs the two files in backend/prisma/sql/) — adds the Sale capture columns, Dependant table, and
+  Ambassador.dailyLeadQuota, without touching the sync_* tables
+  3. Build the frontend
+  4. Backend npm install + npx prisma generate (so the client knows the new fields)
+  5. Restart ambassadorc-backend + health-check
+
+  Two one-time things to confirm on the droplet
+
+  1. psql installed — the migration step needs it; it errors clearly if absent. If so: apt-get update && apt-get install -y postgresql-client.
+  2. Path — deploy.sh uses APP_DIR=/var/www/ambassadorc-v5, but the old HANDOVER said /opt/ambassadorc-v5. Confirm which is real on your box and adjust the one line if needed.
+
+  Verify after
+
+  - Open the app → log in → check: Product Capture saves and lands in QA Bay; DiallerManagement shows quotas + "Get Leads" works; Export Status → "Run Midnight Export" produces
+   a batch.
+  - Or watch logs: journalctl -u ambassadorc-backend -f (look for the two scheduler lines + no Prisma errors).
+
+  One caveat I flagged in the PR
+
+  The hardened deploy.sh assumes the service runs the TS source via tsx (consistent with it never having built the backend, yet your prior backend PRs being live). If your
+  systemd unit actually runs compiled dist/, we'd add a npm run build step — quickest way to confirm is cat /etc/systemd/system/ambassadorc-backend.service (the ExecStart
+  line).
+
+  I can't run the deploy from here (no SSH key on this machine, and you opted to run it yourself) — but if you paste the ExecStart line or hit any error from deploy.sh, I'll
+  diagnose it with you. Want me to also set up GitHub Actions CI/CD so future merges to main deploy automatically (you'd add the SSH key + DATABASE_URL as repo secrets)?
+
+✻ Cogitated for 9m 34s
+
+❯   That script now does, on the droplet, in order:                                                                                                                             
+    1. git reset --hard origin/main what does this do                                                                                                                           
+    
+● git reset --hard origin/main forces the code checkout on the droplet to become an exact copy of what's on GitHub's main branch. It runs right after git fetch origin main
+  (which downloads the latest commits into the local origin/main pointer but doesn't change your files yet).
+
+  Specifically, reset --hard does three things at once:
+
+  1. Moves the branch pointer (HEAD) to the commit origin/main points to.
+  2. Resets the staging area to match that commit.
+  3. --hard = overwrites the working tree — every tracked file on the server is made identical to that commit. Any in-place edits to tracked files on the droplet are discarded,
+   and any local commits the server had that aren't on origin/main are dropped.
+
+  Why a deploy uses it instead of git pull
+
+  git pull does a merge/fast-forward, which can fail or conflict if the server's files diverged from the remote. reset --hard sidesteps that — it guarantees the server matches
+  GitHub byte-for-byte, every time, no conflict prompts. The principle: GitHub is the single source of truth; the server is disposable.
+
+  What's safe (this is the important part)
+
+  reset --hard only touches tracked files. It does not delete untracked or git-ignored files, so these survive untouched:
+  - backend/.env — your DATABASE_URL, JWT secret, etc. ✅ (it's gitignored)
+  - node_modules/, dist/, backend/public/ build output ✅
+  - Any uploaded files / local data ✅
+
+  The one risk
+
+  If someone had hand-edited a tracked file directly on the server (a hotfix typed into the box, not committed), reset --hard wipes it. That's intentional for deploys — but
+  it's the reason you should never edit code directly on the droplet; change it in git and redeploy.
+
+  So in the deploy flow it just means: "throw away whatever code is on the server and lay down exactly what's on main" — then the script applies migrations, builds, and
+  restarts on top of that clean code.
