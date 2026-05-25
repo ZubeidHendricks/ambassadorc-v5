@@ -203,6 +203,7 @@ model Ambassador {
   tier         String?         @db.VarChar(50)
   uniqueCode   String?         @unique @db.VarChar(50)
   assignedCampaignId Int?
+  dailyLeadQuota     Int        @default(10) // call-centre leads/day allocation (5/10/15/20)
 
   // Existing relations
   referralBatches      ReferralBatch[]
