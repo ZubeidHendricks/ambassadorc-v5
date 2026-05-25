@@ -29,6 +29,10 @@ import {
   X,
   Terminal,
   ArrowLeftRight,
+  Flame,
+  ClipboardCheck,
+  Upload,
+  ListChecks,
 } from 'lucide-react'
 
 interface NavItem {
@@ -72,6 +76,16 @@ const sections: NavSection[] = [
       { to: '/admin/qa', label: 'Quality Assurance', icon: CheckSquare },
       { to: '/admin/policies', label: 'Policies', icon: Shield },
       { to: '/admin/documents', label: 'Documents', icon: FileText },
+    ],
+  },
+  {
+    title: 'FoxPro CRM',
+    roles: ['QA_OFFICER', 'ADMIN'],
+    items: [
+      { to: '/admin/foxpro', label: 'CRM Modules', icon: Flame },
+      { to: '/admin/foxpro/qa-bay', label: 'QA Bay', icon: ClipboardCheck },
+      { to: '/admin/foxpro/exports', label: 'Export & Status', icon: Upload },
+      { to: '/admin/foxpro/statuses', label: 'Status Codes', icon: ListChecks },
     ],
   },
   {

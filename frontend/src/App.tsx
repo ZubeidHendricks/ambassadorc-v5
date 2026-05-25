@@ -33,6 +33,12 @@ import Integrations from '@/pages/admin/Integrations'
 import SqlQuery from '@/pages/admin/SqlQuery'
 import SyncDashboard from '@/pages/admin/SyncDashboard'
 
+// FoxPro CRM compatibility layer
+import FoxProHome from '@/pages/admin/foxpro/FoxProHome'
+import FoxQaBay from '@/pages/admin/foxpro/FoxQaBay'
+import FoxExports from '@/pages/admin/foxpro/FoxExports'
+import FoxStatusReference from '@/pages/admin/foxpro/FoxStatusReference'
+
 export default function App() {
   return (
     <Layout>
@@ -140,6 +146,40 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['QA_OFFICER', 'ADMIN']}>
               <QualityAssurance />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* FoxPro CRM routes (QA_OFFICER + ADMIN) */}
+        <Route
+          path="/admin/foxpro"
+          element={
+            <ProtectedRoute allowedRoles={['QA_OFFICER', 'ADMIN']}>
+              <FoxProHome />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/foxpro/qa-bay"
+          element={
+            <ProtectedRoute allowedRoles={['QA_OFFICER', 'ADMIN']}>
+              <FoxQaBay />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/foxpro/exports"
+          element={
+            <ProtectedRoute allowedRoles={['QA_OFFICER', 'ADMIN']}>
+              <FoxExports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/foxpro/statuses"
+          element={
+            <ProtectedRoute allowedRoles={['QA_OFFICER', 'ADMIN']}>
+              <FoxStatusReference />
             </ProtectedRoute>
           }
         />

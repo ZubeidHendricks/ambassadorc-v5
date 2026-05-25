@@ -1411,3 +1411,88 @@ export async function getFileExports() {
   const res = await request<FileExport[]>('/integrations/files')
   return res.data!
 }
+
+// ─── FoxPro CRM compatibility layer ────────────────────────────────
+
+export interface FoxStatusDef {
+  code: string
+  label: string
+  description: string
+  stage: string
+  mapsTo: string
+  color: string
+}
+export interface FoxDisposition { code: string; label: string; outcome: string }
+export interface QLinkCode { code: string; label: string; effect: string }
+export interface ExportReturnReason { code: string; label: string; action: string }
+
+export interface FoxStatusReference {
+  pipeline: FoxStatusDef[]
+  leadDispositions: FoxDisposition[]
+  qlinkCodes: QLinkCode[]
+  exportReturnReasons: ExportReturnReason[]
+  stages: { key: string; label: string }[]
+}
+
+export interface FoxQaItem {
+  id: string
+  idNumber: string
+  clientName: string
+  productName: string
+  agentName: string
+  rawStatus: string
+  syncedAt: string
+  fox: { code: string; label: string; stage: string; color: string; mapsTo: string }
+}
+
+export interface FoxQaBay {
+  newApplications: FoxQaItem[]
+  inProcessApplications: FoxQaItem[]
+  items: FoxQaItem[]
+  pagination: PaginationInfo
+}
+
+export interface FoxExportProduct {
+  productName: string
+  exported: number
+  awaitingOutcome: number
+  active: number
+  cancelled: number
+}
+
+export async function getFoxStatuses(): Promise<FoxStatusReference> {
+  const res = await request<FoxStatusReference>('/foxpro/statuses')
+  return res.data!
+}
+
+export async function getFoxQaBay(search?: string, page = 1, limit = 50): Promise<FoxQaBay> {
+  const params = new URLSearchParams()
+  if (search) params.set('search', search)
+  params.set('page', String(page))
+  params.set('limit', String(limit))
+  const res = await request<FoxQaBay>(`/foxpro/qa-bay?${params.toString()}`)
+  return res.data!
+}
+
+export async function getFoxQaStats(): Promise<{ total: number; byStage: Record<string, number>; byRawStatus: { rawStatus: string; n: number }[] }> {
+  const res = await request<any>('/foxpro/qa-bay/stats')
+  return res.data!
+}
+
+export async function foxQaAction(saleId: string, action: 'submit' | 'repair' | 'cancel', notes?: string) {
+  const res = await request<{ saleId: string; action: string; resultCode: string; message: string }>(
+    `/foxpro/qa-bay/${encodeURIComponent(saleId)}/action`,
+    { method: 'POST', body: JSON.stringify({ action, notes }) }
+  )
+  return res.data!
+}
+
+export async function getFoxExportStatus(): Promise<{ products: FoxExportProduct[]; returnReasons: ExportReturnReason[] }> {
+  const res = await request<any>('/foxpro/export-status')
+  return res.data!
+}
+
+export async function getFoxExportBatches(): Promise<{ qlink: any[]; sagepay: any[] }> {
+  const res = await request<any>('/foxpro/export-batches')
+  return res.data!
+}
