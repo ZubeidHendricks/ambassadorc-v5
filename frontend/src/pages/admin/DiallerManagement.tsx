@@ -5,9 +5,11 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  getAdminLeads, getDialAgents, assignLead, bulkAssignLeads,
+  getAdminLeads, getDialAgents, assignLead, bulkAssignLeads, setAgentQuota,
   type AdminLead, type DialAgent, type CallOutcome
 } from '@/lib/api'
+
+const QUOTA_OPTIONS = [5, 10, 15, 20]
 
 const OUTCOME_META: Record<CallOutcome, { label: string; color: string }> = {
   SALE_MADE:           { label: 'Sale Made',        color: 'text-emerald-600 bg-emerald-50' },
@@ -102,6 +104,16 @@ export default function DiallerManagement() {
     }
   }
 
+  async function handleQuotaChange(agentId: number, quota: number) {
+    // optimistic
+    setAgents(prev => prev.map(a => a.id === agentId ? { ...a, dailyLeadQuota: quota, remainingToday: Math.max(0, quota - a.assignedToday) } : a))
+    try {
+      await setAgentQuota(agentId, quota)
+    } catch {
+      await load()
+    }
+  }
+
   const salesCount = leads.filter(l => l.callOutcome === 'SALE_MADE').length
   const noAnswerCount = leads.filter(l => l.callOutcome === 'COULD_NOT_REACH').length
   const pendingCount = leads.filter(l => tab === 'assigned' && !l.callOutcome).length
@@ -138,6 +150,44 @@ export default function DiallerManagement() {
             <p className="text-xs text-gray-500">{stat.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Daily lead quotas (5/10/15/20 per agent) */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <UserCheck className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold text-gray-900">Daily Lead Quotas</h2>
+          <span className="text-xs text-gray-400">Leads/day each agent may dial · resets at midnight (SAST)</span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {agents.length === 0 && <p className="text-sm text-gray-400">No active agents.</p>}
+          {agents.map(a => {
+            const pct = a.dailyLeadQuota > 0 ? Math.min(100, Math.round((a.assignedToday / a.dailyLeadQuota) * 100)) : 0
+            return (
+              <div key={a.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-gray-900">{a.name}</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
+                      <div className={cn('h-full rounded-full', pct >= 100 ? 'bg-red-500' : 'bg-primary')} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="shrink-0 text-[11px] text-gray-500">{a.assignedToday}/{a.dailyLeadQuota} today</span>
+                  </div>
+                </div>
+                <select
+                  value={a.dailyLeadQuota}
+                  onChange={e => handleQuotaChange(a.id, Number(e.target.value))}
+                  className="h-8 shrink-0 rounded-lg border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 focus:border-primary focus:outline-none"
+                  title="Leads per day"
+                >
+                  {[...new Set([...QUOTA_OPTIONS, a.dailyLeadQuota])].sort((x, y) => x - y).map(q => (
+                    <option key={q} value={q}>{q}/day</option>
+                  ))}
+                </select>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* Tabs */}
@@ -204,7 +254,11 @@ export default function DiallerManagement() {
               className="h-8 rounded-lg border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:border-primary focus:outline-none"
             >
               <option value="">— assign to agent —</option>
-              {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+              {agents.map(a => (
+                <option key={a.id} value={a.id} disabled={a.remainingToday === 0}>
+                  {a.name} ({a.assignedToday}/{a.dailyLeadQuota}){a.remainingToday === 0 ? ' — full' : ''}
+                </option>
+              ))}
             </select>
             <button
               onClick={handleBulkAssign}
@@ -353,7 +407,9 @@ function AgentDropdown({ agents, loading, onAssign }: {
       >
         <option value="" disabled>— select agent —</option>
         {agents.map(a => (
-          <option key={a.id} value={a.id}>{a.name} ({a.assignedCount})</option>
+          <option key={a.id} value={a.id} disabled={a.remainingToday === 0}>
+            {a.name} ({a.assignedToday}/{a.dailyLeadQuota}){a.remainingToday === 0 ? ' — full' : ''}
+          </option>
         ))}
       </select>
       {loading && <RefreshCw className="h-3.5 w-3.5 animate-spin text-gray-400" />}

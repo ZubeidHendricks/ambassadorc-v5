@@ -1892,6 +1892,9 @@ export interface DialAgent {
   id: number
   name: string
   assignedCount: number
+  dailyLeadQuota: number
+  assignedToday: number
+  remainingToday: number
 }
 
 export async function getAdminLeads(params: {
@@ -1957,5 +1960,30 @@ export async function getAgentDialList(outcome?: 'pending' | 'completed') {
     leads: AgentDialLead[]
     summary: { total: number; pending: number; completed: number; sales: number }
   }>(`/leads/agent/diallist${q}`)
+  return res.data!
+}
+
+// Daily lead quota
+export interface PullLeadsResult {
+  assigned: number
+  quota: number
+  assignedToday: number
+  remainingToday: number
+  message: string
+}
+
+export async function pullLeads(opts: { count?: number; type?: string } = {}): Promise<PullLeadsResult> {
+  const res = await request<PullLeadsResult>('/leads/agent/get-leads', {
+    method: 'POST',
+    body: JSON.stringify(opts),
+  })
+  return res.data!
+}
+
+export async function setAgentQuota(agentId: number, quota: number) {
+  const res = await request<{ id: number; name: string; dailyLeadQuota: number }>(
+    `/leads/admin/agents/${agentId}/quota`,
+    { method: 'PUT', body: JSON.stringify({ quota }) }
+  )
   return res.data!
 }

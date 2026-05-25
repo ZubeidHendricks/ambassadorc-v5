@@ -8,6 +8,23 @@ const router = Router();
 
 router.use(authenticate);
 
+// ─── Daily lead quota helpers ───────────────────────────────────────────────
+// "Leads/day" allocation (5/10/15/20). The day boundary is South African time
+// (SAST = UTC+2) so the quota resets at local midnight.
+const SAST_OFFSET_MS = 2 * 60 * 60 * 1000;
+
+function startOfTodaySAST(): Date {
+  const sastNow = new Date(Date.now() + SAST_OFFSET_MS);
+  sastNow.setUTCHours(0, 0, 0, 0);
+  return new Date(sastNow.getTime() - SAST_OFFSET_MS);
+}
+
+async function assignedTodayCount(agentId: number): Promise<number> {
+  return prisma.lead.count({
+    where: { assignedAgentId: agentId, assignedAt: { gte: startOfTodaySAST() } },
+  });
+}
+
 // ─── Helper: require ADMIN or AGENT role ────────────────────────────────────
 
 async function requireAdminRole(req: AuthRequest, res: Response): Promise<boolean> {
@@ -211,22 +228,65 @@ router.get("/admin/agents", async (req: AuthRequest, res: Response) => {
     const agents = await prisma.ambassador.findMany({
       where: { role: { in: ["AGENT", "ADMIN"] }, isActive: true },
       select: {
-        id: true, firstName: true, lastName: true,
+        id: true, firstName: true, lastName: true, dailyLeadQuota: true,
         _count: { select: { assignedLeads: true } },
       },
       orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     });
 
+    // Count today's assignments per agent (SAST day) in one query.
+    const since = startOfTodaySAST();
+    const todayGroups = await prisma.lead.groupBy({
+      by: ["assignedAgentId"],
+      where: { assignedAt: { gte: since }, assignedAgentId: { not: null } },
+      _count: { _all: true },
+    });
+    const todayMap = new Map<number, number>();
+    for (const g of todayGroups) if (g.assignedAgentId != null) todayMap.set(g.assignedAgentId, g._count._all);
+
     res.json({
       success: true,
-      data: agents.map((a) => ({
-        id: a.id,
-        name: `${a.firstName} ${a.lastName}`,
-        assignedCount: a._count.assignedLeads,
-      })),
+      data: agents.map((a) => {
+        const assignedToday = todayMap.get(a.id) ?? 0;
+        return {
+          id: a.id,
+          name: `${a.firstName} ${a.lastName}`,
+          assignedCount: a._count.assignedLeads,
+          dailyLeadQuota: a.dailyLeadQuota,
+          assignedToday,
+          remainingToday: Math.max(0, a.dailyLeadQuota - assignedToday),
+        };
+      }),
     });
   } catch (error) {
     console.error("List agents error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
+  }
+});
+
+// ─── PUT /api/leads/admin/agents/:id/quota — set an agent's leads/day ─────────
+
+router.put("/admin/agents/:id/quota", async (req: AuthRequest, res: Response) => {
+  try {
+    const isAdmin = await requireAdminRole(req, res);
+    if (!isAdmin) return;
+
+    const agentId = parseInt(String(req.params.id));
+    const quota = parseInt(String((req.body || {}).quota));
+    if (isNaN(agentId) || isNaN(quota) || quota < 0 || quota > 200) {
+      res.status(400).json({ success: false, error: "Quota must be an integer between 0 and 200." });
+      return;
+    }
+
+    const agent = await prisma.ambassador.update({
+      where: { id: agentId },
+      data: { dailyLeadQuota: quota },
+      select: { id: true, firstName: true, lastName: true, dailyLeadQuota: true },
+    });
+
+    res.json({ success: true, data: { id: agent.id, name: `${agent.firstName} ${agent.lastName}`, dailyLeadQuota: agent.dailyLeadQuota } });
+  } catch (error) {
+    console.error("Set quota error:", error);
     res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
@@ -244,6 +304,19 @@ router.put("/admin/:id/assign", async (req: AuthRequest, res: Response) => {
     if (isNaN(leadId)) {
       res.status(400).json({ success: false, error: "Invalid lead ID." });
       return;
+    }
+
+    // Enforce the agent's daily quota when assigning (not when unassigning).
+    if (agentId) {
+      const agent = await prisma.ambassador.findUnique({ where: { id: agentId }, select: { dailyLeadQuota: true } });
+      const used = await assignedTodayCount(agentId);
+      if (agent && used >= agent.dailyLeadQuota) {
+        res.status(409).json({
+          success: false,
+          error: `Daily quota reached: this agent already has ${used}/${agent.dailyLeadQuota} leads assigned today.`,
+        });
+        return;
+      }
     }
 
     const lead = await prisma.lead.update({
@@ -280,8 +353,25 @@ router.put("/admin/bulk-assign", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Cap the assignment to the agent's remaining daily quota.
+    const agent = await prisma.ambassador.findUnique({ where: { id: agentId }, select: { dailyLeadQuota: true } });
+    if (!agent) {
+      res.status(404).json({ success: false, error: "Agent not found." });
+      return;
+    }
+    const used = await assignedTodayCount(agentId);
+    const remaining = Math.max(0, agent.dailyLeadQuota - used);
+    if (remaining === 0) {
+      res.status(409).json({
+        success: false,
+        error: `Daily quota reached: this agent already has ${used}/${agent.dailyLeadQuota} leads assigned today.`,
+      });
+      return;
+    }
+
+    const idsToAssign = leadIds.slice(0, remaining);
     await prisma.lead.updateMany({
-      where: { id: { in: leadIds } },
+      where: { id: { in: idsToAssign } },
       data: {
         assignedAgentId: agentId,
         assignedAt: new Date(),
@@ -289,7 +379,17 @@ router.put("/admin/bulk-assign", async (req: AuthRequest, res: Response) => {
       },
     });
 
-    res.json({ success: true, data: { assigned: leadIds.length, agentId } });
+    res.json({
+      success: true,
+      data: {
+        assigned: idsToAssign.length,
+        requested: leadIds.length,
+        capped: leadIds.length - idsToAssign.length,
+        quota: agent.dailyLeadQuota,
+        remainingToday: remaining - idsToAssign.length,
+        agentId,
+      },
+    });
   } catch (error) {
     console.error("Bulk assign error:", error);
     res.status(500).json({ success: false, error: "An unexpected error occurred." });
@@ -390,6 +490,72 @@ router.put("/:id/outcome", async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: updated });
   } catch (error) {
     console.error("Record outcome error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
+  }
+});
+
+// ─── POST /api/leads/agent/get-leads — Agent self-pull up to daily quota ─────
+// Mirrors the FoxPro "Get Leads" button: assigns the agent the next batch of
+// unassigned leads, capped by their remaining daily quota (5/10/15/20).
+
+router.post("/agent/get-leads", async (req: AuthRequest, res: Response) => {
+  try {
+    const agentId = req.ambassador!.id;
+    const body = (req.body || {}) as { count?: number; type?: string };
+
+    const agent = await prisma.ambassador.findUnique({
+      where: { id: agentId },
+      select: { dailyLeadQuota: true },
+    });
+    const quota = agent?.dailyLeadQuota ?? 10;
+    const used = await assignedTodayCount(agentId);
+    const remaining = Math.max(0, quota - used);
+
+    if (remaining === 0) {
+      res.json({
+        success: true,
+        data: { assigned: 0, quota, assignedToday: used, remainingToday: 0, message: `Daily quota reached (${used}/${quota}). Come back tomorrow.` },
+      });
+      return;
+    }
+
+    const requested = Number.isFinite(body.count) && body.count! > 0 ? Math.min(body.count!, remaining) : remaining;
+
+    const typeFilter = body.type && ["REFERRAL_LEAD", "MEMBER_SIGNUP"].includes(body.type) ? body.type : undefined;
+
+    // Pick the next unassigned leads, then assign only those still unassigned
+    // (guards against two agents pulling the same lead concurrently).
+    const candidates = await prisma.lead.findMany({
+      where: { assignedAgentId: null, status: "NEW", ...(typeFilter ? { type: typeFilter as any } : {}) },
+      orderBy: { createdAt: "asc" },
+      take: requested,
+      select: { id: true },
+    });
+
+    let assigned = 0;
+    if (candidates.length > 0) {
+      const result = await prisma.lead.updateMany({
+        where: { id: { in: candidates.map((c) => c.id) }, assignedAgentId: null },
+        data: { assignedAgentId: agentId, assignedAt: new Date(), status: "CONTACTED" },
+      });
+      assigned = result.count;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        assigned,
+        quota,
+        assignedToday: used + assigned,
+        remainingToday: Math.max(0, remaining - assigned),
+        message:
+          assigned > 0
+            ? `Pulled ${assigned} lead${assigned === 1 ? "" : "s"}. You have ${Math.max(0, remaining - assigned)} of ${quota} left today.`
+            : "No unassigned leads are available right now.",
+      },
+    });
+  } catch (error) {
+    console.error("Get leads error:", error);
     res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
