@@ -1496,3 +1496,73 @@ export async function getFoxExportBatches(): Promise<{ qlink: any[]; sagepay: an
   const res = await request<any>('/foxpro/export-batches')
   return res.data!
 }
+
+// FoxPro Product Capture
+export interface FoxProductVariant { tierName: string; premium: number }
+export interface FoxProduct {
+  code: string
+  name: string
+  type: string
+  methods: ('DEBIT_ORDER' | 'PERSAL')[]
+  variants: FoxProductVariant[]
+}
+export interface SaIdInfo {
+  valid: boolean
+  reason?: string
+  dateOfBirth?: string
+  age?: number
+  gender?: 'Male' | 'Female'
+  citizenship?: string
+}
+export interface FoxDependant { name: string; relationship?: string; dateOfBirth?: string }
+export interface FoxCapturePayload {
+  productCode: string
+  tierName: string
+  collectionMethod: 'DEBIT_ORDER' | 'PERSAL'
+  source?: string
+  title?: string
+  firstName: string
+  lastName: string
+  idNumber: string
+  cellphone: string
+  email?: string
+  address1?: string
+  addressCode?: string
+  province?: string
+  firstDebitDate?: string
+  department?: string
+  persalNumber?: string
+  bankName?: string
+  accountNumber?: string
+  branchCode?: string
+  accountType?: string
+  dependants?: FoxDependant[]
+}
+
+export async function getFoxCaptureProducts(): Promise<FoxProduct[]> {
+  const res = await request<{ products: FoxProduct[] }>('/foxpro/capture/products')
+  return res.data!.products
+}
+
+export async function validateFoxId(idNumber: string): Promise<SaIdInfo> {
+  const res = await request<SaIdInfo>('/foxpro/validate-id', {
+    method: 'POST',
+    body: JSON.stringify({ idNumber }),
+  })
+  return res.data!
+}
+
+export async function foxCapture(payload: FoxCapturePayload) {
+  const res = await request<{
+    saleId: number
+    clientId: number
+    product: string
+    tier: string
+    premium: number
+    collectionMethod: string
+    idInfo: SaIdInfo
+    status: string
+    message: string
+  }>('/foxpro/capture', { method: 'POST', body: JSON.stringify(payload) })
+  return res.data!
+}

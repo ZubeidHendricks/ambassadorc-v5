@@ -233,6 +233,60 @@ export const updateSaleStatusSchema = z.object({
   ]),
 });
 
+// ─── FoxPro Product Capture ─────────────────────────────────────────────────
+
+const dependantSchema = z.object({
+  name: z.string().min(1).max(200),
+  relationship: z.string().max(50).optional().nullable(),
+  dateOfBirth: z.string().max(20).optional().nullable(),
+});
+
+export const foxCaptureSchema = z
+  .object({
+    productCode: z.string().min(1, "Product is required").max(50),
+    tierName: z.string().min(1, "Plan / tier is required").max(100),
+    collectionMethod: z.enum(["DEBIT_ORDER", "PERSAL"]),
+    source: z.string().max(100).optional().nullable(),
+
+    // Client
+    title: z.string().max(10).optional().nullable(),
+    firstName: z.string().min(1, "First name is required").max(100),
+    lastName: z.string().min(1, "Surname is required").max(100),
+    idNumber: z.string().regex(/^\d{13}$/, "ID number must be 13 digits"),
+    cellphone: southAfricanMobile,
+    email: z.string().email("Invalid email address").max(255).optional().nullable(),
+    address1: z.string().max(255).optional().nullable(),
+    addressCode: z.string().max(10).optional().nullable(),
+    province: provinceEnum.optional().nullable(),
+
+    firstDebitDate: isoDateString.optional().nullable(),
+
+    // Persal (Q-Link) details
+    department: z.string().max(120).optional().nullable(),
+    persalNumber: z.string().max(40).optional().nullable(),
+
+    // Debit order (Netcash / SagePay) details
+    bankName: z.string().max(100).optional().nullable(),
+    accountNumber: z.string().max(50).optional().nullable(),
+    branchCode: z.string().max(20).optional().nullable(),
+    accountType: z.string().max(30).optional().nullable(),
+
+    dependants: z.array(dependantSchema).max(20).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.collectionMethod === "PERSAL") {
+      if (!data.department)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["department"], message: "Department is required for Persal" });
+      if (!data.persalNumber)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["persalNumber"], message: "Persal / employee number is required" });
+    } else {
+      if (!data.bankName)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["bankName"], message: "Bank is required for debit order" });
+      if (!data.accountNumber)
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["accountNumber"], message: "Account number is required" });
+    }
+  });
+
 // ─── Campaign Schemas ───────────────────────────────────────────────────────
 
 export const createCampaignSchema = z.object({

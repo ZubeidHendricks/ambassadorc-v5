@@ -19,6 +19,9 @@ import {
   QLINK_PERSAL_CODES,
   FOX_LEAD_DISPOSITIONS,
 } from "../lib/foxpro-status";
+import { FOX_PRODUCTS, getFoxProduct, getVariantPremium } from "../lib/fox-products";
+import { validateSaId } from "../lib/sa-id";
+import { foxCaptureSchema } from "../lib/validators";
 
 const router = Router();
 router.use(authenticate);
@@ -240,6 +243,154 @@ router.get("/persal-book", async (_req: AuthRequest, res: Response) => {
 // ─── GET /api/foxpro/lead-dispositions ───────────────────────────────────────
 router.get("/lead-dispositions", async (_req: AuthRequest, res: Response) => {
   res.json({ success: true, data: { dispositions: FOX_LEAD_DISPOSITIONS } });
+});
+
+// ─── GET /api/foxpro/capture/products ────────────────────────────────────────
+// The per-product capture catalog (products, plans/tiers, collection methods).
+router.get("/capture/products", (_req: AuthRequest, res: Response) => {
+  res.json({ success: true, data: { products: FOX_PRODUCTS } });
+});
+
+// ─── POST /api/foxpro/validate-id ────────────────────────────────────────────
+// Standalone SA ID validation (Luhn + DOB/gender extraction) for live form feedback.
+router.post("/validate-id", (req: AuthRequest, res: Response) => {
+  res.json({ success: true, data: validateSaId((req.body || {}).idNumber) });
+});
+
+// ─── POST /api/foxpro/capture ────────────────────────────────────────────────
+// FoxPro-style Product Capture. Validates ID + mobile, upserts the client and
+// product, creates the Sale (lands in the QA Bay) and a PENDING QualityCheck.
+// FoxPro-specific extras (Persal / banking / dependants) are preserved on the
+// audit log — no schema migration required.
+router.post("/capture", async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = foxCaptureSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    const d = parsed.data;
+
+    // 1. Validate SA ID (Luhn + DOB)
+    const idInfo = validateSaId(d.idNumber);
+    if (!idInfo.valid) {
+      res.status(400).json({ success: false, error: idInfo.reason || "Invalid ID number." });
+      return;
+    }
+
+    // 2. Resolve product + premium from the catalog
+    const product = getFoxProduct(d.productCode);
+    if (!product) {
+      res.status(400).json({ success: false, error: "Unknown product code." });
+      return;
+    }
+    const premium = getVariantPremium(d.productCode, d.tierName);
+    if (premium == null) {
+      res.status(400).json({ success: false, error: "Unknown plan / tier for this product." });
+      return;
+    }
+    if (!product.methods.includes(d.collectionMethod)) {
+      res.status(400).json({ success: false, error: `${product.name} cannot be captured as ${d.collectionMethod}.` });
+      return;
+    }
+
+    // 3. Upsert the product row (so Sale.productId FK resolves)
+    const productRow = await prisma.product.upsert({
+      where: { code: d.productCode },
+      update: {},
+      create: {
+        name: product.name,
+        code: d.productCode,
+        type: product.type as any,
+        premiumAmount: premium,
+        isActive: true,
+      },
+    });
+
+    // 4. Upsert the client by ID number
+    const clientRow = await prisma.client.upsert({
+      where: { idNumber: d.idNumber },
+      update: {
+        title: d.title ?? undefined,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        cellphone: d.cellphone,
+        email: d.email ?? undefined,
+        address1: d.address1 ?? undefined,
+        addressCode: d.addressCode ?? undefined,
+        province: (d.province ?? undefined) as any,
+      },
+      create: {
+        title: d.title ?? null,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        idNumber: d.idNumber,
+        cellphone: d.cellphone,
+        email: d.email ?? null,
+        address1: d.address1 ?? null,
+        addressCode: d.addressCode ?? null,
+        province: (d.province ?? null) as any,
+      },
+    });
+
+    // 5. Create the Sale — lands in the QA Bay (QA_PENDING)
+    const sale = await prisma.sale.create({
+      data: {
+        clientId: clientRow.id,
+        productId: productRow.id,
+        agentId: req.ambassador!.id,
+        status: "QA_PENDING",
+        source: d.source ?? `${d.collectionMethod}:${d.tierName}`,
+        capturedBy: req.ambassador!.mobileNo,
+      },
+    });
+
+    // 6. Open a PENDING QA check for the QA Bay
+    await prisma.qualityCheck.create({ data: { saleId: sale.id, checkerId: req.ambassador!.id } }).catch(() => {});
+
+    // 7. Preserve FoxPro-specific capture extras on the audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: String(req.ambassador!.id),
+        action: "FOXPRO_CAPTURE",
+        entity: "Sale",
+        entityId: String(sale.id),
+        details: {
+          productCode: d.productCode,
+          tierName: d.tierName,
+          premium,
+          collectionMethod: d.collectionMethod,
+          firstDebitDate: d.firstDebitDate ?? null,
+          persal: d.collectionMethod === "PERSAL" ? { department: d.department, persalNumber: d.persalNumber } : null,
+          banking:
+            d.collectionMethod === "DEBIT_ORDER"
+              ? { bankName: d.bankName, accountNumber: d.accountNumber, branchCode: d.branchCode, accountType: d.accountType }
+              : null,
+          dependants: d.dependants ?? [],
+          idInfo,
+        },
+        ipAddress: req.ip ?? null,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        saleId: sale.id,
+        clientId: clientRow.id,
+        product: product.name,
+        tier: d.tierName,
+        premium,
+        collectionMethod: d.collectionMethod,
+        idInfo,
+        status: "T",
+        message: `Sale captured for ${d.firstName} ${d.lastName} — status T, now in the QA Bay for the second check.`,
+      },
+    });
+  } catch (error) {
+    console.error("FoxPro capture error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred while capturing the sale." });
+  }
 });
 
 export default router;

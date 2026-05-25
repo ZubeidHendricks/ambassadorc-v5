@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import {
   ClipboardCheck, Upload, ListChecks, Users, ShoppingCart, PhoneCall,
-  BarChart3, DollarSign, Package, ArrowLeftRight, UserCheck, FileText,
+  BarChart3, DollarSign, Package, ArrowLeftRight, UserCheck, FileText, FilePlus,
 } from 'lucide-react'
 import { FoxHeader } from './FoxHeader'
 
@@ -23,7 +23,8 @@ const groups: Group[] = [
   {
     title: 'Business Sector — Sales',
     mods: [
-      { to: '/admin/sales', label: 'Product Capture / Sales', desc: 'Captured sales pipeline (LifeSaver 24, Legal, LegalNet)', icon: ShoppingCart },
+      { to: '/admin/foxpro/capture', label: 'Product Capture', desc: 'Capture a new sale (LifeSaver 24, Legal, LegalNet, 5-in-1)', icon: FilePlus },
+      { to: '/admin/sales', label: 'Sales Pipeline', desc: 'Captured sales across all products', icon: ShoppingCart },
       { to: '/admin/clients', label: 'Client Detail', desc: 'Search & manage 85k+ clients', icon: Users },
       { to: '/admin/products', label: 'Products', desc: 'Product & premium tier definitions', icon: Package },
       { to: '/admin/premium-changes', label: 'Premium Increase', desc: 'Manage product premium increases', icon: DollarSign },

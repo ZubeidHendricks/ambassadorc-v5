@@ -33,6 +33,7 @@ import {
   ClipboardCheck,
   Upload,
   ListChecks,
+  FilePlus,
 } from 'lucide-react'
 
 interface NavItem {
@@ -63,6 +64,7 @@ const sections: NavSection[] = [
     title: 'Sales & CRM',
     roles: ['AGENT', 'QA_OFFICER', 'ADMIN'],
     items: [
+      { to: '/admin/foxpro/capture', label: 'Product Capture', icon: FilePlus },
       { to: '/admin/clients', label: 'Clients', icon: Users },
       { to: '/admin/sales', label: 'Sales', icon: ShoppingCart },
       { to: '/admin/commissions', label: 'Commissions', icon: Coins },

@@ -25,9 +25,23 @@ list, the live `foxpro.co.za` UI (see `foxpro-screenshots/`), and the FoxPro arc
 - `GET /api/foxpro/export-batches` — recent Q-Link & SagePay batches
 - `GET /api/foxpro/persal-book` — Q-Link/Persal code reference
 - `GET /api/foxpro/lead-dispositions` — FoxPro Leads disposition list
+- `GET /api/foxpro/capture/products` — per-product capture catalog (products, plans, methods)
+- `POST /api/foxpro/validate-id` — SA ID validation (Luhn + DOB/gender) for live form feedback
+- `POST /api/foxpro/capture` — **Product Capture**: validates ID + mobile, upserts client + product, creates the Sale (lands in QA Bay, status T → QA_PENDING) + a PENDING QualityCheck; Persal/banking/dependants preserved on the audit log
 
 Every query is wrapped defensively — if a `sync_*` table is missing it returns empty data
 instead of erroring.
+
+### Product Capture (per-product)
+- `lib/fox-products.ts` — capture catalog: Life Saver 24 (Basic R259 / Plus R349), Life Saver
+  Legal (Basic R179 / Plus R299), LegalNet (R99–R179), Five-In-One (R199); each supports
+  Debit Order (Netcash) and Persal (Q-Link).
+- `lib/sa-id.ts` — South African ID validation (Luhn checksum + DOB / gender / citizenship).
+- `validators.ts` → `foxCaptureSchema` — validates the capture payload, requiring Persal
+  (department + employee no) **or** banking (bank + account) per collection method.
+- Frontend `pages/admin/foxpro/ProductCapture.tsx` + `lib/saId.ts` (instant client check) —
+  one data-driven form covering product/plan/method, client details with live ID validation,
+  collection details, and dependants. Route `/admin/foxpro/capture` (AGENT + QA_OFFICER + ADMIN).
 
 ### Frontend (`frontend/src/`)
 | File | Route | Mirrors |

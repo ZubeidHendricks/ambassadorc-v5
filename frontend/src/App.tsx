@@ -38,6 +38,7 @@ import FoxProHome from '@/pages/admin/foxpro/FoxProHome'
 import FoxQaBay from '@/pages/admin/foxpro/FoxQaBay'
 import FoxExports from '@/pages/admin/foxpro/FoxExports'
 import FoxStatusReference from '@/pages/admin/foxpro/FoxStatusReference'
+import ProductCapture from '@/pages/admin/foxpro/ProductCapture'
 
 export default function App() {
   return (
@@ -156,6 +157,14 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['QA_OFFICER', 'ADMIN']}>
               <FoxProHome />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/foxpro/capture"
+          element={
+            <ProtectedRoute allowedRoles={['AGENT', 'QA_OFFICER', 'ADMIN']}>
+              <ProductCapture />
             </ProtectedRoute>
           }
         />
