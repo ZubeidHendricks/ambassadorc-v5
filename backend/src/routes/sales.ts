@@ -9,6 +9,7 @@ import {
 } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { validateSaId } from "../lib/sa-id";
+import { buildMidnightExport } from "../exports/engine";
 import { hasSyncTables } from "../lib/syncCheck";
 import {
   FOXPRO_STATUS_CASE_SQL,
@@ -427,6 +428,61 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       success: false,
       error: "An unexpected error occurred.",
     });
+  }
+});
+
+// ─── POST /api/sales/export/run — build the midnight export batches now ──────
+// Batches QA-passed sales → Q-Link (Persal) / Netcash (debit order). Normally
+// runs automatically at midnight (SAST); this lets operations trigger it on demand.
+router.post("/export/run", async (req: AuthRequest, res: Response) => {
+  if (!(await canViewOperations(req.ambassador!.id))) {
+    res.status(403).json({ success: false, error: "Only operations users can run exports." });
+    return;
+  }
+  try {
+    const result = await buildMidnightExport();
+    await prisma.auditLog.create({
+      data: {
+        userId: String(req.ambassador!.id),
+        action: "EXPORT_RUN",
+        entity: "Sale",
+        entityId: "batch",
+        details: { totalExported: result.totalExported, groups: result.groups.map((g) => ({ channel: g.channel, count: g.count, fileExportId: g.fileExportId })) } as any,
+        ipAddress: req.ip ?? null,
+      },
+    });
+    // CSV content is large; return metadata only.
+    res.json({
+      success: true,
+      data: {
+        ranAt: result.ranAt,
+        totalExported: result.totalExported,
+        message: result.message,
+        groups: result.groups.map((g) => ({ channel: g.channel, collectionMethod: g.collectionMethod, count: g.count, fileName: g.fileName, fileExportId: g.fileExportId, qlinkBatchId: g.qlinkBatchId })),
+      },
+    });
+  } catch (error) {
+    console.error("Run export error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred while running the export." });
+  }
+});
+
+// ─── GET /api/sales/export/files — recent outbound export files ──────────────
+router.get("/export/files", async (req: AuthRequest, res: Response) => {
+  if (!(await canViewOperations(req.ambassador!.id))) {
+    res.status(403).json({ success: false, error: "Only operations users can view export files." });
+    return;
+  }
+  try {
+    const files = await prisma.fileExport.findMany({
+      where: { direction: "OUTBOUND" },
+      orderBy: { createdAt: "desc" },
+      take: 25,
+    });
+    res.json({ success: true, data: { files } });
+  } catch (error) {
+    console.error("List export files error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred." });
   }
 });
 
