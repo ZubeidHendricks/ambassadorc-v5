@@ -4,3 +4,8 @@ dist/
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# Playwright
+playwright-report/
+test-results/
+playwright/.auth/
