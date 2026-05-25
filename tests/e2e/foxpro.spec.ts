@@ -80,8 +80,9 @@ test.describe('FoxPro · Product Capture', () => {
     await expect(submitValidation).toBeEnabled({ timeout: 10_000 })
     await submitValidation.click()
 
-    // Backend POST /api/sales/capture → success message mentions the QA Bay / T status.
-    await expect(page.getByText(/QA Bay|status T|captured/i)).toBeVisible({ timeout: 15_000 })
+    // Backend POST /api/sales/capture → unique success message ("Sale captured for <name> …").
+    // (The page also has static "QA Bay" / "T status" labels, so match the dynamic text only.)
+    await expect(page.getByText(/Sale captured for/i)).toBeVisible({ timeout: 15_000 })
   })
 })
 
