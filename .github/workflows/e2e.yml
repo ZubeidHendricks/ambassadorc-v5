@@ -62,7 +62,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests
-        run: npx playwright test
+        # Scope to the FoxPro lifecycle spec. The smoke.spec.ts tests assert
+        # against production data (specific agents/amounts) and are run against
+        # the live environment, not this ephemeral seeded DB.
+        run: npx playwright test tests/e2e/foxpro.spec.ts
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}

@@ -42,8 +42,9 @@ test.describe('FoxPro · Product Capture', () => {
   test('capture page renders the agent capture form + controls', async ({ page }) => {
     await gotoAdmin(page, '/admin/sales')
     await expect(page.getByText('Sales Agent Capture & Validation')).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByText('Product', { exact: true })).toBeVisible()
+    // "Product" also appears as a dashboard table header — assert the capture label specifically.
     await expect(page.getByText('Collection Method')).toBeVisible()
+    await expect(page.getByText('Product', { exact: true }).first()).toBeVisible()
     await expect(page.getByRole('button', { name: 'Submit Sale' })).toBeVisible()
     // The three FoxPro capture validations are surfaced
     await expect(page.getByText('Validate ID')).toBeVisible()
@@ -86,7 +87,8 @@ test.describe('FoxPro · Product Capture', () => {
 test.describe('FoxPro · QA Validation', () => {
   test('QA page renders and exposes Submit / Repair / Cancel controls', async ({ page }) => {
     await gotoAdmin(page, '/admin/qa')
-    await expect(page.getByRole('heading', { name: 'Quality Assurance' })).toBeVisible({ timeout: 20_000 })
+    // Header banner + page both render an h1 "Quality Assurance" — take the page heading.
+    await expect(page.getByRole('heading', { name: 'Quality Assurance' }).last()).toBeVisible({ timeout: 20_000 })
     // Status filter chips are present
     await expect(page.getByText(/pending|passed|failed/i).first()).toBeVisible({ timeout: 15_000 })
   })
@@ -98,7 +100,8 @@ test.describe('FoxPro · Export & Q-Link', () => {
   test('export status page renders with the Run Midnight Export button', async ({ page }) => {
     await gotoAdmin(page, '/admin/export-status')
     await expect(page.getByRole('button', { name: /Run Midnight Export/i })).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByText(/Export Return Status/i)).toBeVisible({ timeout: 15_000 })
+    // "Export Return Status" appears as both a heading and a table column header.
+    await expect(page.getByText(/Export Return Status/i).first()).toBeVisible({ timeout: 15_000 })
   })
 
   test('clicking Run Midnight Export produces a result banner', async ({ page }) => {
