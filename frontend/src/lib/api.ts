@@ -1066,6 +1066,34 @@ export async function getExportStatuses(group?: string, page = 1, limit = 20): P
   }
 }
 
+export interface MidnightExportResult {
+  ranAt: string
+  totalExported: number
+  message: string
+  groups: { channel: string; collectionMethod: string; count: number; fileName: string; fileExportId?: number; qlinkBatchId?: string }[]
+}
+
+export async function runMidnightExport(): Promise<MidnightExportResult> {
+  const res = await request<MidnightExportResult>('/sales/export/run', { method: 'POST' })
+  return res.data!
+}
+
+export interface ExportFile {
+  id: number
+  fileName: string
+  direction: string
+  entryCount: number
+  importType: string | null
+  description: string | null
+  status: string
+  createdAt: string
+}
+
+export async function getExportFiles(): Promise<ExportFile[]> {
+  const res = await request<{ files: ExportFile[] }>('/sales/export/files')
+  return res.data!.files
+}
+
 // ─── Quality Assurance ─────────────────────────────────────────────
 
 export async function getQAItems(status?: string, page = 1, limit = 20): Promise<PaginatedResult<QAItem>> {

@@ -46,6 +46,7 @@ import ambassadorPaymentRoutes from "./routes/ambassador-payments";
 import webhookRoutes from "./routes/webhooks";
 import { seedIntegrationConfigs } from "./integrations/index";
 import { scheduleDailySync } from "./sync/engine";
+import { scheduleMidnightExport } from "./exports/engine";
 import { runLeadScorer } from "./agents/lead-scorer";
 import { runQaAutoChecker } from "./agents/qa-auto-checker";
 import { runSmsDispatcher } from "./agents/sms-dispatcher";
@@ -249,6 +250,15 @@ app.listen(PORT, async () => {
     console.log("FoxPro daily sync scheduler started (runs at 02:00 UTC)");
   } catch (err) {
     console.error("Failed to start daily sync scheduler:", err);
+  }
+
+  // Schedule the midnight export (00:00 SAST = 22:00 UTC) — batches QA-passed
+  // sales to Q-Link (Persal) / Netcash (debit order).
+  try {
+    scheduleMidnightExport(22);
+    console.log("Midnight export scheduler started (runs at 22:00 UTC / 00:00 SAST)");
+  } catch (err) {
+    console.error("Failed to start midnight export scheduler:", err);
   }
 });
 

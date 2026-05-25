@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { FileDown, RefreshCw } from 'lucide-react'
+import { FileDown, RefreshCw, Send, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   getExportStatuses,
   downloadOperationsReport,
+  runMidnightExport,
   type ExportStatusProductRow,
   type ExportStatusReturnRow,
 } from '@/lib/api'
@@ -50,6 +51,8 @@ export default function ExportStatus() {
   const [loading, setLoading] = useState(true)
   const [downloadingReport, setDownloadingReport] = useState(false)
   const [downloadError, setDownloadError] = useState('')
+  const [runningExport, setRunningExport] = useState(false)
+  const [exportMsg, setExportMsg] = useState<{ text: string; ok: boolean } | null>(null)
   const [reportYear, setReportYear] = useState(new Date().getFullYear())
   const [reportMonth, setReportMonth] = useState(0)
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({
@@ -74,6 +77,20 @@ export default function ExportStatus() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  async function handleRunExport() {
+    setRunningExport(true)
+    setExportMsg(null)
+    try {
+      const r = await runMidnightExport()
+      setExportMsg({ text: r.message, ok: r.totalExported > 0 })
+      await loadData()
+    } catch (e: any) {
+      setExportMsg({ text: e?.message || 'Export run failed.', ok: false })
+    } finally {
+      setRunningExport(false)
+    }
+  }
 
   async function handleDownloadReport() {
     setDownloadingReport(true)
@@ -137,12 +154,23 @@ export default function ExportStatus() {
             <FileDown className="h-4 w-4" />
             {downloadingReport ? 'Generating...' : 'Export Status Excel'}
           </Button>
+          <Button onClick={handleRunExport} disabled={runningExport}>
+            <Send className="h-4 w-4" />
+            {runningExport ? 'Running…' : 'Run Midnight Export'}
+          </Button>
           <Button variant="outline" onClick={loadData} disabled={loading}>
             <RefreshCw className="h-4 w-4" />
             Refresh
           </Button>
         </div>
       </div>
+
+      {exportMsg && (
+        <div className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium ${exportMsg.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+          {exportMsg.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          {exportMsg.text}
+        </div>
+      )}
 
       {downloadError && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
