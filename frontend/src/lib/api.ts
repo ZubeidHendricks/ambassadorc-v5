@@ -998,6 +998,48 @@ export async function updateSaleStatus(id: number, status: string) {
   return res.data!
 }
 
+// FoxPro Product Capture — persists the sales-agent capture into the modern flow
+export interface CaptureDependant { name: string; relationship?: string; dateOfBirth?: string }
+export interface CaptureSalePayload {
+  productId: number
+  tierName?: string
+  premiumAmount?: number
+  collectionMethod: 'DEBIT_ORDER' | 'PERSAL'
+  source?: string
+  title?: string
+  firstName: string
+  lastName: string
+  idNumber: string
+  cellphone: string
+  email?: string
+  address1?: string
+  addressCode?: string
+  province?: string
+  firstDebitDate?: string
+  department?: string
+  persalNumber?: string
+  validationAgent?: string
+  dependants?: CaptureDependant[]
+}
+
+export interface CaptureSaleResult {
+  saleId: number
+  clientId: number
+  product: string
+  premium: number
+  foxStatus: string
+  idInfo: { valid: boolean; reason?: string; dateOfBirth?: string; age?: number; gender?: string; citizenship?: string }
+  message: string
+}
+
+export async function captureSale(payload: CaptureSalePayload): Promise<CaptureSaleResult> {
+  const res = await request<CaptureSaleResult>('/sales/capture', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return res.data!
+}
+
 export async function getFoxProStatusDictionary(): Promise<FoxProStatusDefinition[]> {
   const res = await request<{ statuses: FoxProStatusDefinition[] }>('/sales/status-dictionary')
   return res.data!.statuses

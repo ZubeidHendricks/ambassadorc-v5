@@ -2,11 +2,13 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import {
   createSaleSchema,
+  captureSaleSchema,
   updateSaleStatusSchema,
   createCampaignSchema,
   updateCampaignSchema,
 } from "../lib/validators";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { validateSaId } from "../lib/sa-id";
 import { hasSyncTables } from "../lib/syncCheck";
 import {
   FOXPRO_STATUS_CASE_SQL,
@@ -139,6 +141,135 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       success: false,
       error: "An unexpected error occurred.",
     });
+  }
+});
+
+// ─── POST /api/sales/capture ─────────────────────────────────────────────────
+// FoxPro Sales-Agent capture → QA Bay. Persists the captured sale to the modern
+// flow: validates SA ID + mobile, upserts the client, creates the Sale with
+// foxStatus "T" (status QA_PENDING), records dependants, and opens a PENDING
+// QualityCheck so it appears in the QA mailbox.
+
+router.post("/capture", async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = captureSaleSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+    const d = parsed.data;
+
+    // 1. SA ID validation (Luhn + DOB)
+    const idInfo = validateSaId(d.idNumber);
+    if (!idInfo.valid) {
+      res.status(400).json({ success: false, error: idInfo.reason || "Invalid ID number." });
+      return;
+    }
+
+    // 2. Resolve product + premium
+    const product = await prisma.product.findUnique({ where: { id: d.productId } });
+    if (!product) {
+      res.status(404).json({ success: false, error: "Product not found." });
+      return;
+    }
+    const premium = d.premiumAmount ?? Number(product.premiumAmount ?? 0);
+
+    // 3. Upsert client by ID number
+    const client = await prisma.client.upsert({
+      where: { idNumber: d.idNumber },
+      update: {
+        title: d.title ?? undefined,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        cellphone: d.cellphone,
+        email: d.email ?? undefined,
+        address1: d.address1 ?? undefined,
+        addressCode: d.addressCode ?? undefined,
+        province: (d.province ?? undefined) as any,
+      },
+      create: {
+        title: d.title ?? null,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        idNumber: d.idNumber,
+        cellphone: d.cellphone,
+        email: d.email ?? null,
+        address1: d.address1 ?? null,
+        addressCode: d.addressCode ?? null,
+        province: (d.province ?? null) as any,
+      },
+    });
+
+    // 4. Create the Sale — foxStatus "T", lands in the QA Bay (QA_PENDING)
+    const sale = await prisma.sale.create({
+      data: {
+        clientId: client.id,
+        productId: product.id,
+        agentId: req.ambassador!.id,
+        status: "QA_PENDING",
+        foxStatus: "T",
+        tierName: d.tierName ?? null,
+        premiumAmount: premium,
+        collectionMethod: d.collectionMethod,
+        firstDebitDate: d.firstDebitDate ? new Date(d.firstDebitDate) : null,
+        persalNumber: d.collectionMethod === "PERSAL" ? d.persalNumber ?? null : null,
+        department: d.collectionMethod === "PERSAL" ? d.department ?? null : null,
+        validationAgent: d.validationAgent ?? null,
+        source: d.source ?? `${d.collectionMethod}`,
+        capturedBy: req.ambassador!.mobileNo,
+        dependants: d.dependants && d.dependants.length
+          ? {
+              create: d.dependants
+                .filter((x) => x.name?.trim())
+                .map((x) => ({ name: x.name, relationship: x.relationship ?? null, dateOfBirth: x.dateOfBirth ?? null })),
+            }
+          : undefined,
+      },
+      include: {
+        client: { select: { id: true, firstName: true, lastName: true } },
+        product: { select: { id: true, name: true } },
+        dependants: true,
+      },
+    });
+
+    // 5. Open a PENDING QA check for the QA mailbox
+    await prisma.qualityCheck.create({ data: { saleId: sale.id, checkerId: req.ambassador!.id } }).catch(() => {});
+
+    // 6. Audit
+    await prisma.auditLog.create({
+      data: {
+        userId: String(req.ambassador!.id),
+        action: "FOXPRO_CAPTURE",
+        entity: "Sale",
+        entityId: String(sale.id),
+        details: {
+          clientId: client.id,
+          productId: product.id,
+          collectionMethod: d.collectionMethod,
+          tierName: d.tierName ?? null,
+          premium,
+          idInfo: { ...idInfo },
+          dependants: sale.dependants.length,
+        } as any,
+        ipAddress: req.ip ?? null,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        saleId: sale.id,
+        clientId: client.id,
+        product: product.name,
+        premium,
+        foxStatus: "T",
+        idInfo,
+        message: `Sale captured for ${d.firstName} ${d.lastName} — status T, now in the QA Bay for the second check.`,
+      },
+    });
+  } catch (error) {
+    console.error("FoxPro capture error:", error);
+    res.status(500).json({ success: false, error: "An unexpected error occurred while capturing the sale." });
   }
 });
 
