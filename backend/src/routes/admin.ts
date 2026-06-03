@@ -74,13 +74,22 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
       activeAgents = Number(agentsResult[0].n);
       totalAmbassadors = Number(ambassadorsResult[0].n);
     } else {
-      const [clientsResult, policiesResult, qaResult, revenueResult, agentsResult, ambassadorsResult] = await Promise.all([
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const [clientsResult, policiesResult, qaResult, revenueResult, agentsResult, ambassadorsResult, commissionsResult] = await Promise.all([
         prisma.client.count(),
         prisma.policy.count({ where: { status: { not: "CANCELLED" } } }),
         prisma.qualityCheck.count({ where: { status: "PENDING" } }),
-        prisma.payment.aggregate({ _sum: { amount: true } }),
+        // Monthly revenue = successfully collected payments in the current calendar month.
+        prisma.payment.aggregate({
+          _sum: { amount: true },
+          where: { status: "SUCCESSFUL", paymentDate: { gte: startOfMonth, lt: startOfNextMonth } },
+        }),
         prisma.ambassador.count({ where: { isActive: true } }),
         prisma.ambassador.count(),
+        // Commissions actually paid out.
+        prisma.commission.aggregate({ _sum: { amount: true }, where: { status: "PAID" } }),
       ]);
       totalClients = clientsResult;
       activePolicies = policiesResult;
@@ -88,6 +97,7 @@ router.get("/stats", async (req: AuthRequest, res: Response) => {
       totalRevenue = Number(revenueResult._sum.amount ?? 0);
       activeAgents = agentsResult;
       totalAmbassadors = ambassadorsResult;
+      totalCommissions = Number(commissionsResult._sum.amount ?? 0);
     }
 
     res.json({

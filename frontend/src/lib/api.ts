@@ -711,7 +711,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     totalClients: d.clients?.total ?? 0,
     activePolicies: d.policies?.active ?? 0,
     monthlyRevenue: d.revenue?.total ?? 0,
-    pendingQA: d.commissions?.pending ?? 0,
+    pendingQA: d.sales?.active ?? 0,
     activeAgents: d.ambassadors?.active ?? 0,
     commissionsPaid: d.commissions?.total ?? 0,
   }
