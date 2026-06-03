@@ -174,3 +174,9 @@ id = "YLXVjEHk7n4K6dMLY4zmC"
 uri = "file://user-manual/screenshots/25-leads.png"
 type = "image"
 title = "25 — Leads"
+
+[[outputs]]
+id = "D7QHAzzJx6O5iAWNpX-ho"
+uri = "file://user-manual/USER-MANUAL.md"
+type = "text"
+title = "AmbassadorC v5 — User Manual (How the system works)"
