@@ -203,6 +203,7 @@ model Ambassador {
   tier         String?         @db.VarChar(50)
   uniqueCode   String?         @unique @db.VarChar(50)
   assignedCampaignId Int?
+  dailyLeadQuota     Int        @default(10) // call-centre leads/day allocation (5/10/15/20)
 
   // Existing relations
   referralBatches      ReferralBatch[]
@@ -444,6 +445,17 @@ model Sale {
   status     SaleStatus @default(NEW)
   source     String?    @db.VarChar(100)
   capturedBy String?    @db.VarChar(200)
+
+  // ── FoxPro Product Capture fields ────────────────────────────────
+  foxStatus        String?   @db.VarChar(10) // legacy code, e.g. "T" (in QA Bay)
+  tierName         String?   @db.VarChar(100) // plan, e.g. Basic / Plus
+  premiumAmount    Decimal?  @db.Decimal(10, 2) // captured premium
+  collectionMethod String?   @db.VarChar(20) // DEBIT_ORDER | PERSAL
+  firstDebitDate   DateTime?
+  persalNumber     String?   @db.VarChar(40)
+  department       String?   @db.VarChar(120)
+  validationAgent  String?   @db.VarChar(200)
+
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
@@ -453,6 +465,7 @@ model Sale {
 
   qualityChecks QualityCheck[]
   commissions   Commission[]
+  dependants    Dependant[]
 
   @@index([clientId])
   @@index([productId])
@@ -460,6 +473,20 @@ model Sale {
   @@index([status])
   @@index([createdAt])
   @@map("sales")
+}
+
+model Dependant {
+  id           Int      @id @default(autoincrement())
+  saleId       Int
+  name         String   @db.VarChar(200)
+  relationship String?  @db.VarChar(50)
+  dateOfBirth  String?  @db.VarChar(20)
+  createdAt    DateTime @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@map("dependants")
 }
 
 model SalesCampaign {

@@ -998,6 +998,48 @@ export async function updateSaleStatus(id: number, status: string) {
   return res.data!
 }
 
+// FoxPro Product Capture — persists the sales-agent capture into the modern flow
+export interface CaptureDependant { name: string; relationship?: string; dateOfBirth?: string }
+export interface CaptureSalePayload {
+  productId: number
+  tierName?: string
+  premiumAmount?: number
+  collectionMethod: 'DEBIT_ORDER' | 'PERSAL'
+  source?: string
+  title?: string
+  firstName: string
+  lastName: string
+  idNumber: string
+  cellphone: string
+  email?: string
+  address1?: string
+  addressCode?: string
+  province?: string
+  firstDebitDate?: string
+  department?: string
+  persalNumber?: string
+  validationAgent?: string
+  dependants?: CaptureDependant[]
+}
+
+export interface CaptureSaleResult {
+  saleId: number
+  clientId: number
+  product: string
+  premium: number
+  foxStatus: string
+  idInfo: { valid: boolean; reason?: string; dateOfBirth?: string; age?: number; gender?: string; citizenship?: string }
+  message: string
+}
+
+export async function captureSale(payload: CaptureSalePayload): Promise<CaptureSaleResult> {
+  const res = await request<CaptureSaleResult>('/sales/capture', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return res.data!
+}
+
 export async function getFoxProStatusDictionary(): Promise<FoxProStatusDefinition[]> {
   const res = await request<{ statuses: FoxProStatusDefinition[] }>('/sales/status-dictionary')
   return res.data!.statuses
@@ -1022,6 +1064,34 @@ export async function getExportStatuses(group?: string, page = 1, limit = 20): P
     statuses: res.data!.statuses ?? [],
     pagination: res.data!.pagination ?? { page, limit, total: 0, totalPages: 1 },
   }
+}
+
+export interface MidnightExportResult {
+  ranAt: string
+  totalExported: number
+  message: string
+  groups: { channel: string; collectionMethod: string; count: number; fileName: string; fileExportId?: number; qlinkBatchId?: string }[]
+}
+
+export async function runMidnightExport(): Promise<MidnightExportResult> {
+  const res = await request<MidnightExportResult>('/sales/export/run', { method: 'POST' })
+  return res.data!
+}
+
+export interface ExportFile {
+  id: number
+  fileName: string
+  direction: string
+  entryCount: number
+  importType: string | null
+  description: string | null
+  status: string
+  createdAt: string
+}
+
+export async function getExportFiles(): Promise<ExportFile[]> {
+  const res = await request<{ files: ExportFile[] }>('/sales/export/files')
+  return res.data!.files
 }
 
 // ─── Quality Assurance ─────────────────────────────────────────────
@@ -1850,6 +1920,9 @@ export interface DialAgent {
   id: number
   name: string
   assignedCount: number
+  dailyLeadQuota: number
+  assignedToday: number
+  remainingToday: number
 }
 
 export async function getAdminLeads(params: {
@@ -1915,5 +1988,30 @@ export async function getAgentDialList(outcome?: 'pending' | 'completed') {
     leads: AgentDialLead[]
     summary: { total: number; pending: number; completed: number; sales: number }
   }>(`/leads/agent/diallist${q}`)
+  return res.data!
+}
+
+// Daily lead quota
+export interface PullLeadsResult {
+  assigned: number
+  quota: number
+  assignedToday: number
+  remainingToday: number
+  message: string
+}
+
+export async function pullLeads(opts: { count?: number; type?: string } = {}): Promise<PullLeadsResult> {
+  const res = await request<PullLeadsResult>('/leads/agent/get-leads', {
+    method: 'POST',
+    body: JSON.stringify(opts),
+  })
+  return res.data!
+}
+
+export async function setAgentQuota(agentId: number, quota: number) {
+  const res = await request<{ id: number; name: string; dailyLeadQuota: number }>(
+    `/leads/admin/agents/${agentId}/quota`,
+    { method: 'PUT', body: JSON.stringify({ quota }) }
+  )
   return res.data!
 }

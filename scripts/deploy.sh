@@ -22,7 +22,9 @@ ssh_run() {
 # ── Local git check ───────────────────────────────────────────────────────────
 echo ""
 echo "▶  Checking local git status..."
-UNCOMMITTED=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+# Ignore untracked files (e.g. local screenshots/credentials) — only tracked,
+# uncommitted edits should block a deploy, since the remote pulls origin/main.
+UNCOMMITTED=$(git status --porcelain --untracked-files=no 2>/dev/null | wc -l | tr -d ' ')
 if [ "$UNCOMMITTED" != "0" ]; then
   echo "   ⚠  You have uncommitted local changes. Push them to GitHub first."
   echo "      Run: git add -A && git commit -m 'your message' && git push origin $BRANCH"
@@ -47,6 +49,10 @@ git reset --hard origin/$BRANCH
 echo "   Remote HEAD : \$(git rev-parse HEAD)"
 
 echo ""
+echo "▶  Applying schema migrations (idempotent SQL — never db push)..."
+bash scripts/apply-migrations.sh
+
+echo ""
 echo "▶  Installing frontend dependencies..."
 cd $APP_DIR/frontend
 npm install --legacy-peer-deps --silent
@@ -60,6 +66,10 @@ echo ""
 echo "▶  Installing backend dependencies..."
 cd $APP_DIR/backend
 npm install --silent
+
+echo ""
+echo "▶  Regenerating Prisma client (picks up new schema fields)..."
+npx prisma generate
 
 echo ""
 echo "▶  Restarting backend service ($SERVICE)..."

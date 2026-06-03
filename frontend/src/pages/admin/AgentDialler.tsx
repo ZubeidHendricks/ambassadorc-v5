@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import {
   Phone, CheckCircle2, XCircle, Clock, AlertCircle,
-  ChevronDown, ChevronUp, RefreshCw, TrendingUp, Target
+  ChevronDown, ChevronUp, RefreshCw, TrendingUp, Target, Download
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  getAgentDialList, recordCallOutcome,
+  getAgentDialList, recordCallOutcome, pullLeads,
   type AgentDialLead, type CallOutcome
 } from '@/lib/api'
 
@@ -31,6 +31,8 @@ export default function AgentDialler() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [saving, setSaving] = useState<number | null>(null)
   const [notes, setNotes] = useState<Record<number, string>>({})
+  const [pulling, setPulling] = useState(false)
+  const [pullMsg, setPullMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -46,6 +48,20 @@ export default function AgentDialler() {
   }, [filter])
 
   useEffect(() => { load() }, [load])
+
+  async function handleGetLeads() {
+    setPulling(true)
+    setPullMsg(null)
+    try {
+      const r = await pullLeads()
+      setPullMsg({ text: r.message, ok: r.assigned > 0 })
+      if (r.assigned > 0) await load()
+    } catch (e: any) {
+      setPullMsg({ text: e?.message || 'Could not get leads.', ok: false })
+    } finally {
+      setPulling(false)
+    }
+  }
 
   async function handleOutcome(leadId: number, outcome: CallOutcome) {
     setSaving(leadId)
@@ -76,10 +92,30 @@ export default function AgentDialler() {
             Call each lead and record the outcome. Leads assigned to you by your manager.
           </p>
         </div>
-        <button onClick={load} className="ml-auto rounded-lg border border-gray-200 p-2 hover:bg-gray-50">
-          <RefreshCw className="h-4 w-4 text-gray-500" />
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={handleGetLeads}
+            disabled={pulling}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 disabled:opacity-50"
+          >
+            {pulling ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Get Leads
+          </button>
+          <button onClick={load} className="rounded-lg border border-gray-200 p-2 hover:bg-gray-50">
+            <RefreshCw className="h-4 w-4 text-gray-500" />
+          </button>
+        </div>
       </div>
+
+      {pullMsg && (
+        <div className={cn(
+          'flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium',
+          pullMsg.ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+        )}>
+          {pullMsg.ok ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          {pullMsg.text}
+        </div>
+      )}
 
       {/* Progress + stats */}
       <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
