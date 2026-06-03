@@ -1,2 +1,2 @@
-- [Production deploy](production-deploy.md) — droplet at /opt/ambassadorc-v5, tsx not dist, DO_SSH_PRIVATE_KEY needs PEM reconstruction, deploy.sh path bug
-- [E2E test data coupling](e2e-test-data-coupling.md) — dev server hits live DB; smoke tests must assert structure/fixtures, not volatile prod data or old UI shapes
+- [Database wiring, schema drift & publish flow](db-schema-and-publish.md) — app uses Replit-managed helium(dev)/neon(prod) not DigitalOcean; never `prisma db push` (drops sync_* tables); prod schema via Publish.
+- [Playwright smoke tests vs live DB](e2e-test-data-coupling.md) — anchor smoke assertions on stable structure/fixtures, not volatile prod data or old UI.
