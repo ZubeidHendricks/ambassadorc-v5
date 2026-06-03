@@ -3,7 +3,7 @@ set -e
 
 # ── Config ────────────────────────────────────────────────────────────────────
 REMOTE_HOST="root@142.93.44.48"
-APP_DIR="/var/www/ambassadorc-v5"
+APP_DIR="/opt/ambassadorc-v5"
 SERVICE="ambassadorc-backend"
 BRANCH="main"
 

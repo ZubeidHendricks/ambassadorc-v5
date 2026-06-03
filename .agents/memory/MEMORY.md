@@ -1,0 +1,1 @@
+- [Production deploy](production-deploy.md) — droplet at /opt/ambassadorc-v5, tsx not dist, DO_SSH_PRIVATE_KEY needs PEM reconstruction, deploy.sh path bug
