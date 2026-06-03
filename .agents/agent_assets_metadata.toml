@@ -24,3 +24,153 @@ id = "miqz8IWZy7W4vVfGe5SZI"
 uri = "file://AmbassadorC_v5_Illustrated_Manual.docx"
 type = "word_document"
 title = "AmbassadorC v5 — Illustrated User Manual (with Screenshots)"
+
+[[outputs]]
+id = "x_XODxp3JvUaSBtGyYrWH"
+uri = "file://user-manual/screenshots/01-login.png"
+type = "image"
+title = "01 — Login"
+
+[[outputs]]
+id = "KExnHfToGKRIip3CLTmtU"
+uri = "file://user-manual/screenshots/02-admin-dashboard.png"
+type = "image"
+title = "02 — Admin Dashboard (Operations Center)"
+
+[[outputs]]
+id = "b5cIShQd15JZW1L-gkfV_"
+uri = "file://user-manual/screenshots/03-clients.png"
+type = "image"
+title = "03 — Clients"
+
+[[outputs]]
+id = "qG9t5H7MemmDyzXMpjRoa"
+uri = "file://user-manual/screenshots/04-sales-pipeline.png"
+type = "image"
+title = "04 — Sales Pipeline"
+
+[[outputs]]
+id = "HxB8xjGpiKAMUcZQYcWCJ"
+uri = "file://user-manual/screenshots/05-qa-mailbox.png"
+type = "image"
+title = "05 — QA Mailbox"
+
+[[outputs]]
+id = "ESnNPgafgertiMa33yFnm"
+uri = "file://user-manual/screenshots/06-commissions.png"
+type = "image"
+title = "06 — Commissions"
+
+[[outputs]]
+id = "LZxOeyApISB7kLk6Qj5rY"
+uri = "file://user-manual/screenshots/07-policies.png"
+type = "image"
+title = "07 — Policies"
+
+[[outputs]]
+id = "YouwDTU8PQgew0TALls7L"
+uri = "file://user-manual/screenshots/08-agents.png"
+type = "image"
+title = "08 — Agents"
+
+[[outputs]]
+id = "fGnAIqmzmlWYOywIxMyP6"
+uri = "file://user-manual/screenshots/09-premium-changes.png"
+type = "image"
+title = "09 — Premium Changes"
+
+[[outputs]]
+id = "pUFXDae-RtbPdMYSdzfSI"
+uri = "file://user-manual/screenshots/10-export-status.png"
+type = "image"
+title = "10 — Export / Q-Link Status"
+
+[[outputs]]
+id = "DHds54NYPdpF90UfaFzXh"
+uri = "file://user-manual/screenshots/11-reports.png"
+type = "image"
+title = "11 — Reports"
+
+[[outputs]]
+id = "9P6XFnEj89dGa8jDPHnFC"
+uri = "file://user-manual/screenshots/12-ambassador-backend.png"
+type = "image"
+title = "12 — Ambassador Backend"
+
+[[outputs]]
+id = "rpelcbGrcn3d5OKL25wx4"
+uri = "file://user-manual/screenshots/13-documents.png"
+type = "image"
+title = "13 — Documents"
+
+[[outputs]]
+id = "EtWrKfywxA_LZ6vMLR8Yj"
+uri = "file://user-manual/screenshots/14-sms.png"
+type = "image"
+title = "14 — SMS"
+
+[[outputs]]
+id = "2FASXA0s8ZbjZ77cgJ9vn"
+uri = "file://user-manual/screenshots/15-products.png"
+type = "image"
+title = "15 — Products"
+
+[[outputs]]
+id = "RUnJ7UEy62dF7CUoovh9k"
+uri = "file://user-manual/screenshots/16-integrations.png"
+type = "image"
+title = "16 — Integrations"
+
+[[outputs]]
+id = "RSeCXAW5cYg7fFS4U_Egi"
+uri = "file://user-manual/screenshots/17-sync-dashboard.png"
+type = "image"
+title = "17 — Sync Dashboard"
+
+[[outputs]]
+id = "AnwKTTyFR8xYg0WdooKGk"
+uri = "file://user-manual/screenshots/18-ai-agents.png"
+type = "image"
+title = "18 — AI Agents"
+
+[[outputs]]
+id = "jglheLiqvzBoyRrETmuD7"
+uri = "file://user-manual/screenshots/19-workflows.png"
+type = "image"
+title = "19 — Workflows"
+
+[[outputs]]
+id = "ajJdrNTg2brytVypj0_3O"
+uri = "file://user-manual/screenshots/20-lead-pipeline.png"
+type = "image"
+title = "20 — Lead Pipeline"
+
+[[outputs]]
+id = "HRhN3pSLwH06ZDTwoKHVf"
+uri = "file://user-manual/screenshots/21-dialler.png"
+type = "image"
+title = "21 — Dialler"
+
+[[outputs]]
+id = "87gzw6KmBFK93hfbj9pG1"
+uri = "file://user-manual/screenshots/22-leaderboard.png"
+type = "image"
+title = "22 — Leaderboard"
+
+[[outputs]]
+id = "_-KlZKn2PXyexPqZ3cKBU"
+uri = "file://user-manual/screenshots/23-ambassador-dashboard.png"
+type = "image"
+title = "23 — Ambassador Dashboard"
+
+[[outputs]]
+id = "lYGZurPek8QuMnjYjG4wV"
+uri = "file://user-manual/screenshots/24-referrals.png"
+type = "image"
+title = "24 — Referrals"
+
+[[outputs]]
+id = "YLXVjEHk7n4K6dMLY4zmC"
+uri = "file://user-manual/screenshots/25-leads.png"
+type = "image"
+title = "25 — Leads"
