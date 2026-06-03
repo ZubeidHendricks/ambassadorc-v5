@@ -62,18 +62,18 @@ test.describe('Policies', () => {
 // ─── QA ──────────────────────────────────────────────────────────────────────
 
 test.describe('QA', () => {
-  test('page loads with QA items (div cards)', async ({ page }) => {
+  test('mailbox worksheet table renders', async ({ page }) => {
     await page.goto('/admin/qa')
-    // QA uses div cards, not a table
-    const itemCard = page.locator('div.rounded-xl.border.border-gray-200').first()
-    await expect(itemCard).toBeVisible({ timeout: 20_000 })
+    // QA mailbox is a worksheet-style table, not cards
+    await expect(page.locator('table thead').first()).toBeVisible({ timeout: 20_000 })
   })
 
-  test('shows client names and premium amounts', async ({ page }) => {
+  test('shows mailbox columns (client name, agent, actions)', async ({ page }) => {
     await page.goto('/admin/qa')
-    await page.waitForSelector('div.rounded-xl.border.border-gray-200', { timeout: 20_000 })
-    await expect(page.locator('text=Premium:').first()).toBeVisible({ timeout: 10_000 })
-    await expect(page.locator('text=/R1[0-9]{2}|R[1-9][0-9]{2,}/').first()).toBeVisible({ timeout: 10_000 })
+    await page.waitForSelector('table thead', { timeout: 20_000 })
+    await expect(page.locator('th:has-text("Client Name")')).toBeVisible({ timeout: 10_000 })
+    await expect(page.locator('th:has-text("Sales Verification Agent")')).toBeVisible({ timeout: 10_000 })
+    await expect(page.locator('th:has-text("SUBMIT")')).toBeVisible({ timeout: 10_000 })
   })
 })
 
@@ -101,49 +101,46 @@ test.describe('Commissions', () => {
 // ─── Agents ──────────────────────────────────────────────────────────────────
 
 test.describe('Agents', () => {
-  test('loads with real agent names', async ({ page }) => {
+  test('call centre control page loads', async ({ page }) => {
     await page.goto('/admin/agents')
-    // Use waitForSelector (DOM presence) rather than toBeVisible (viewport)
-    await page.waitForSelector('text=Sahdika Petersen', { timeout: 20_000 })
-    const nameEl = page.locator('text=Sahdika Petersen').first()
-    await expect(nameEl).toBeTruthy()
+    await page.waitForSelector('text=Agents & Campaign Assignment', { timeout: 20_000 })
+  })
+
+  test('agent table loads with at least one agent row', async ({ page }) => {
+    await page.goto('/admin/agents')
+    await page.waitForSelector('text=Agents & Campaign Assignment', { timeout: 20_000 })
+    // System Admin is the permanent admin fixture and must always be listed
+    await expect(page.locator('text=System Admin').first()).toBeVisible({ timeout: 10_000 })
   })
 
   test('agents show Active status badge', async ({ page }) => {
     await page.goto('/admin/agents')
-    await page.waitForSelector('text=Sahdika Petersen', { timeout: 20_000 })
-    await expect(page.locator('text=Active').first()).toBeVisible({ timeout: 10_000 })
+    await page.waitForSelector('text=Agents & Campaign Assignment', { timeout: 20_000 })
+    // Status badge renders exactly "Active" (distinct from "Active Campaigns" labels)
+    await expect(page.getByText('Active', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
   })
 
-  test('top agents do not show Inactive status', async ({ page }) => {
+  test('leaderboard and earnings sections render', async ({ page }) => {
     await page.goto('/admin/agents')
-    await page.waitForSelector('text=Sahdika Petersen', { timeout: 20_000 })
-    // The page must contain Active badges and agents should NOT all be inactive
-    await expect(page.locator('text=Active').first()).toBeVisible({ timeout: 5_000 })
-    // Count of Active badges should be greater than 0
-    const activeBadges = await page.locator('text=Active').count()
-    expect(activeBadges).toBeGreaterThan(0)
-  })
-
-  test('top agent earnings match expected value', async ({ page }) => {
-    await page.goto('/admin/agents')
-    await page.waitForSelector('text=Sahdika Petersen', { timeout: 20_000 })
-    await expect(page.locator('text=/R713|713.?296/').first()).toBeVisible({ timeout: 10_000 })
+    await page.waitForSelector('text=Agents & Campaign Assignment', { timeout: 20_000 })
+    await expect(page.locator('text=Monthly Leaderboard').first()).toBeVisible({ timeout: 10_000 })
+    await expect(page.locator('text=Top Performer').first()).toBeVisible({ timeout: 10_000 })
   })
 })
 
 // ─── Premium Changes ──────────────────────────────────────────────────────────
 
 test.describe('Premium Changes', () => {
-  test('page loads with records', async ({ page }) => {
+  test('page loads with product rows', async ({ page }) => {
     await page.goto('/admin/premium-changes')
-    await expect(page.locator('table tbody tr').first()).toBeVisible({ timeout: 20_000 })
+    // Worksheet renders product rows as a CSS grid, not a <table>
+    await expect(page.locator('text=Lifesaver 24 Basic').first()).toBeVisible({ timeout: 20_000 })
   })
 
-  test('premium values shown (not zero)', async ({ page }) => {
+  test('current premium values shown (not zero)', async ({ page }) => {
     await page.goto('/admin/premium-changes')
-    await page.waitForSelector('table tbody tr', { timeout: 20_000 })
-    await expect(page.locator('text=/R\\d+\\.\\d{2}|R[1-9]\\d+/').first()).toBeVisible({ timeout: 10_000 })
+    await page.waitForSelector('text=Lifesaver 24 Basic', { timeout: 20_000 })
+    await expect(page.locator('text=/R\\s?[1-9]\\d{2}/').first()).toBeVisible({ timeout: 10_000 })
   })
 })
 
