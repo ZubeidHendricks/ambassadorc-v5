@@ -9,3 +9,7 @@ dist/
 playwright-report/
 test-results/
 playwright/.auth/
+
+# Local database backups (never commit)
+.local/backups/
+*.dump
